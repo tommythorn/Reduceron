@@ -1,0 +1,171 @@
+================================
+REDUCERON MEMO 9
+F-lite: a core subset of Haskell
+Matthew N, 26 November 2008
+================================
+
+F-lite is a core subset of Haskell.  Unlike GHC Core and Yhc Core,
+F-lite has a concrete syntax.  You can write F-lite programs in a
+file, and pass them to the F-lite interpreter or compiler.  Another
+way to view F-lite is as a minimalist lazy functional language.
+
+F-lite is untyped
+-----------------
+
+But as it is a subset of Haskell, you can use a Haskell implementation
+to type-check F-lite programs.  
+
+EXAMPLE 0: F-lite definition of 'append'.  Definitions of 'Nil' and
+'Cons' are not required - there is no need to define algebraic data
+types.
+
+  append Nil ys = ys;
+  append (Cons x xs) ys = Cons x (append xs ys);
+
+(The use of semi-colons to seperate equations is mandatory.)
+
+F-lite supports uniform pattern matching
+----------------------------------------
+
+Pattern matching is uniform if and only if the order of equations
+doesn't matter (Wadler '86).  Uniform pattern matching can be easily
+and efficiently compiled to core case expressions.  A core case
+expression is one whose patterns all have the form 'constructor
+applied to zero or more variables'.  The fact that the order of
+equations doesn't matter is also useful when transforming functional
+programs, for example by fold/unfold transformations.
+
+EXAMPLE 1: F-lite definition of 'zipWith', illustrating uniform
+pattern matching.
+
+  zipWith f Nil ys = Nil;
+  zipWith f (Cons x xs) Nil = Nil;
+  zipWith f (Cons x xs) (Cons y ys) = Cons (f x y) (zipWith f xs ys);
+
+EXAMPLE 2: F-lite definition of 'init', illustrating nested,
+incomplete, uniform pattern matching.
+
+  init (Cons x Nil) = Nil;
+  init (Cons x (Cons y ys)) = Cons x (init (Cons y ys));
+
+EXAMPLE 3: F-lite definition of 'init', using a case expression.
+
+  init xs = case xs of {
+              Cons x Nil -> Nil;
+              Cons x (Cons y ys) -> Cons x (init (Cons y ys));
+            };
+
+(The use of semi-colons to seperate case alternatives is mandatory.)
+
+F-lite supports 'let'-expressions
+---------------------------------
+
+But they may only bind expressions to variables (not patterns).
+
+EXAMPLE 4: F-lite definition of 'pow', the power-list function,
+illustrating a let expression.
+
+  pow Nil = Cons Nil Nil;
+  pow (Cons x xs) = let { rest = pow xs } in
+                      append rest (map (Cons x) rest);
+
+EXAMPLE 5: F-lite definition of 'repeat', using a let expression to
+introduce a cyclic data structure.
+
+  repeat x = let { xs = Cons x xs } in xs;
+
+F-lite supports primitive integers
+----------------------------------
+
+Finite precision integers along with the following arithmetic
+functions are allowed: (+), (-), (<=), (==), (/=).  The latter three
+return 'True' or 'False' accordingly.  These operators must be written
+in prefix form and cannot be partially applied.
+
+EXAMPLE 6: F-lite definition of 'negate'.
+
+  negate n = (-) 0 n;
+
+(Negative literals are not supported.)
+
+EXAMPLE 7:  F-lite definition of 'fromTo'.
+
+  fromTo n m = case (<=) n m of {
+                 True -> Cons n (fromTo ((+) n 1) m);
+                 False -> Nil;
+               };
+
+F-lite supports printing
+------------------------
+
+Two primitives, 'emit' and 'emitInt', are provided for printing characters
+and integers respectively.
+
+EXAMPLE 8: Printing the string "hi!" in F-lite.
+
+  sayHi k = emit 'h' (emit 'i' (emit '!' k))
+
+When evaluated, 'sayHi k' will print "hi!" and return 'k' (the
+continuation).
+
+EXAMPLE 9: 'Hello world' in F-lite.
+
+  emitStr Nil k = k;
+  emitStr (Cons x xs) k = emit x (emitStr xs k);
+
+  main = emitStr "Hello world!\n" 0;
+
+String literals are internally translated to 'Nil'-'Cons' lists of
+characters.  The result of the 'main' function is expected to be an
+integer - the displaying of any output must be done explicitly by the
+programmer.
+
+EXAMPLE 10: Full F-lite program to display the 10th fibonacci number.
+
+  {
+
+  fib n = case (<=) n 1 of {
+            True  -> 1;
+            False -> (+) (fib ((-) n 2)) (fib ((-) n 1));
+          };
+
+  emitStr Nil k = k;
+  emitStr (Cons x xs) k = emit x (emitStr xs k);
+
+  main = emitStr "fib(10) = " (emitInt (fib 10) (emit '\n' 0));
+
+}
+
+The braces enclosing the program are indeed mandatory.  The primitive
+'emitInt' function is like 'emit' but prints an integer rather than a
+character.  Both 'emit' and 'emitInt' must be applied to at least one
+argument.
+
+Our implementation
+------------------
+
+Our F-lite implementation includes both an interpreter (written in
+Haskell) and a compiler (to C code - see Memo 22).  It works in both
+Hugs and GHC.  For example, in the source directory, using Hugs:
+
+  > runhugs Flite.hs ../examples/Fib.hs
+  fib(10) = 89
+
+and likewise using GHC:
+
+  > ghc -O2 --make Flite.hs -o Flite
+
+  > ./Flite ../examples/Fib.hs
+  fib(10) = 89
+
+To compile F-lite programs, use the '--compile' command-line option,
+and redirect the output to a C file of your choice.
+
+  > ./Flite --compile ../examples/Fib.hs > /tmp/Fib.c
+
+The resulting C file can be compiled (with optimisations) using GCC:
+
+  > gcc -O3 /tmp/Fib.c -o Fib
+
+  > ./Fib
+  fib(10) = 89
