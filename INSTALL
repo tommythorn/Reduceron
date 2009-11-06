@@ -1,0 +1,9 @@
+=========
+= flite =
+=========
+
+Use 'cabal install' to install the version of f-lite using the
+Parsec parser.
+
+Use 'cabal install -f "pure"' to install the version of f-lite using the
+pure parser.

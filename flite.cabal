@@ -1,17 +1,26 @@
 Name:              flite
 Version:           0.0
 Description:       Matthew Naylor's f-lite compiler and interpreter (with Parsec parser).
-Licence:           AllRightsReserved
+License:           AllRightsReserved
 Author:            Matthew Naylor (very little code by Jason Reich)
 Maintainer:        jason@cs.york.ac.uk
 Build-Type:        Simple
 Cabal-Version:     >=1.2
 
+Flag Pure
+    Description:   Use the pure parser instead of the Parsec
+    Default:       False
+
 Executable flite
-    Main-is:       fl-parsec.hs
-    Build-Depends: base >= 3 && < 5, haskell98 >= 1 && < 2,
-                   array >= 0 && < 1, containers >= 0 && < 1,
-                   parsec >= 2.1.0.1 && < 3
+    if flag(pure)
+        Main-is:       fl-pure.hs
+        Build-Depends: base >= 3 && < 5, haskell98 >= 1 && < 2,
+                       array >= 0 && < 1, containers >= 0 && < 1
+    else
+        Main-is:       fl-parsec.hs
+        Build-Depends: base >= 3 && < 5, haskell98 >= 1 && < 2,
+                       array >= 0 && < 1, containers >= 0 && < 1,
+                       parsec >= 2.1.0.1 && < 3
     ghc-options:   -O2
     
 Library
@@ -19,7 +28,8 @@ Library
                      array >= 0 && < 1, containers >= 0 && < 1,
                      parsec >= 2.1.0.1 && < 3
     Exposed-modules: Flite.CallGraph, Flite.Case, Flite.ConcatApp,
-                     Flite.Descend, Flite.Fresh, Flite.Identify, Flite.Inline,
-                     Flite.Matching, Flite.Pretty, Flite.Syntax, Flite.Traversals,
-                     Flite.Writer, Flite.Parsec.Parse
+                     Flite.Descend, Flite.Fresh, Flite.Identify, Flite.Identity,
+                     Flite.Inline, Flite.Let, Flite.Matching, Flite.Pretty,
+                     Flite.Syntax, Flite.Traversals, Flite.Writer,
+                     Flite.Parsec.Parse
     ghc-options:     -O2
