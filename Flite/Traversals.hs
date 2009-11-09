@@ -4,6 +4,7 @@ import Flite.Syntax
 import Flite.Descend
 import Control.Monad
 import Data.List
+import Flite.Fresh
 
 funcs :: Prog -> [String]
 funcs p = [f | Func f args rhs <- p]
@@ -79,3 +80,33 @@ calls e = extract calls e
 
 lookupFuncs :: Id -> Prog -> [Decl]
 lookupFuncs f p = [Func g args rhs | Func g args rhs <- p, f == g]
+
+freshen :: Exp -> Fresh Exp
+freshen (Let bs e) =
+  do let (vs, es) = unzip bs
+     e' <- freshen e
+     es' <- mapM freshen es
+     ws <- mapM (\_ -> fresh) vs
+     let s = zip (map Var ws) vs
+     return $ Let (zip ws (map (flip substMany s) es'))
+                  (substMany e' s)
+freshen (Case e as) = return Case `ap` freshen e `ap` mapM freshenAlt as
+freshen e = descendM freshen e
+
+freshenPat :: Pat -> Fresh Pat
+freshenPat (Var _) = return Var `ap` fresh
+freshenPat p = descendM freshenPat p
+
+freshenAlt :: (Pat, Exp) -> Fresh (Pat, Exp)
+freshenAlt (p, e) =
+  do p' <- freshenPat p
+     e' <- freshen e
+     let s = zip (map Var (patVars p')) (patVars p)
+     return (p', substMany e' s)
+
+freshBody :: ([Id], Exp) -> Fresh ([Id], Exp)
+freshBody (vs, e) =
+  do ws <- mapM (\_ -> fresh) vs
+     e' <- freshen e
+     let s = zip (map Var ws) vs
+     return (ws, substMany e' s)

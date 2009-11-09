@@ -4,14 +4,14 @@ import Flite.Syntax
 import Flite.Traversals
 import Flite.Descend
 import Flite.Fresh
-import Data.List
+import List
 
 mkLet :: [Binding] -> Exp -> Exp
 mkLet [] e = e
 mkLet bs e = Let bs e
 
 inlineLetWhen :: ([Binding] -> Exp -> Binding -> Bool) -> Prog -> Fresh Prog
-inlineLetWhen f p = freshenLet p >>= return . onExp inline
+inlineLetWhen f p = onExpM freshen p >>= return . onExp inline
   where
     inline (Let bs e) = mkLet (zip vs1 (map inline es1')) (inline e')
       where (vs, es) = unzip bs
@@ -35,21 +35,8 @@ inlineSimpleLet = inlineLetWhen simple
     simp (Case e as) = False
     simp _ = True
 
-freshenLet :: Prog -> Fresh Prog
-freshenLet = onExpM freshen
-  where
-    freshen (Let bs e) =
-      do let (vs, es) = unzip bs
-         e1 <- freshen e
-         es1 <- mapM freshen es
-         ws <- mapM (\_ -> fresh) vs
-         let e2:es2 = foldr (\(v, w) -> map (subst (Var w) v))
-                            (e1:es1) (zip vs ws)
-         return (mkLet (zip ws es2) e2)
-    freshen e = descendM freshen e
-
 liftLet :: Prog -> Fresh Prog
-liftLet p = do p' <- freshenLet p
+liftLet p = do p' <- onExpM freshen p
                return (onExp lift p')
   where
     lift e = mkLet [(v, liftInCase rhs) | (v, rhs) <- binds e]
