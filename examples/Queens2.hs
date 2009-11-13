@@ -55,6 +55,6 @@ sol n row = map (Cons row) (solve n (next row));
 
 nqueens n = length (solve n (replicate n Nil));
 
-main = emitInt (nqueens 4) 0;
+main = emitInt (nqueens 10) 0;
 
 }

@@ -12,8 +12,8 @@ clause (Pair c a) (Neg (Sym s)) = Pair c (ins s a);
 or False x = x;
 or True x = True;
 
-contains eq Nil y = False;
-contains eq (Cons x xs) y = or (eq x y) (contains eq xs y);
+contains eq0 Nil y = False;
+contains eq0 (Cons x xs) y = or (eq0 x y) (contains eq0 xs y);
 
 disin (Sym s) = Sym s;
 disin (Neg p) = Neg p;
@@ -46,7 +46,7 @@ filter p (Cons x xs) = case p x of {
                          False -> filter p xs;
                        };
 
-inter eq xs ys = filter (contains eq xs) ys;
+inter eq0 xs ys = filter (contains eq0 xs) ys;
 
 negin (Neg (Con p q)) = Dis (negin (Neg p)) (negin (Neg q));
 negin (Neg (Dis p q)) = Con (negin (Neg p)) (negin (Neg q));
@@ -66,12 +66,14 @@ eqList f Nil (Cons y ys) = False;
 eqList f (Cons x xs) Nil = False;
 eqList f (Cons x xs) (Cons y ys) = and (f x y) (eqList f xs ys);
 
-eqClause (Pair a b) (Pair c d) = and (eqList (==) a c) (eqList (==) b d);
+eq a b = (==) a b;
+
+eqClause (Pair a b) (Pair c d) = and (eqList eq a c) (eqList eq b d);
 
 null Nil = True;
 null (Cons x xs) = False;
 
-notTaut (Pair c a) = null (inter (==) c a);
+notTaut (Pair c a) = null (inter eq c a);
 
 clausify p = uniq
            ( nonTaut
@@ -95,7 +97,7 @@ comp f g x = f (g x);
 not False = True;
 not True = False;
 
-union eq xs ys = append xs (filter (comp not (contains eq xs)) ys);
+union eq0 xs ys = append xs (filter (comp not (contains eq0 xs)) ys);
 
 singleton x = Cons x Nil;
 
@@ -104,16 +106,15 @@ foldr f z (Cons x xs) = f x (foldr f z xs);
 
 uniq xs = foldr (comp (union eqClause) singleton) Nil xs;
 
-display Nil k = k;
-display (Cons c cs) k = emitClause c (display cs k);
+display Nil = 0;
+display (Cons c cs) = (+) (emitClause c) (display cs);
 
-emitClause (Pair c a) k = emitIntList c
-                        ( emit '<'
-                        ( emitIntList a
-                        ( emit '\n' k   )));
+emitClause (Pair c a) = (+) (sum c) (sum a);
 
-emitIntList Nil k = k;
-emitIntList (Cons x xs) k = emitInt x (emit ' ' (emitIntList xs k));
+sum xs = sumAcc 0 xs;
+
+sumAcc acc Nil = acc;
+sumAcc acc (Cons x xs) = sumAcc ((+) acc x) xs;
 
 eqv a b = Con (Dis (Neg a) b) (Dis (Neg b) a);
 
@@ -123,9 +124,10 @@ replicate n a = case (==) n 0 of {
                 };
 
 main = let { p = eqv (eqv a (eqv a a))
-                            (eqv (eqv a (eqv a a))
-                                 (eqv a (eqv a a)))
+                             (eqv (eqv a (eqv a a))
+                                  (eqv a (eqv a a)))
            ; a = Sym 0
-           } in display (clausify (foldr Con a (replicate 20 p))) 0;
+           } in display (clausify (foldr Con a (replicate 20 p)));
 
 }
+
