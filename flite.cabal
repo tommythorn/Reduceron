@@ -11,7 +11,7 @@ Build-Type:        Simple
 Cabal-Version:     >=1.2
 Description:       The f-lite language is a subset of Haskell 98 consisting of function definitions, 
                    case expressions, limited let expressions, function applications and constructor
-                   applications expressed in the explicit ‘braces’ layout-insensitive format.
+                   applications expressed in the explicit 'braces' layout-insensitive format.
                    Notably, it excludes type definitions, type checking and explicit lambda expressions.
 Category:          Compiler
 
