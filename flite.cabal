@@ -1,19 +1,19 @@
-Name:              flite
-Version:           0.1
-Synopsis:          f-lite compiler, interpreter and libraries
-License:           BSD3
-License-file:      LICENSE
-Author:            Matthew Naylor
-Maintainer:        Jason Reich <jason@cs.york.ac.uk>, Matthew Naylor <mfn@cs.york.ac.uk>
-Stability:         provisional
-Homepage:          http://www.cs.york.ac.uk/fp/reduceron/
-Build-Type:        Simple
-Cabal-Version:     >=1.2
-Description:       The f-lite language is a subset of Haskell 98 consisting of function definitions, 
-                   case expressions, limited let expressions, function applications and constructor
-                   applications expressed in the explicit 'braces' layout-insensitive format.
-                   Notably, it excludes type definitions, type checking and explicit lambda expressions.
-Category:          Compiler
+Name:               flite
+Version:            0.1
+Synopsis:           f-lite compiler, interpreter and libraries
+License:            BSD3
+License-file:       LICENSE
+Author:             Matthew Naylor
+Maintainer:         Jason Reich <jason@cs.york.ac.uk>, Matthew Naylor <mfn@cs.york.ac.uk>
+Stability:          provisional
+Homepage:           http://www.cs.york.ac.uk/fp/reduceron/
+Build-Type:         Simple
+Cabal-Version:      >=1.2
+Description:        The f-lite language is a subset of Haskell 98 and Clean consisting of function
+                    definitions, pattern matching, limited let expressions, function applications and
+                    constructor applications expressed in the explicit 'braces' layout-insensitive format.
+Category:           Compiler
+Extra-Source-Files: README examples/*.hs
 
 Flag Pure
     Description:   Use the pure parser instead of the Parsec
