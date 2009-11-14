@@ -8,10 +8,12 @@ Maintainer:         Jason Reich <jason@cs.york.ac.uk>, Matthew Naylor <mfn@cs.yo
 Stability:          provisional
 Homepage:           http://www.cs.york.ac.uk/fp/reduceron/
 Build-Type:         Simple
-Cabal-Version:      >=1.2
+Cabal-Version:      >=1.6
 Description:        The f-lite language is a subset of Haskell 98 and Clean consisting of function
                     definitions, pattern matching, limited let expressions, function applications and
                     constructor applications expressed in the explicit 'braces' layout-insensitive format.
+                    
+                    See README for more information.
 Category:           Compiler
 Extra-Source-Files: README examples/*.hs
 
@@ -19,13 +21,19 @@ Flag Pure
     Description:   Use the pure parser instead of the Parsec
     Default:       False
 
-Executable flite
+Executable flite-pure
+    Main-is:       fl-pure.hs
     if flag(pure)
-        Main-is:       fl-pure.hs
         Build-Depends: base >= 3 && < 5, haskell98 >= 1 && < 2,
                        array >= 0 && < 1, containers >= 0 && < 1
     else
-        Main-is:       fl-parsec.hs
+        buildable:     False
+
+Executable flite
+    Main-is:       fl-parsec.hs
+    if flag(pure)
+        buildable:     False
+    else
         Build-Depends: base >= 3 && < 5, haskell98 >= 1 && < 2,
                        array >= 0 && < 1, containers >= 0 && < 1,
                        parsec >= 2.1.0.1 && < 3

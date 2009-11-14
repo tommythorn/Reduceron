@@ -164,11 +164,11 @@ A Cabal script can be used to install the parsec version using GHC:
   > flite examples/Fib.hs
   fib(10) = 89
 
-or even the pure, version:
+or even the pure version:
 
   > cabal install -f "pure"
 
-  > flite examples/Fib.hs
+  > flite-pure examples/Fib.hs
   fib(10) = 89
 
 To compile F-lite programs, use the '-c' command-line option,
