@@ -82,7 +82,7 @@ trDefn n m nregs p (f, args, xs) =
 
 trApp p d app
    | isPrimitiveApp app = R.PRIM (-1) rest
-  -- | isPrimitiveApp app = R.PRIM (-1) (reverse rest) {- PV STACK -}
+  -- - | isPrimitiveApp app = R.PRIM (-1) (reverse rest) {- PV STACK -}
   | null luts = R.APP (isNormal rest) rest
   | otherwise = R.CASE (head luts) rest
   where
