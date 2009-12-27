@@ -1,5 +1,6 @@
 module Flite.InterpFrontend (frontend) where
 
+import Flite.LambdaLift
 import Flite.Syntax
 import Flite.Traversals
 import Flite.ConcatApp
@@ -23,6 +24,7 @@ frontendM i p =
   >>= inlineSimpleLet
   >>= return . caseElim
   >>= return . concatApps
+  >>= return . lambdaLift 'A'
   >>= inlineTop i
   >>= liftLet
   >>= return . finalPass

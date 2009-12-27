@@ -16,7 +16,7 @@ module Flite.Parsec.Parse where
 		, identLetter		= alphaNum
 		, opStart			= opLetter haskellStyle
 		, opLetter			= oneOf "<=>-+/"
-		, reservedNames		= ["case", "of", "let", "in", "if", "then", "else"]
+		, reservedNames		= ["case", "of", "let", "in", "if", "then", "else", "\\"]
 		, caseSensitive		= True
 		}
 	
@@ -87,7 +87,8 @@ module Flite.Parsec.Parse where
 	expr = pure App <*> expr' <*> many expr'
 	
 	expr' :: Parser Exp
-	expr' = pure Case <*> (reserved "case" *> expr) <*> (reserved "of" *> block alt)
+	expr' = pure Lam <*> ((reserved "\\" <?> "lambda abstraction") *> many var) <*> (reservedOp "->" *> expr)
+		<|> pure Case <*> (reserved "case" *> expr) <*> (reserved "of" *> block alt)
 		<|> pure Let <*> (reserved "let" *> block bind) <*> (reserved "in" *> expr)
 		<|> pure ifthenelse <*> (reserved "if" *> expr) <*> (reserved "then" *> expr) <*> (reserved "else" *> expr)
 		<|> pure Fun <*> prim

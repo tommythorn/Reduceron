@@ -113,7 +113,7 @@ forceAndRebind :: Prog -> Prog
 forceAndRebind p = map (wrap cg wrapperIds) p ++ wrappers
   where
     cg = callReachableGraph p
-    wrappers = lambdaLift $ concatMap (makeWrapper cg) p
+    wrappers = lambdaLift 'B' $ concatMap (makeWrapper cg) p
     wrapperIds = map funcName wrappers
 
 wrap :: CallGraph -> [Id] -> Decl -> Decl

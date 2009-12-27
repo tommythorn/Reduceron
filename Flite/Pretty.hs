@@ -28,10 +28,12 @@ instance Show Exp where
   show (Alts as i) = "[" ++ consperse "," as ++ "]"
   show Bottom = "_|_"
   show (Ctr c arity i) = c
+  show (Lam vs e) = '\\' : consperse " " vs ++ " -> " ++ show e
 
 showArg :: Exp -> String
 showArg (App e []) = showArg e
 showArg (App e es) = "(" ++ show (App e es) ++ ")"
+showArg (Lam vs e) = "(" ++ show (Lam vs e) ++ ")"
 showArg e = show e
 
 showBlock :: (a -> String) -> [a] -> String

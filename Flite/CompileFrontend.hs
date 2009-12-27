@@ -4,6 +4,7 @@ import Flite.Syntax
 import Flite.Traversals
 import Flite.Matching
 import Flite.Case
+import Flite.LambdaLift
 import Flite.Let
 import Flite.Identify
 import Flite.Strictify
@@ -24,5 +25,6 @@ frontendM i p =
   >>= inlineSimpleLet
   >>= return . caseElim
   >>= return . concatApps
+  >>= return . lambdaLift 'A'
   >>= inlineTop i
   >>= return . strictifyPrim
