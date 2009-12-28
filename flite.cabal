@@ -13,6 +13,13 @@ Description:        The f-lite language is a subset of Haskell 98 and Clean cons
                     definitions, pattern matching, limited let expressions, function applications and
                     constructor applications expressed in the explicit 'braces' layout-insensitive format.
                     
+                    'flite' uses Parsec. It supports some lambda expressions, infix usage of
+                    binary primitive operators and infix application of other functions using backticks.
+                    Information is returned about syntax errors.
+                    
+                    'flite-pure' uses its own parser and, therefore, does not depend on an external libraries.
+                    It only supports the original language definition.
+
                     See README for more information. Example flite programs included in source distribution.
 Category:           Compiler
 Extra-Source-Files: README examples/*.hs

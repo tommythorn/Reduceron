@@ -101,10 +101,7 @@ module Flite.Parsec.Parse where
 		<|> pure App <*> (pure Con <*> con) <*> many pat
 	
 	expr :: Parser Exp
-	expr = buildExpressionParser opTable expr1
-	
-	expr1 :: Parser Exp
-	expr1  = pure App <*> expr' <*> many expr'
+	expr = buildExpressionParser opTable (pure App <*> expr' <*> many expr')
 	
 	expr' :: Parser Exp
 	expr' = pure Lam <*> ((symbol "\\" <?> "lambda abstraction") *> many var) <*> (reservedOp "->" *> expr)
