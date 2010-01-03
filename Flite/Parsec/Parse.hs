@@ -1,4 +1,5 @@
 module Flite.Parsec.Parse where
+	import qualified Flite.Parsec.Prelude as Prelude
 	import Flite.Syntax
 	import Flite.Pretty
 
@@ -16,7 +17,7 @@ module Flite.Parsec.Parse where
 		, identStart		= letter
 		, identLetter		= alphaNum
 		, opStart			= opLetter haskellStyle
-		, opLetter			= oneOf "<=>-+/"
+		, opLetter			= oneOf "<=>-+/.$"
 		, reservedNames		= ["case", "of", "let", "in", "if", "then", "else"]
 		, caseSensitive		= True
 		}
@@ -61,9 +62,10 @@ module Flite.Parsec.Parse where
 	-- | Build primitive infix operators
 	binary op assoc = Infix (reservedOp op >> return (infixApp (Fun $ "(" ++ op ++ ")"))) assoc
 	
-	opTable = [   [infixName]
+	opTable = [   [infixName, binary "." AssocRight]
 				, [binary "+" AssocLeft, binary "-" AssocLeft]
-				, [binary "==" AssocNone, binary "/=" AssocNone, binary "<=" AssocNone] ]
+				, [binary "==" AssocNone, binary "/=" AssocNone, binary "<=" AssocNone]
+				, [binary "$" AssocRight] ]
 	
 	prim :: Parser Id
 	prim = try $ do
@@ -131,6 +133,7 @@ module Flite.Parsec.Parse where
 	
 	parseProgFile :: SourceName -> IO Prog
 	parseProgFile f = parseFromFile prog f >>= \result -> case result of
-															Left e	-> error . show $ e
-															Right p	-> return p
-															
+						Left e	-> error . show $ e
+						Right p	-> return . Prelude.supplyPrelude $ p
+
+	
