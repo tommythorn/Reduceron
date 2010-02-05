@@ -68,7 +68,7 @@ Library
     Exposed-modules: Flite.CallGraph, Flite.Case, Flite.ConcatApp,
                      Flite.Descend, Flite.Fresh, Flite.Identify, Flite.Identity,
                      Flite.Inline, Flite.Let, Flite.Matching, Flite.Pretty,
-                     Flite.Syntax, Flite.Traversals, Flite.Writer,
+                     Flite.Syntax, Flite.Traversals, Flite.Writer, Flite.Interp,
                      Flite.Parsec.Parse, Flite.Parsec.Prelude, Flite.Parsec.Flite
     Other-Modules:  Flite.Compile, Flite.CompileBackend
                     Flite.CompileFrontend, Flite.Flatten,
