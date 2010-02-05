@@ -1,5 +1,5 @@
 Name:               flite
-Version:            0.2.0
+Version:            0.2.1
 Synopsis:           f-lite compiler, interpreter and libraries
 License:            BSD3
 License-file:       LICENSE
@@ -59,7 +59,7 @@ Executable flite
                         Flite.Predex, Flite.Pretty, Flite.RedCompile, Flite.RedFrontend, 
                         Flite.RedSyntax, Flite.State, Flite.Strictify, Flite.Syntax, 
                         Flite.Traversals, Flite.Writer, Flite.Writer, Flite.WriterState,
-                        Flite.Parsec.Parse, Flite.Parsec.Flite
+                        Flite.Parsec.Parse, Flite.Parsec.Flite, Flite.Parsec.Prelude
     
 Library
     Build-Depends:   base >= 3 && < 5, haskell98 >= 1 && < 2,
@@ -69,9 +69,9 @@ Library
                      Flite.Descend, Flite.Fresh, Flite.Identify, Flite.Identity,
                      Flite.Inline, Flite.Let, Flite.Matching, Flite.Pretty,
                      Flite.Syntax, Flite.Traversals, Flite.Writer,
-                     Flite.Parsec.Parse
+                     Flite.Parsec.Parse, Flite.Parsec.Prelude, Flite.Parsec.Flite
     Other-Modules:  Flite.Compile, Flite.CompileBackend
-                    Flite.CompileFrontend, Flite.Flatten, Flite.Interp,
+                    Flite.CompileFrontend, Flite.Flatten,
                     Flite.InterpFrontend, Flite.LambdaLift, Flite.Predex, 
                     Flite.RedCompile, Flite.RedFrontend, Flite.RedSyntax,
                     Flite.State, Flite.Strictify, Flite.WriterState
