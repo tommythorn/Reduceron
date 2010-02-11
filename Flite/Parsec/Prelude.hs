@@ -10,7 +10,8 @@ module Flite.Parsec.Prelude(
 	
 	prelude :: [Decl]
 	prelude = [ Func "(.)" [Var "f", Var "g", Var "x"] (App (Var "f") [App (Var "g") [App (Var "x") []]])
-			  , Func "($)" [Var "f", Var "x"] (App (Var "f") [App (Var "x") []]) ]
+			  , Func "($)" [Var "f", Var "x"] (App (Var "f") [App (Var "x") []])
+			  , Func "scNoDrive" [Var "x"] (Var "x") ]
 	
 	supplyPrelude :: Prog -> Prog
 	supplyPrelude p = foldr addFunc p prelude
