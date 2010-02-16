@@ -1,4 +1,4 @@
-module Flite.Interp (interp, frontend) where
+module Flite.Interp (interp, frontend, Val (..)) where
 
 import Flite.Syntax hiding (Lam)
 import Data.Array
@@ -9,7 +9,7 @@ import System.IO.Unsafe(unsafePerformIO)
 infixl :@
 
 data Val =
-    Error
+    Error String
   | C Id Int Int [Val]
   | F Id
   | V Id
@@ -23,6 +23,8 @@ instance Show Val where
   show (Lam f) = "lambda!"
   show (C n _ _ vs) = "(" ++ unwords (n:map show vs) ++ ")"
   show (N i) = show i
+  show (Error s) = "** Interpreter error: " ++ s
+  show _ = "*Thunk*"
 
 lut :: [Val] -> Val
 lut vs = Lut (listArray (0, length vs) vs)
@@ -37,7 +39,7 @@ val (Alts as _) = lut (map F as)
 val (Ctr s arity i) = C s arity i []
 val (Fun f) = F f
 val (Int n) = N n
-val Bottom = Error
+val Bottom = Error "_|_"
 val (Let bs e) = elimLet vs (map val es) (val e)
   where (vs, es) = unzip bs
 
@@ -69,7 +71,7 @@ opt e = e
 
 interp :: InlineFlag -> Prog -> Val
 interp i p = case lookup "main" bs of
-             Nothing -> error "No 'main' function defined"
+             Nothing -> Error "No 'main' function defined"
              Just e -> e
   where bs = prims ++ map (\(f, e) -> (f, link bs e)) (compile p')
         p' = frontend i p
@@ -78,10 +80,10 @@ link :: [(Id, Val)] -> Val -> Val
 link bs (f :@ a) = link bs f @@ link bs a
 link bs (Lut a) = Lut (fmap (link bs) a)
 link bs (F f) = case lookup f bs of
-                  Nothing -> error ("Function '" ++ f ++ "' not defined")
+                  Nothing -> Error ("Function '" ++ f ++ "' not defined")
                   Just e -> e
-link bs Error = error "_|_"
-link bs (V v) = error ("Unknown identifier '" ++ v ++ "'")
+-- link bs Error = error "_|_"
+link bs (V v) = Error ("Unknown identifier '" ++ v ++ "'")
 link bs e = e
 
 infixl 0 @@
@@ -89,6 +91,8 @@ infixl 0 @@
 (Lam f) @@ x = f x
 (C s 0 i args) @@ (Lut alts) = run (alts ! i) args @@ Lut alts
 (C s arity i args) @@ x = C s (arity-1) i (x:args)
+(Error s) @@ x = Error s
+x @@ y = Error $ "Run-time type error : " ++ show x ++ " @@ " ++ show y
 
 run :: Val -> [Val] -> Val
 run e [] = e
@@ -118,11 +122,16 @@ fix :: Val -> Val
 fix f = let a = f @@ a in a
 
 arith2 :: (Int -> Int -> Int) -> Val
-arith2 op = Lam $ \(N a) -> Lam $ \(N b) -> N (op a b)
+arith2 op = Lam $ \a -> Lam $ \b ->
+	case (a, b) of
+		(N a, N b)  -> N (op a b)
+		_			-> Error $ "Integer expected. " ++ show (a, b)
 
 logical2 :: (Int -> Int -> Bool) -> Val
-logical2 op =
-  Lam $ \(N a) -> Lam $ \(N b) -> if op a b then true else false
+logical2 op = Lam $ \a -> Lam $ \b ->
+	case (a, b) of
+		(N a, N b)  -> if (op a b) then true else false
+		_			-> Error $ "Integer expected. " ++ show (a, b)
 
 false :: Val
 false = C "False" 0 0 []

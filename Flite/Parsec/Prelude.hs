@@ -17,5 +17,6 @@ module Flite.Parsec.Prelude(
 	supplyPrelude p = foldr addFunc p prelude
 		where
 			addFunc d@(Func f _ _) p | f `elem` map funcName p = p
-									 | null [ f | Fun g <- concatMap (universe . funcRhs) p, f == g ] = p
-									 | otherwise = d : p
+									 | f `elem` concatMap (calls . funcRhs) p = d:p
+									 | f `elem` concatMap (freeVars . funcRhs) p = d:p
+									 | otherwise = p
