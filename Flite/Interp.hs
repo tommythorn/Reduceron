@@ -114,8 +114,14 @@ prims = let (-->) = (,) in
  , "(==)" --> logical2 (==)
  , "(/=)" --> logical2 (/=)
  , "(<=)" --> logical2 (<=)
- , "emit" --> (Lam $ \(N a) -> Lam $ \k -> emitStr [toEnum a] k)
- , "emitInt" --> (Lam $ \(N a) -> Lam $ \k -> emitStr (show a) k)
+ , "emit" --> (Lam $ \a ->
+ 		case a of 
+ 			N a -> Lam $ \k -> emitStr [toEnum a] k
+ 			_	-> Error $ "Integer expected. " ++ show a )
+ , "emitInt" --> (Lam $ \a ->
+ 		case a of 
+ 			N a -> Lam $ \k -> emitStr (show a) k
+ 			_	-> Error $ "Integer expected. " ++ show a )
  ]
 
 fix :: Val -> Val
