@@ -50,6 +50,7 @@ isBinaryPrim "(<=)" = True
 isBinaryPrim _      = False
 
 isUnaryPrim :: Id -> Bool
+isUnaryPrim "(!)"  = True
 isUnaryPrim "emit" = True
 isUnaryPrim "emitInt" = True
 isUnaryPrim _ = False

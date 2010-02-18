@@ -17,8 +17,11 @@ data Flag =
   | CompileToC
   | CompileToRed Int Int Int Int Int
   | Inline (Maybe Int)
+  | StrictnessAnalysis
+  deriving Eq
 
 isDisjoint (Inline i) = False
+isDisjoint StrictnessAnalysis = False
 isDisjoint flag = True
 
 options :: [OptDescr Flag]
@@ -29,6 +32,7 @@ options =
                     "compile to Reduceron templates"
   , Option ['i'] [] (OptArg (Inline . fmap read) "MAXAPS")
                     "inline small function bodies"
+  , Option ['s'] [] (NoArg StrictnessAnalysis) "employ strictness analysis"
   ]
   where
     redDefaults = CompileToRed 6 4 2 1 0
@@ -58,7 +62,8 @@ run flags fileName =
          putStrLn $ pretty $ frontend inlineFlag p
        [CompileToC] -> putStrLn $ compile inlineFlag p
        [CompileToRed slen alen napps nluts nregs] ->
-         mapM_ print $ redCompile inlineFlag slen alen napps nluts nregs p
+        do let sa = StrictnessAnalysis `elem` flags
+           mapM_ print $ redCompile inlineFlag sa slen alen napps nluts nregs p
        _ -> error (usageInfo header options)
 
 -- Auxiliary

@@ -48,7 +48,7 @@ splitApps n apps = cs ++ ds
 splitSpine :: Int -> [(Id, App)] -> (App, [(Id, App)], [Exp])
 splitSpine n ((v, app):rest)
   | length spine <= n = (spine, rest, luts)
-  | otherwise = -- Needed????
+  | otherwise =
       ( Var v:takeBack (n-1) spine
       , (v, dropBack (n-1) spine):rest
       , luts
@@ -60,10 +60,10 @@ splitSpine n ((v, app):rest)
 -- Translates a program to Reduceron syntax.  Takes the max
 -- application length and max spine length as arguments.
 
-translate :: InlineFlag -> Int -> Int -> Int -> Prog -> R.Prog
-translate i n m nregs p = map (trDefn n m nregs p2) p2
+translate :: InlineFlag -> Bool -> Int -> Int -> Int -> Prog -> R.Prog
+translate i strictAnan n m nregs p = map (trDefn n m nregs p2) p2
   where
-    p0 = frontend nregs i (force01:force0:force1:p)
+    p0 = frontend strictAnan nregs i p
     p1 = [ (f, map getVar args, flatten $ removePredexSpine rhs)
          | Func f args rhs <- p0
          ]
@@ -81,21 +81,16 @@ trDefn n m nregs p (f, args, xs) =
     (pushs', apps') = predex nregs (pushs, apps)
 
 trApp p d app
-   | isPrimitiveApp app = R.PRIM (-1) rest
-  -- - | isPrimitiveApp app = R.PRIM (-1) (reverse rest) {- PV STACK -}
+  | isPrimitiveApp app = R.PRIM (-1) rest
   | null luts = R.APP (isNormal rest) rest
   | otherwise = R.CASE (head luts) rest
   where
-    app' = force app
-    --app' = app {- PV STACK -}
+    app' = rearrange app
     luts = map (indexOf p) $ map getAlts $ filter isAlts app'
     rest = map (tr p d) $ filter (not . isAlts) app'
 
-force app@[Prim p,y,Int _] = Fun "!force0" : app
-force app@[Prim p,Int i,y] = Fun "!force1" : app
-force app
-  | isPrimitiveApp app = Fun "!force01" : app
-  | otherwise = app
+rearrange (Prim p:x:y:rest) = x:Prim p:y:rest
+rearrange app = app
 
 indexOf p f =
   case [i | ((g, args, rhs), i) <- zip p [0..], f == g] of
@@ -186,9 +181,10 @@ refersCheck _ = False
 
 -- Top-level compilation
 
-redCompile :: InlineFlag -> Int -> Int -> Int -> Int -> Int -> Prog -> R.Prog
-redCompile i slen alen napps nluts nregs =
-  fragment napps nluts . translate i alen slen nregs
+redCompile :: InlineFlag -> Bool -> Int -> Int -> Int
+           -> Int -> Int -> Prog -> R.Prog
+redCompile i strictAnan slen alen napps nluts nregs =
+  fragment napps nluts . translate i strictAnan alen slen nregs
 
 -- Auxiliary functions
 

@@ -16,9 +16,9 @@
 #define MAXLUTS 2
 #define MAXREGS 8
 
-#define MAXHEAPAPPS 4000000
-#define MAXSTACKELEMS 100000
-#define MAXTEMPLATES 200000
+#define MAXHEAPAPPS 32000
+#define MAXSTACKELEMS 8000
+#define MAXTEMPLATES 8000
 
 #define NAMELEN 128
 
@@ -46,9 +46,9 @@ typedef struct { Int arity; Int index; } Con;
 
 typedef struct { Bool original; Int arity; Int id; } Fun;
 
-typedef enum { ADD, SUB, EQ, NEQ, LEQ, EMIT, EMITINT } Prim;
+typedef enum { ADD, SUB, EQ, NEQ, LEQ, EMIT, EMITINT, SEQ } Prim;
 
-typedef struct { Int arity; Prim id; } Pri;
+typedef struct { Int arity; Bool swap; Prim id; } Pri;
 
 typedef union
   {
@@ -104,7 +104,7 @@ Lut* lstack;
 Template* code;
 Atom *registers;
 
-Int hp, gcLow, gcHigh, sp, usp, lsp, end;
+Int hp, gcLow, gcHigh, sp, usp, lsp, end, gcCount;
 
 Int numTemplates;
 
@@ -272,6 +272,34 @@ Atom prim(Prim p, Atom a, Atom b)
   return result;
 }
 
+void applyPrim()
+{
+  Pri p = stack[sp-2].contents.pri;
+  if (p.id == SEQ) {
+    stack[sp-2] = stack[sp-3];
+    stack[sp-3] = stack[sp-1];
+    sp-=1;
+    primCount++;
+  }
+  else if (stack[sp-3].tag == NUM
+        || p.id == EMIT || p.id == EMITINT) {
+    if (p.swap == 1)
+      stack[sp-3] = prim(p.id, stack[sp-3], stack[sp-1]);
+    else
+      stack[sp-3] = prim(p.id, stack[sp-1], stack[sp-3]);
+    sp-=2;
+    primCount++;
+  }
+  else {
+      Atom tmp;
+      stack[sp-2].contents.pri.swap = !stack[sp-2].contents.pri.swap;
+      tmp = stack[sp-1];
+      stack[sp-1] = stack[sp-3];
+      stack[sp-3] = tmp;
+      swapCount++;
+  }
+}
+
 /* Case-alt selection */
 
 void caseSelect(Int index)
@@ -316,7 +344,7 @@ void instApp(Int base, Int argPtr, App *app)
 
   if (app->tag == PRIM) {
     prsCandidateCount++;
-    a = app->atoms[2]; b = app->atoms[3];
+    a = app->atoms[0]; b = app->atoms[2];
     a = getPrimArg(argPtr, a);
     b = getPrimArg(argPtr, b);
     rid = app->details.regId;
@@ -429,12 +457,14 @@ void collect()
 {
   Int i;
   App* tmp;
+  gcCount++;
   gcLow = gcHigh = 0;
   for (i = 0; i < sp; i++) stack[i] = copyChild(stack[i]);
   copy();
   updateUStack();
   tmp = heap; heap = heap2; heap2 = tmp;
   hp = gcHigh;
+  //printf("After GC: %i\n", hp);
 }
 
 /* Allocate memory */
@@ -469,7 +499,7 @@ void init()
   stack[0] = mainAtom;
   swapCount = primCount = applyCount =
     unwindCount = updateCount = selectCount = 
-      prsCandidateCount = prsSuccessCount = 0;
+      prsCandidateCount = prsSuccessCount = gcCount = 0;
   initProfTable();
 }
 
@@ -492,7 +522,9 @@ void dispatch()
 
   while (!(sp == 1 && stack[0].tag == NUM)) {
     if (sp > MAXSTACKELEMS-100) stackOverflow();
-    if (hp > MAXHEAPAPPS-1000 && canCollect()) collect();
+    if (usp > MAXSTACKELEMS-100) stackOverflow();
+    if (lsp > MAXSTACKELEMS-100) stackOverflow();
+    if (hp > MAXHEAPAPPS-200 && canCollect()) collect();
     top = stack[sp-1];
     if (top.tag == VAR) {
       unwind(top.contents.var.shared, top.contents.var.id);
@@ -504,11 +536,7 @@ void dispatch()
     }
     else {
       switch (top.tag) {
-        case NUM: swapCount++; swap(); break;
-        case PRI: primCount++;
-          stack[sp-3] = prim(top.contents.pri.id, stack[sp-2], stack[sp-3]);
-          sp-=2;
-          break;
+        case NUM: if (stack[sp-2].tag == PRI) applyPrim(); else swap();  break;
         case FUN: profTable[top.contents.fun.id].callCount++; applyCount++;
                   apply(&code[top.contents.fun.id]); break;
         case CON: selectCount++; caseSelect(top.contents.con.index); break;
@@ -531,15 +559,21 @@ Int strToBool(Char *s)
   error(printf("Parse error: boolean expected; got %s\n", s));
 }
 
-Int strToPrim(Char *s)
+void strToPrim(Char *s, Prim *p, Bool *b)
 {
-  if (!strcmp(s, "(+)")) return ADD;
-  if (!strcmp(s, "(-)")) return SUB;
-  if (!strcmp(s, "(==)")) return EQ;
-  if (!strcmp(s, "(/=)")) return NEQ;
-  if (!strcmp(s, "(<=)")) return LEQ;
-  if (!strcmp(s, "emit")) return EMIT;
-  if (!strcmp(s, "emitInt")) return EMITINT;
+  *b = 0;
+  if (!strcmp(s, "emit")) { *p = EMIT; return; }
+  if (!strcmp(s, "emitInt")) { *p = EMITINT; return; }
+  if (!strcmp(s, "(!)")) { *p = SEQ; return; }
+  if (!strncmp(s, "swap:", 5)) {
+    *b = 1;
+    s = s+5;
+  }
+  if (!strcmp(s, "(+)")) { *p = ADD; return; }
+  if (!strcmp(s, "(-)")) { *p = SUB; return; }
+  if (!strcmp(s, "(==)")) { *p = EQ; return; }
+  if (!strcmp(s, "(/=)")) { *p = NEQ; return; }
+  if (!strcmp(s, "(<=)")) { *p = LEQ; return; }
   error(printf("Parse error: unknown primitive %s\n", s));
 }
 
@@ -580,7 +614,8 @@ Bool parseAtom(Atom* result)
     ||
     (  scanf(" PRI%*[ (]%i%*[) ]\"%10[^\"]\"", &result->contents.pri.arity, str)
     && perform(result->tag = PRI)
-    && perform(result->contents.pri.id = strToPrim(str))
+    && perform(strToPrim(str, &result->contents.pri.id,
+                              &result->contents.pri.swap))
     ) 
   );
 }
@@ -705,6 +740,7 @@ int main()
   printf("Apply       = %11lld%%\n", (100*applyCount)/ticks);
   printf("PRS Success = %11lld%%\n",
     (100*prsSuccessCount)/(1+prsCandidateCount));
+  printf("#GCs        = %12lld\n", gcCount);
   printf("==========================\n");
 
   displayProfTable();

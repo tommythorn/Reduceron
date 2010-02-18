@@ -81,6 +81,12 @@ calls e = extract calls e
 lookupFuncs :: Id -> Prog -> [Decl]
 lookupFuncs f p = [Func g args rhs | Func g args rhs <- p, f == g]
 
+lookupFunc :: Prog -> Id -> Decl
+lookupFunc p f
+  | null ds = error "Flite.Traversals: lookupFunc"
+  | otherwise = head ds
+  where ds = lookupFuncs f p
+
 freshen :: Exp -> Fresh Exp
 freshen (Let bs e) =
   do let (vs, es) = unzip bs

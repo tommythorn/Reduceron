@@ -22,13 +22,13 @@ identifyPredexCandidates nregs p = onExp (identify nregs) p
 identify :: Int -> Exp -> Exp
 identify 0 e = e
 identify nregs e =
-  case runCount (ident [] e) nregs of
+  case runCount (identSpine [] e) nregs of
     (n, e') -> if n == 0 then e' else identify (nregs-n) e'
 
---identSpine :: [(Id, Bool)] -> Exp -> Count Exp
---identSpine scope e
---  | isFlat e = return e
---  | otherwise = ident scope e
+identSpine :: [(Id, Bool)] -> Exp -> Count Exp
+identSpine scope e
+  | isFlat e = return e
+  | otherwise = ident scope e
 
 ident :: [(Id, Bool)] -> Exp -> Count Exp
 ident scope (App (Fun f) xs) | isPredexId f =
@@ -42,15 +42,6 @@ ident scope (Let bs e) =
      let scope' = zip vs (map isPrimApp es) ++ scope
      e':es' <- mapM (ident scope') (e:es)
      return (Let (zip vs es') e')
-{-
-ident scope (Case e alts) = 
-  do let (ps, es) = unzip alts
-     let pvs = concatMap patVars ps
-     let scope' = [(v, b) | (v, b) <- scope, notElem v pvs]
-     e' <- ident scope e
-     es' <- mapM (ident scope') es
-     return (Case e' (zip ps es'))
--}
 ident scope (PrimApp p es) = return (PrimApp p es)
 ident scope e = return e
   
@@ -70,7 +61,6 @@ checkArg scope (Var v) =
     Just b -> b
 checkArg scope e = False
 
-{-
 isFlat :: Exp -> Bool
 isFlat (Let bs e) = False
 isFlat (App e es) = isFlat e && all flat es
@@ -79,8 +69,6 @@ isFlat e = True
 flat (Let bs e) = False
 flat (App e es) = False
 flat e = True
--}
-
 
 -- A monad that allows one to count and bound the number of
 -- transformations that are applied during a computation.
@@ -190,16 +178,3 @@ splitPredexes apps
 isPRIM :: R.App -> Bool
 isPRIM (R.PRIM r as) = True
 isPRIM _ = False
-
--- Combinators for forcing evaluation of primitive arguments.
-force01 :: Decl
-force01 = Func "!force01" [Var "p", Var "a", Var "b"] $
-  App (Var "b") [App (Var "a") [Var "p"]]
-
-force0 :: Decl
-force0 = Func "!force0" [Var "p", Var "a", Var "b"] $
-  App (Var "a") [Var "p", Var "b"]
-
-force1 :: Decl
-force1 = Func "!force1" [Var "p", Var "a", Var "b"] $
-  App (Var "b") [App (Var "p") [Var "a"]]

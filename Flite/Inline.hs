@@ -5,6 +5,7 @@ import Flite.Traversals
 import Flite.ConcatApp
 import Flite.Descend
 import Flite.Fresh
+import Flite.Dependency
 import Control.Monad
 import Flite.Let
 
@@ -21,8 +22,35 @@ inlineTop i p = inline i p
             >>= inlineLinearLet
             >>= inlineSimpleLet
 
+-- In-line saturated applications of small, non-recursive functions
+inline :: InlineFlag -> Prog -> Fresh Prog
+inline i p = onExpM inl p
+  where
+    cg = closure (callGraph p)
+    inl (Fun f)
+      | f `notElem` depends cg f =
+        case lookupFuncs f p of
+          Func f [] rhs:_ | checkInline i (numApps rhs) -> inl rhs
+          _ -> return (Fun f)
+    inl (App (Fun f) es)
+      | f `notElem` depends cg f =
+        case lookupFuncs f p of
+          Func f args rhs:_
+            | length args <= length es
+           && checkInline i (numApps rhs) ->
+                do let vs = map (\(Var v) -> v) args
+                   ws <- mapM (\_ -> fresh) vs
+                   let rhs' = substMany rhs (zip (map Var ws) vs)
+                   inl (mkApp (mkLet (zip ws es) rhs') (drop (length vs) es))
+          _ -> liftM (mkApp (Fun f)) (mapM inl es)
+    inl e = descendM inl e
+
+
+{-
 -- In-line saturated applications of small, non-primitive functions
--- that do not have directly recursive definitions.
+-- that do not have directly recursive definitions.  Does not inline a
+-- function within an expression in which that function has already
+-- been inlined.
 
 inline :: InlineFlag -> Prog -> Fresh Prog
 inline i p = onExpM (inl []) p
@@ -46,7 +74,7 @@ inline i p = onExpM (inl []) p
                        (mkApp (mkLet (zip ws es) rhs') (drop (length vs) es))
           _ -> liftM (mkApp (Fun f)) (mapM (inl tabu) es)
     inl tabu e = descendM (inl tabu) e
-
+-}
 
 mkApp f [] = f
 mkApp f es = App f es
