@@ -52,12 +52,13 @@ main =
        (_, _, errs) -> error (concat errs ++ usageInfo header options)
 
 run flags fileName =
-  do p <- parseProgFile fileName
+  do hSetBuffering stdout NoBuffering
+     p <- parseProgFile fileName
      let inlineFlag = head $ [InlineAll | Inline Nothing <- flags]
                           ++ [InlineSmall i | Inline (Just i) <- flags]
                           ++ [NoInline]
      case filter isDisjoint flags of
-       [] -> interp inlineFlag p `seq` return ()
+       [] -> print (interp inlineFlag p)
        [Desugar] ->
          putStrLn $ pretty $ frontend inlineFlag p
        [CompileToC] -> putStrLn $ compile inlineFlag p

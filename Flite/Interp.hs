@@ -4,7 +4,6 @@ import Flite.Syntax hiding (Lam)
 import Data.Array
 import Flite.InterpFrontend
 import Flite.Inline
-import System.IO.Unsafe(unsafePerformIO)
 
 infixl :@
 
@@ -18,12 +17,14 @@ data Val =
   | Val :@ Val
   | Lambda Id Val
   | Lam (Val -> Val)
+  | Emit String Val
 
 instance Show Val where
   show (Lam f) = "lambda!"
   show (C n _ _ vs) = "(" ++ unwords (n:map show vs) ++ ")"
   show (N i) = show i
   show (Error s) = "** Interpreter error: " ++ s
+  show (Emit s k) = s ++ show k
   show _ = "*Thunk*"
 
 lut :: [Val] -> Val
@@ -92,6 +93,7 @@ infixl 0 @@
 (C s 0 i args) @@ (Lut alts) = run (alts ! i) args @@ Lut alts
 (C s arity i args) @@ x = C s (arity-1) i (x:args)
 (Error s) @@ x = Error s
+(Emit s k) @@ x = Emit s (k @@ x)
 x @@ y = Error $ "Run-time type error : " ++ show x ++ " @@ " ++ show y
 
 run :: Val -> [Val] -> Val
@@ -114,39 +116,35 @@ prims = let (-->) = (,) in
  , "(==)" --> logical2 (==)
  , "(/=)" --> logical2 (/=)
  , "(<=)" --> logical2 (<=)
- , "emit" --> (Lam $ \a ->
- 		case a of 
- 			N a -> Lam $ \k -> emitStr [toEnum a] k
- 			_	-> Error $ "Integer expected. " ++ show a )
- , "emitInt" --> (Lam $ \a ->
- 		case a of 
- 			N a -> Lam $ \k -> emitStr (show a) k
- 			_	-> Error $ "Integer expected. " ++ show a )
+ , "emit" --> (Lam $ \a -> Lam $ \k -> forceInt a $ \a' -> Emit [toEnum a'] k)
+ , "emitInt" --> (Lam $ \a -> Lam $ \k -> forceInt a $ \a' -> Emit (show a') k)
  ]
 
 fix :: Val -> Val
 fix f = let a = f @@ a in a
 
+forceInt :: Val -> (Int -> Val) -> Val
+forceInt (N i) 		f = f i
+forceInt (Emit s k)	f = Emit s (forceInt k f)
+forceInt a			f = Error $ "Integer expected. " ++ show a
+
 arith2 :: (Int -> Int -> Int) -> Val
 arith2 op = Lam $ \a -> Lam $ \b ->
-	case (a, b) of
-		(N a, N b)  -> N (op a b)
-		_			-> Error $ "Integer expected. " ++ show (a, b)
+	forceInt a $ \a' ->
+	forceInt b $ \b' ->
+		N (op a' b')
 
 logical2 :: (Int -> Int -> Bool) -> Val
 logical2 op = Lam $ \a -> Lam $ \b ->
-	case (a, b) of
-		(N a, N b)  -> if (op a b) then true else false
-		_			-> Error $ "Integer expected. " ++ show (a, b)
+	forceInt a $ \a' ->
+	forceInt b $ \b' ->
+		if (op a' b') then true else false
 
 false :: Val
 false = C "False" 0 0 []
 
 true :: Val
 true = C "True" 0 1 []
-
-emitStr :: String -> a -> a
-emitStr s k = unsafePerformIO (putStr s >> return k)
 
 -- Unfortunatly, handling recursive lets is a bit tricky.
 -- Here's SPJ's solution, more-or-less.
