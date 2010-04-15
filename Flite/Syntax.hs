@@ -1,10 +1,10 @@
 module Flite.Syntax where
-
 type Prog = [Decl]
 
 data Decl = Func { funcName :: Id
                  , funcArgs :: [Pat]
                  , funcRhs  :: Exp }
+          | Other String
 
 type Id = String
 

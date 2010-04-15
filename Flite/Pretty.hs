@@ -14,6 +14,7 @@ instance Show Decl where
                            ++ consperse " " (map showArg args)
                            ++ " = "
                            ++ show rhs ++ ";\n"
+  show (Other str) = str ++ ";\n"
 
 instance Show Exp where
   show (App e es) = consperse " " (showArg e : map showArg es)

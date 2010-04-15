@@ -39,8 +39,9 @@ inline i p = onExpM inl p
             | length args <= length es
            && checkInline i (numApps rhs) ->
                 do let vs = map (\(Var v) -> v) args
-                   ws <- mapM (\_ -> fresh) vs
-                   let rhs' = substMany rhs (zip (map Var ws) vs)
+                   -- ws <- mapM (\_ -> fresh) vs
+                   -- let rhs' = substMany rhs (zip (map Var ws) vs)
+                   (ws, rhs') <- freshBody (vs, rhs)
                    inl (mkApp (mkLet (zip ws es) rhs') (drop (length vs) es))
           _ -> liftM (mkApp (Fun f)) (mapM inl es)
     inl e = descendM inl e

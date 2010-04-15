@@ -16,8 +16,8 @@
 #define MAXLUTS 2
 #define MAXREGS 8
 
-#define MAXHEAPAPPS 32000
-#define MAXSTACKELEMS 8000
+#define MAXHEAPAPPS 4000000
+#define MAXSTACKELEMS 100000
 #define MAXTEMPLATES 8000
 
 #define NAMELEN 128
@@ -738,6 +738,7 @@ int main()
   printf("Unwind      = %11lld%%\n", (100*unwindCount)/ticks);
   printf("Update      = %11lld%%\n", (100*updateCount)/ticks);
   printf("Apply       = %11lld%%\n", (100*applyCount)/ticks);
+  printf("PRS Cands   = %12lld\n", prsCandidateCount);
   printf("PRS Success = %11lld%%\n",
     (100*prsSuccessCount)/(1+prsCandidateCount));
   printf("#GCs        = %12lld\n", gcCount);

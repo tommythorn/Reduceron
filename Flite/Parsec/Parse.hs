@@ -2,10 +2,12 @@ module Flite.Parsec.Parse where
 	import qualified Flite.Parsec.Prelude as Prelude
 	import Flite.Syntax
 	import Flite.Pretty
-
+	
 	import Control.Applicative
+	import Control.Arrow
 	import Control.Monad
 	import Data.Char
+	import Data.List
 	import Text.ParserCombinators.Parsec hiding (many, option, (<|>))
 	import Text.ParserCombinators.Parsec.Expr
 	import Text.ParserCombinators.Parsec.Language
@@ -18,7 +20,7 @@ module Flite.Parsec.Parse where
 		, identLetter		= alphaNum
 		, opStart			= opLetter haskellStyle
 		, opLetter			= oneOf "<=>-+/.$"
-		, reservedNames		= ["case", "of", "let", "in", "if", "then", "else"]
+		, reservedNames		= ["case", "of", "let", "in", "if", "then", "else", "data", "type"]
 		, caseSensitive		= True
 		}
 	
@@ -90,7 +92,9 @@ module Flite.Parsec.Parse where
 			else unexpected ("variable " ++ show c) <?> "constructor"
 	
 	defn :: Parser Decl
-	defn = pure Func <*> var <*> many pat <*> (reservedOp "=" *> expr) <?> "definition"
+	defn =  pure (Other . (++) "data ") <*> (reserved "data" *> (many1.noneOf) [';','}'])
+		<|> pure (Other . (++) "type ") <*> (reserved "type" *> (many1.noneOf) [';','}'])
+		<|> pure Func <*> var <*> many pat <*> (reservedOp "=" *> expr) <?> "definition"
 		
 	pat :: Parser Exp
 	pat = pure Var <*> var
@@ -131,9 +135,19 @@ module Flite.Parsec.Parse where
 	bind :: Parser Binding
 	bind = pure (,) <*> var <*> (reservedOp "=" *> expr)
 	
+	partitionDecl :: Prog -> (Prog, Prog)
+	partitionDecl = partition isFunc
+		where
+			isFunc (Func _ _ _) = True
+			isFunc _            = False
+	
 	parseProgFile :: SourceName -> IO Prog
 	parseProgFile f = parseFromFile prog f >>= \result -> case result of
 						Left e	-> error . show $ e
-						Right p	-> return . Prelude.supplyPrelude $ p
+						Right p	-> return . Prelude.supplyPrelude . fst . partitionDecl  $ p
 
 	
+	parseProgFileExt :: SourceName -> IO (Prog, Prog)
+	parseProgFileExt f = parseFromFile prog f >>= \result -> case result of
+						Left e	-> error . show $ e
+						Right p	-> return . first Prelude.supplyPrelude . partitionDecl $ p

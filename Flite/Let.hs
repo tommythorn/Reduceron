@@ -1,5 +1,6 @@
 module Flite.Let(inlineLinearLet, inlineSimpleLet, liftLet) where
 
+import Flite.Dependency
 import Flite.Syntax
 import Flite.Traversals
 import Flite.Descend
@@ -17,7 +18,8 @@ inlineLetWhen f p = onExpM freshen p >>= return . onExp inline
       where (vs, es) = unzip bs
             (bs0, bs1) = partition (f bs e) bs
             (vs1, es1) = unzip bs1
-            (e':es1') = foldr (\(v, e) -> map (subst e v)) (e:es1) bs0
+            (e':es1') = foldr (\(v, e) -> map (subst e v)) (e:es1)
+            	(concat $ letGroups bs0)
     inline e = descend inline e
 
 inlineLinearLet :: Prog -> Fresh Prog
