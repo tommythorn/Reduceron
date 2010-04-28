@@ -60,10 +60,10 @@ splitSpine n ((v, app):rest)
 -- Translates a program to Reduceron syntax.  Takes the max
 -- application length and max spine length as arguments.
 
-translate :: InlineFlag -> Bool -> Int -> Int -> Int -> Prog -> R.Prog
-translate i strictAnan n m nregs p = map (trDefn n m nregs p2) p2
+translate :: (InlineFlag, InlineFlag) -> Bool -> Int -> Int -> Int -> Prog -> R.Prog
+translate hi strictAnan n m nregs p = map (trDefn n m nregs p2) p2
   where
-    p0 = frontend strictAnan nregs i p
+    p0 = frontend strictAnan nregs hi p
     p1 = [ (f, map getVar args, flatten $ removePredexSpine rhs)
          | Func f args rhs <- p0
          ]
@@ -181,10 +181,10 @@ refersCheck _ = False
 
 -- Top-level compilation
 
-redCompile :: InlineFlag -> Bool -> Int -> Int -> Int
+redCompile :: (InlineFlag, InlineFlag) -> Bool -> Int -> Int -> Int
            -> Int -> Int -> Prog -> R.Prog
-redCompile i strictAnan slen alen napps nluts nregs =
-  fragment napps nluts . translate i strictAnan alen slen nregs
+redCompile hi strictAnan slen alen napps nluts nregs =
+  fragment napps nluts . translate hi strictAnan alen slen nregs
 
 -- Auxiliary functions
 

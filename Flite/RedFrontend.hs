@@ -16,12 +16,12 @@ import Flite.WorkerWrapper
 import Control.Monad
 import Flite.Pretty
 
-frontend :: Bool -> Int -> InlineFlag -> Prog -> Prog
+frontend :: Bool -> Int -> (InlineFlag, InlineFlag) -> Prog -> Prog
 frontend strictAnan nregs i p =
   snd (runFresh (frontendM strictAnan nregs i p) "$" 0)
 
-frontendM :: Bool -> Int -> InlineFlag -> Prog -> Fresh Prog
-frontendM strictAnan nregs i p =
+frontendM :: Bool -> Int -> (InlineFlag, InlineFlag) -> Prog -> Fresh Prog
+frontendM strictAnan nregs (h, i) p =
   do p0 <- desugarCase (identifyFuncs p) >>= desugarEqn
      let sii = strictIntInfo p0
      p1 <- inlineLinearLet (concatApps p0)
@@ -30,7 +30,7 @@ frontendM strictAnan nregs i p =
              >>= return . concApps nregs
              >>= (\p -> return (if strictAnan then workerWrapper sii p else p))
              >>= return . concApps nregs
-             -- >>= inlineTop (InlineSmall 1)
+             >>= inlineTop h
              >>= return . concApps nregs
              >>= return . caseElimWithCaseStack
              >>= return . concApps nregs

@@ -12,14 +12,15 @@ import Flite.Inline
 import Flite.Fresh
 import Control.Monad
 
-frontend :: InlineFlag -> Prog -> Prog
+frontend :: (InlineFlag, InlineFlag) -> Prog -> Prog
 frontend i p = snd (runFresh (frontendM i p) "$" 0)
 
-frontendM :: InlineFlag -> Prog -> Fresh Prog
-frontendM i p =
+frontendM :: (InlineFlag, InlineFlag) -> Prog -> Fresh Prog
+frontendM (h, i) p =
       return (identifyFuncs p)
   >>= desugarCase
   >>= desugarEqn
+  >>= inlineTop h
   >>= inlineLinearLet
   >>= inlineSimpleLet
   >>= return . caseElim

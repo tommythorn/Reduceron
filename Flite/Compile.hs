@@ -7,10 +7,10 @@ import Flite.CompileBackend
 import Data.List
 import Flite.Inline
 
-compile :: InlineFlag -> Prog -> String
-compile i p = program (addBool cs, p2)
+compile :: (InlineFlag, InlineFlag) -> Prog -> String
+compile hi p = program (addBool cs, p2)
   where
-    p0 = frontend i p
+    p0 = frontend hi p
     p1 = [(f, map getVar args, flatten rhs) | Func f args rhs <- p0]
     cs = nub $ concat [ctrs b | (_, _, bs) <- p1, b <- map snd bs]
     p2 = [ (funId f, length vs, [(v, map (toNode f p1) a) | (v, a) <- bs])

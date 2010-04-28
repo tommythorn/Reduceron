@@ -16,11 +16,13 @@ data Flag =
     Desugar
   | CompileToC
   | CompileToRed Int Int Int Int Int
-  | Inline (Maybe Int)
+  | InlineH (Maybe Int)
   | StrictnessAnalysis
+  | InlineI (Maybe Int)
   deriving Eq
 
-isDisjoint (Inline i) = False
+isDisjoint (InlineH i) = False
+isDisjoint (InlineI i) = False
 isDisjoint StrictnessAnalysis = False
 isDisjoint flag = True
 
@@ -30,8 +32,10 @@ options =
   , Option ['c'] [] (NoArg CompileToC) "compile to C"
   , Option ['r'] [] (OptArg red "MAXPUSH:APSIZE:MAXAPS:MAXLUTS:MAXREGS")
                     "compile to Reduceron templates"
-  , Option ['i'] [] (OptArg (Inline . fmap read) "MAXAPS")
-                    "inline small function bodies"
+  , Option ['h'] [] (OptArg (InlineH . fmap read) "MAXAPS")
+                    "inline small function bodies early"
+  , Option ['i'] [] (OptArg (InlineI . fmap read) "MAXAPS")
+                    "inline small function bodies late"
   , Option ['s'] [] (NoArg StrictnessAnalysis) "employ strictness analysis"
   ]
   where
@@ -54,17 +58,20 @@ main =
 run flags fileName =
   do hSetBuffering stdout NoBuffering
      p <- parseProgFile fileName
-     let inlineFlag = head $ [InlineAll | Inline Nothing <- flags]
-                          ++ [InlineSmall i | Inline (Just i) <- flags]
+     let inlineFlagH = head $ [InlineAll | InlineH Nothing <- flags]
+                          ++ [InlineSmall i | InlineH (Just i) <- flags]
+                          ++ [NoInline]
+     let inlineFlagI = head $ [InlineAll | InlineI Nothing <- flags]
+                          ++ [InlineSmall i | InlineI (Just i) <- flags]
                           ++ [NoInline]
      case filter isDisjoint flags of
-       [] -> print (interp inlineFlag p)
+       [] -> print (interp (inlineFlagH, inlineFlagI) p)
        [Desugar] ->
-         putStrLn $ pretty $ frontend inlineFlag p
-       [CompileToC] -> putStrLn $ compile inlineFlag p
+         putStrLn $ pretty $ frontend (inlineFlagH, inlineFlagI) p
+       [CompileToC] -> putStrLn $ compile (inlineFlagH, inlineFlagI) p
        [CompileToRed slen alen napps nluts nregs] ->
         do let sa = StrictnessAnalysis `elem` flags
-           mapM_ print $ redCompile inlineFlag sa slen alen napps nluts nregs p
+           mapM_ print $ redCompile (inlineFlagH, inlineFlagI) sa slen alen napps nluts nregs p
        _ -> error (usageInfo header options)
 
 -- Auxiliary

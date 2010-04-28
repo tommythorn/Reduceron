@@ -70,12 +70,12 @@ opt (F "S" :@ p :@ (F "K":@q)) = F "C" :@ p :@ q
 opt (F "S" :@ (F "B":@p:@q) :@ r) = F "S'" :@ p :@ q :@ r
 opt e = e
 
-interp :: InlineFlag -> Prog -> Val
-interp i p = case lookup "main" bs of
+interp :: (InlineFlag, InlineFlag) -> Prog -> Val
+interp hi p = case lookup "main" bs of
              Nothing -> Error "No 'main' function defined"
              Just e -> e
   where bs = prims ++ map (\(f, e) -> (f, link bs e)) (compile p')
-        p' = frontend i p
+        p' = frontend hi p
 
 link :: [(Id, Val)] -> Val -> Val
 link bs (f :@ a) = link bs f @@ link bs a
