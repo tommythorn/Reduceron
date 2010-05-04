@@ -69,12 +69,12 @@ Library
                      parsec >= 2.1.0.1 && < 3
     Exposed-modules: Flite.CallGraph, Flite.Case, Flite.ConcatApp,
                      Flite.Descend, Flite.Fresh, Flite.Identify, Flite.Identity,
-                     Flite.Inline, Flite.Let, Flite.Matching, Flite.Pretty,
+                     Flite.Inline, Flite.Let, Flite.Matching, Flite.Pretty, Flite.RedCompile, 
                      Flite.Syntax, Flite.Traversals, Flite.Writer, Flite.Interp,
                      Flite.Parsec.Parse, Flite.Parsec.Prelude, Flite.Parsec.Flite
     Other-Modules:  Flite.Compile, Flite.CompileBackend
                     Flite.CompileFrontend, Flite.Flatten,
                     Flite.InterpFrontend, Flite.LambdaLift, Flite.Predex, 
-                    Flite.RedCompile, Flite.RedFrontend, Flite.RedSyntax,
+                    Flite.RedFrontend, Flite.RedSyntax,
                     Flite.State, Flite.Strictify, Flite.WriterState,
                     Flite.Dependency, Flite.IntInfer, Flite.Strictness, Flite.WorkerWrapper

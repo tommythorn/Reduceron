@@ -111,7 +111,7 @@ Int numTemplates;
 /* Profiling info */
 
 Long swapCount, primCount, applyCount, unwindCount,
-     updateCount, selectCount, prsCandidateCount, prsSuccessCount;
+     updateCount, selectCount, prsCandidateCount, prsSuccessCount, caseCount;
 
 typedef struct
   {
@@ -310,6 +310,7 @@ void caseSelect(Int index)
   stack[sp-1].contents.fun.arity = 0;
   stack[sp-1].contents.fun.id = lut+index;
   lsp--;
+  caseCount++;
 }
 
 /* Function application */
@@ -499,7 +500,7 @@ void init()
   stack[0] = mainAtom;
   swapCount = primCount = applyCount =
     unwindCount = updateCount = selectCount = 
-      prsCandidateCount = prsSuccessCount = gcCount = 0;
+      prsCandidateCount = prsSuccessCount = gcCount = caseCount = 0;
   initProfTable();
 }
 
@@ -735,16 +736,19 @@ int main()
   printf("Ticks       = %12lld\n", ticks);
   printf("Swap        = %11lld%%\n", (100*swapCount)/ticks);
   printf("Prim        = %11lld%%\n", (100*primCount)/ticks);
+  printf("#Prim       = %12lld\n", primCount);
   printf("Unwind      = %11lld%%\n", (100*unwindCount)/ticks);
   printf("Update      = %11lld%%\n", (100*updateCount)/ticks);
   printf("Apply       = %11lld%%\n", (100*applyCount)/ticks);
   printf("PRS Cands   = %12lld\n", prsCandidateCount);
   printf("PRS Success = %11lld%%\n",
     (100*prsSuccessCount)/(1+prsCandidateCount));
+  printf("#PRS        = %12lld\n", prsSuccessCount);
   printf("#GCs        = %12lld\n", gcCount);
+  printf("#Cases      = %12lld\n", caseCount);
   printf("==========================\n");
 
-  displayProfTable();
+  // displayProfTable();
 
   return 0;
 }
