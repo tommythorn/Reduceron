@@ -25,7 +25,14 @@ inlineLetWhen f p = onExpM freshen p >>= return . onExp inline
 inlineLinearLet :: Prog -> Fresh Prog
 inlineLinearLet = inlineLetWhen linear
   where
-    linear bs e (v, x) = (not . isPrs) x && refs v (e:map snd bs) <= 1
+    linear bs e (v, x) = (nrefs == 0)
+    				  || (  ( (not . isPrs) x 
+    				  	   || (isSubject e && length bs == 1))
+    				  	&& nrefs == 1)
+    	where
+    		nrefs = refs v (e:map snd bs)
+    		isSubject (Case (Var v') _) = v == v'
+    		isSubject _ = False
     refs v es = sum (map (varRefs v) es)
     isPrs (Fun f) = isPrimId f
     isPrs (App e _) = isPrs e
