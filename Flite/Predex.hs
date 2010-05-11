@@ -22,29 +22,25 @@ identifyPredexCandidates nregs p = onExp (identify nregs) p
 identify :: Int -> Exp -> Exp
 identify 0 e = e
 identify nregs e =
-  case runCount (identSpine [] e) nregs of
+  case runCount (ident True [] e) nregs of
     (n, e') -> if n == 0 then e' else identify (nregs-n) e'
 
-identSpine :: [(Id, Bool)] -> Exp -> Count Exp
-identSpine scope e
-  | isFlat e = return e
-  | otherwise = ident scope e
-
-ident :: [(Id, Bool)] -> Exp -> Count Exp
-ident scope (App (Fun f) xs) | isPredexId f =
-  do xs' <- mapM (ident scope) xs
+ident :: Bool -> [(Id, Bool)] -> Exp -> Count Exp
+ident False scope (App (Fun f) xs) | isPredexId f =
+  do xs' <- mapM (ident False scope) xs
      let e' = App (Fun f) xs'
      if checkArgs scope xs' then one (PrimApp f xs') e' else return e'
-ident scope (App e es) =
-  return App `ap` ident scope e `ap` mapM (ident scope) es
-ident scope (Let bs e) =
+ident spine scope (App e es) =
+  return App `ap` ident spine scope e `ap` mapM (ident False scope) es
+ident spine scope (Let bs e) =
   do let (vs, es) = unzip bs
      let scope' = zip vs (map isPrimApp es) ++ scope
-     e':es' <- mapM (ident scope') (e:es)
+     es' <- mapM (ident False scope') (es)
+     e' <- ident spine scope' e
      return (Let (zip vs es') e')
-ident scope (PrimApp p es) = return (PrimApp p es)
-ident scope e = return e
-  
+ident spine scope (PrimApp p es) = return (PrimApp p es)
+ident spine scope e = return e
+ 
 isPrimApp :: Exp -> Bool
 isPrimApp (PrimApp p es) = True
 isPrimApp _ = False
@@ -61,15 +57,6 @@ checkArg scope (Var v) =
     Just b -> b
 checkArg scope e = False
 
-isFlat :: Exp -> Bool
-isFlat (Let bs e) = False
-isFlat (App e es) = isFlat e && all flat es
-isFlat e = True
-
-flat (Let bs e) = False
-flat (App e es) = False
-flat e = True
-
 -- A monad that allows one to count and bound the number of
 -- transformations that are applied during a computation.
 data Count a = Count { runCount :: Int -> (Int, a) }
@@ -85,6 +72,7 @@ one a b = Count $ \n -> if n > 0 then (n-1, a) else (n, b)
 -- not occupy the spine
 removePredexSpine :: Exp -> Exp
 removePredexSpine (PrimApp p xs) = App (PrimApp p xs) []
+removePredexSpine (Let bs e) = Let bs (removePredexSpine e)
 removePredexSpine e = e
 
 -- Given a flattened body, ensure primitive applications occur
