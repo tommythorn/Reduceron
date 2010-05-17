@@ -13,13 +13,15 @@ module Flite.Parsec.Parse where
 	import Text.ParserCombinators.Parsec.Language
 	import qualified Text.ParserCombinators.Parsec.Token as T
 	
-	flite = T.makeTokenParser $ emptyDef
+	flite = T.makeTokenParser fliteStyle
+	
+	fliteStyle = emptyDef
 		{ commentLine 		= "--"
 		, nestedComments 	= False
 		, identStart		= letter
-		, identLetter		= alphaNum
-		, opStart			= opLetter haskellStyle
-		, opLetter			= oneOf "<=>-+/.$"
+		, identLetter		= alphaNum <|> oneOf "_'"
+		, opStart			= opLetter fliteStyle
+		, opLetter			= oneOf ":!#$%&*+./<=>?@\\^|-~"
 		, reservedNames		= ["case", "of", "let", "in", "if", "then", "else", "data", "type"]
 		, caseSensitive		= True
 		}
@@ -77,19 +79,42 @@ module Flite.Parsec.Parse where
 			then return v
 			else unexpected (show v) <?> "primitive"
 	
-	var :: Parser Id
-	var = try $ do
+	opv :: Parser Id
+	opv = try $ do
+		v@(_:h:_) <- pure concat <*> sequence [ symbol "(", operator, symbol ")" ]
+		if h /= ':'
+			then return v
+			else unexpected (show v) <?> "operator (variable)"
+	
+	opc :: Parser Id
+	opc = try $ do
+		c@(_:h:_) <- pure concat <*> sequence [ symbol "(", operator, symbol ")" ]
+		if h == ':'
+			then return c
+			else unexpected (show c) <?> "operator (constructor)"
+	
+	specialcon :: Parser Id
+	specialcon = try (  try (symbol "(:)")
+					<|> pure concat <*> sequence [ symbol "(", pure concat <*> many (symbol ",") , symbol ")" ]
+					<|> symbol "[]"
+					<?> "special constructor")
+	
+	vari :: Parser Id
+	vari = try $ (do
 		v <- identifier
 		if isLower (head v)
 			then return v
-			else unexpected ("constructor " ++ show v) <?> "variable"
+			else unexpected ("constructor " ++ show v) <?> "variable")
 	
-	con :: Parser Id
-	con = try $ do
+	coni :: Parser Id
+	coni = try $ do
 		c <- identifier
 		if isUpper (head c)
 			then return c
 			else unexpected ("variable " ++ show c) <?> "constructor"
+	
+	var = vari <|> opv
+	con = specialcon <|> coni <|> opc
 	
 	defn :: Parser Decl
 	defn =  pure (Other . (++) "data ") <*> (reserved "data" *> (many1.noneOf) [';','}'])
