@@ -1,5 +1,7 @@
 module Flite.Parsec.Flite (main) where
 
+import Paths_flite (version)
+import Data.Version (showVersion)
 import Flite.Syntax
 import Flite.Parsec.Parse
 import Flite.Pretty
@@ -47,7 +49,8 @@ options =
           CompileToRed (read a) (read b) (read c) (read d) (read e)
         _ -> error (usageInfo header options)
 
-header = "Usage: Flite [OPTION...] FILE.hs"
+header = "Usage: Flite [OPTION...] FILE.hs \n"
+	  ++ "Version " ++ showVersion version
 
 main =
   do args <- getArgs

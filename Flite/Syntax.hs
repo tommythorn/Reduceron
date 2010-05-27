@@ -15,6 +15,7 @@ data Exp = App Exp [Exp]
          | Con Id
          | Fun Id
          | Int Int
+         | Wld -- Wildcard '_'
 
            -- The following may be introduced by various transformations,
            -- but not by the parser.

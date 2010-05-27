@@ -30,6 +30,7 @@ instance Show Exp where
   show Bottom = "_|_"
   show (Ctr c arity i) = c
   show (Lam vs e) = '\\' : consperse " " vs ++ " -> " ++ show e
+  show Wld = "_*"
 
 showArg :: Exp -> String
 showArg (App e []) = showArg e

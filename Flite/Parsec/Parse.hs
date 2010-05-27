@@ -18,11 +18,11 @@ module Flite.Parsec.Parse where
 	fliteStyle = emptyDef
 		{ commentLine 		= "--"
 		, nestedComments 	= False
-		, identStart		= letter
+		, identStart		= letter <|> oneOf "_"
 		, identLetter		= alphaNum <|> oneOf "_'"
 		, opStart			= opLetter fliteStyle
 		, opLetter			= oneOf ":!#$%&*+./<=>?@\\^|-~"
-		, reservedNames		= ["case", "of", "let", "in", "if", "then", "else", "data", "type"]
+		, reservedNames		= ["_", "case", "of", "let", "in", "if", "then", "else", "data", "type"]
 		, caseSensitive		= True
 		}
 	
@@ -102,7 +102,7 @@ module Flite.Parsec.Parse where
 	vari :: Parser Id
 	vari = try $ (do
 		v <- identifier
-		if isLower (head v)
+		if isLower (head v) || head v == '_'
 			then return v
 			else unexpected ("constructor " ++ show v) <?> "variable")
 	
@@ -124,11 +124,13 @@ module Flite.Parsec.Parse where
 	pat :: Parser Exp
 	pat = pure Var <*> var
 		<|> pure App <*> (pure Con <*> con) <*> pure []
+		<|> (pure Wld <* reserved "_" <?> "Wildcard symbol")
 		<|> parens pat'
 		<?> "pattern"
 	
 	pat' :: Parser Exp
 	pat' = pure Var <*> var
+		<|> (pure Wld <* reserved "_" <?> "Wildcard symbol")
 		<|> pure App <*> (pure Con <*> con) <*> many pat
 	
 	expr :: Parser Exp

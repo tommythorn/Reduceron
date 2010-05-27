@@ -57,7 +57,13 @@ getVar e = Nothing
 
 type Equation = ([Pat], Exp)
 
+isWld :: Equation -> Bool
+isWld (Wld:ps, e) = True
+isWld (Var v:ps, e) = False
+isWld (App (Con c) args:ps, e) = False
+
 isVar :: Equation -> Bool
+isVar (Wld:ps, e) = False
 isVar (Var v:ps, e) = True
 isVar (App (Con c) args:ps, e) = False
 
@@ -70,6 +76,7 @@ getCon (App (Con c) args:ps, e) = (c, args)
 match :: [Id] -> [Equation] -> Fresh Exp
 match [] [q] = return (snd q)
 match (u:us) qs
+  | all isWld qs = match us [(ps, e) | (Wld:ps, e) <- qs]
   | all isVar qs = match us [(ps, subst (Var u) v e) | (Var v:ps, e) <- qs]
   | all isCon qs = do alts <- mapM (matchClause us) (groupEqns qs)
                       return (Case (Var u) alts)
