@@ -1,0 +1,488 @@
+======================
+REDUCERON MEMO 23
+York Lava, by example
+Matthew N, 22 May 2009
+======================
+
+York Lava is Haskell library for describing digital circuits.
+Descriptions can be simulated in Hugs or GHC, and converted to VHDL
+compatible with XST, the Xilinx Synthesis Tool.  It is largely
+compatible with Chalmers Lava, but omits some features and offers a
+few new ones.
+
+Simulation
+----------
+
+York Lava provides an abstract data type 'Bit' and a set of primitive
+operators over values of this type.  For example, the operator for a
+two-input AND gate is written '<&>' and has type
+
+  Bit -> Bit -> Bit
+
+Expressions involving values of type 'Bit' can be simulated at the
+Lava prompt.
+
+  Lava> low <&> high
+  low
+
+  Lava> map inv [low, high, low]
+  [high,low,high]
+
+By default, only the output of the circuit on the 1st clock-cycle is
+displayed.  More generally, 'simulateN' gives the outputs on the first
+N cycles.
+
+  Lava> simulateN 3 $ map inv [low, high, low]
+  [[high,low,high],[high,low,high],[high,low,high]]
+
+  Lava> simulateN 4 $ delay low high
+  [low,high,high,high]
+
+The 'delay' operator represents a D-type flip-flop; it outputs its
+first argument on the first clock-cycle, and thereafter outputs its
+second argument delayed by one clock-cycle.
+
+Alternatively, 'simulate' gives the outputs on all cycles.
+
+  Lava> simulate $ let x = delay low (inv x) in x
+  [low,high,low,high,low,high,...
+
+Note the feedback loop in this example: the flip-flop's output is
+connected to its own input via an inverter.
+
+And 'simulateSeq' allows a constant waveform to be specified as input.
+
+  Lava> simulateSeq (delay low) [low, high, low, high, low]
+  [low,low,high,low,high]
+
+A conversion function from bits to booleans ('bitToBool') is provided;
+this is useful for defining custom simulation routines, and also for
+testing circuit properties using tools such as QuickCheck.
+
+  Lava> takeWhile bitToBool $ simulate $ delay high (delay high low)
+  [high,high]
+
+Synthesis
+---------
+
+Further to simulation, Haskell functions over bits can also be
+synthesised.  For example, the function 'halfAdd'
+
+  halfAdd :: Bit -> Bit -> (Bit, Bit)
+  halfAdd a b = (sum, carry)
+    where
+      sum   = a <#> b
+      carry = a <&> b
+
+can be converted to a VHDL entity with inputs named "a" and "b" and
+outputs named "sum" and "carry".
+
+  synthesiseHalfAdd :: IO ()
+  synthesiseHalfAdd =
+    writeVhdl "HalfAdd"
+              (halfAdd (name "a") (name "b"))
+              (name "sum", name "carry")
+
+The VHDL is written to the directory specified by the first argument
+of 'writeVhdl'.  (Sometimes more than one source file is generated,
+for example when block-RAMs are used.)
+ 
+  Lava> synthesiseHalfAdd
+  Creating directory 'HalfAdd/'
+  Writing to 'HalfAdd/HalfAdd.vhd'
+  Done.
+
+Sized vectors
+-------------
+
+Values of type 'Vec n a' are vectors containing 'n' elements of type 'a'.
+Bit-vectors are a commonly-used special case.
+
+  type Word n = Vec n Bit
+
+Valid numeric types are 'Z', 'S Z', 'S (S Z)' and so on; the type
+constructors 'N0' to 'N255' are pre-defined as type synonyms.  The
+'Word' type is a member of Haskell's 'Num' class.
+
+  Lava> 13 :: Word N4
+  Vec [high,low,high,high]
+
+  Lava> 4+3 :: Word N8
+  Vec [high,high,high,low,low,low,low,low]
+
+Note the least-significant bit comes first.
+
+Each numeric type contains exactly one value.  For example, the type
+'S Z' contains the value 'S Z'.  All type-level numbers are members of
+the type class 'N'. 
+
+  class N n where
+    value :: n -> Int
+
+The values 'n0' to 'n255', with types 'N0' to 'N255' respectively, are
+predefined as constants.
+
+  Lava> value n4
+  4
+
+The 'value' function is non-strict; its result is computed entirely
+from the *type* of its argument.
+
+The function 'vat' indexes a vector. 
+
+  Lava> (13 :: Word N4) `vat` n2
+  low
+
+A static type error is given if the index is out of bounds.
+
+Vectors can be turned into lists, for more convenient processing.
+
+  Lava> velems (13 :: Word N4)
+  [high,low,high,high]
+
+Many other operations on vectors are provided - see the module
+'Lava.Vector'.
+
+Generic circuits
+----------------
+
+Many of the functions exported by Lava are generic in the sense that
+they operate over arbitrary collections of bits, not simply single
+bits.  For example, the function '===' has type
+
+  Generic a => a -> a -> Bit
+
+and can be used to compare any two structures of bits.
+
+  Lava> low === high 
+  low
+
+  Lava> (low, high, low) === (low, high, low)
+  high
+
+Examples of other generic circuits include:
+
+  Lava> orG (low, (low, low), high)
+  high
+
+  Lava> low ? ([low, high], [high, low])
+  [high, low]
+
+  Lava> pickG [(low, 0), (low, 1), (high, 2), (low, 3)] :: Word N4
+  Vec [low,high,low,low]
+
+  Lava> simulateN 4 $ delay (low, high) (high, high)
+  [(low,high),(high,high),(high,high),(high,high)]
+
+See the 'Lava.Prelude' module for more generic circuits.
+
+It is straightforward to make any algebraic data type a member of the
+'Generic' class using the helper functions 'cons' and '><'.  For
+example, here is the list instance:
+
+  instance Generic a => Generic [a] where
+    generic [] = cons []
+    generic (a:as) = cons (:) >< a >< as
+
+Memory
+------
+
+York Lava supports primitive components that produce multiple output
+bits.  Random-access memories (RAMs), which have data-output buses,
+are a prime example.
+
+  ram :: [Integer] -> RamAlgorithm -> RamInputs n m -> Word n
+
+The 1st argument states what the locations beginning at address 0
+should be initialised to.  The list of initial values may have a
+length smaller than the number of locations in the RAM; any locations
+whose initial values are unspecified are initialised to 0.
+
+The 2nd argument specifies to the Xilinx Core Generator which
+cascading algorithm should be used when making big RAMs out of
+individual block-RAMs.
+
+  data RamAlgorithm =
+    MinArea | Width1 | Width2 | Width4 | Width9 | Width18 | Width36
+
+Choosing 'MinArea' causes the "Minimum Area" algorithm to be used; any
+other choice results in the "Fixed Primitives" algorithm being used.
+See the Xilinx Core Generator documentation for details on these
+algorithms.
+
+The 3rd argument species the data-input and address buses, along with
+a write-enable signal.  The type parameters 'n' and 'm' are the widths
+of the data and address buses respectively.
+
+  data RamInputs n m =
+    RamInputs {
+      ramData    :: Word n
+    , ramAddress :: Word m
+    , ramWrite   :: Bit
+    }
+
+True dual-port RAMs are also provided through the 'dualRam' primitive,
+the main difference being that it takes a pair of 'RamInputs' and
+produce a pair of data-output buses.  Memory collisions are resolved
+using the Xilinx "WRITE_FIRST" semantics.
+
+Behavioural description
+-----------------------
+
+York Lava provides the following constructs for writing behavioural
+descriptions.
+
+  Skip  :: Recipe
+  Tick  :: Recipe
+  (<==) :: Var v => v n -> Word n -> Recipe
+  Seq   :: [Recipe] -> Recipe
+  Par   :: [Recipe] -> Recipe
+  (|>)  :: Bit -> Recipe -> Recipe
+  While :: Bit -> Recipe -> Recipe
+
+(For a precise semantics of this language, see Memo 24.)
+
+There are two steps to writing behavioural descriptions in York Lava.
+The first is to define a state type (say 'State') that contains all
+the state variables to be used in the description.  And the second is
+to define a function of type 'State -> Recipe' which manipulates the
+state in desired way.
+
+To illustrate, consider the implementation of a sequential multiplier
+using the shift-and-add algorithm.  In this case, the state type
+contains three registers: the two inputs to multiply, and the result
+of the multiplication.
+
+  data Mult n = Mult { a, b, result :: Reg n }
+
+A value of type 'Mult n' is created by 'newMult'.
+
+  newMult :: N n => New (Mult n)
+  newMult = return Mult `ap` newReg `ap` newReg `ap` newReg
+
+The shift-and-add recipe takes a value of type 'Mult n'.
+
+  shiftAndAdd s =
+    While (s!b!val =/= 0) $
+      Seq [ s!a <== s!a!val!shr
+          , s!b <== s!b!val!shl
+          , s!b!val!vhead |>
+              s!result <== s!result!val + s!a!val
+          , Tick
+          ]
+
+  shr x = low +> vinit x
+
+  shl x = vtail x <+ low
+
+Three remarks are in order:
+
+  1. The '!' operator is flipped application with a high precedence.
+
+       infixl 9 !
+       (!) :: a -> (a -> b) -> b
+       x!f = f x
+
+     This gives descriptions an appropriate object-oriented flavour.
+
+  2. The value of a variable is obtained using the function
+
+       val :: Var v => v n -> Word n
+
+     Registers (of type 'Reg') are an instance of the 'Var' class.
+
+  3. The functions '+>' and '<+' perform cons and snoc operations
+     on vectors, 'vhead' takes the head of a vector, and '=/=' is
+     generic disequality.
+
+To actually perform a multiplication, the input variables need to be
+initialised.
+
+  multiply x y s = Seq [ s!a <== x, s!b <== y, Tick, s!shiftAndAdd ]
+
+For example, an eight-bit multiplier that computes 5*5.
+
+  example :: Mult N8 -> Recipe
+  example s = s!multiply 5 5
+
+The example can simulated using 'simRecipe', which a value of type
+'New s' and passes the state (of type 's') to a function of type
+'s -> Recipe'.  It performs the recipe, and then applies a projection
+function to the final state, to select the desired outputs.
+
+  simExample = simRecipe newMult example result
+
+  Lava> simExample
+  Vec [high,low,low,high,high,low,low,low]
+
+The example can be synthesised by calling 'recipe' which is similar to
+'simRecipe' but takes a single-cycle pulse indicating when to start,
+and produces a single-cycle pulse indicating when the recipe has
+finished.
+
+  synExample =
+    do let (s, done) = recipe newMult example (delay high low)
+       writeVhdl "MultExample"
+                 (s!result!val, done)
+                 (nameWord "result", name "done")
+
+Poly: a simple stack processor
+------------------------------
+
+To complete this overview, a simple processor is defined.  The aim of
+the processor is to evaluate expressions of the form
+
+  data Expr = X | N Integer | Expr :+: Expr | Expr :*: Expr
+
+For example:
+
+  expr = (X :+: X) :+: (N 2 :*: X) :+: X
+
+The semantics of expressions is as follows.
+
+  eval :: Expr -> Integer -> Integer
+  eval X n = n
+  eval (N i) n = i
+  eval (e1 :+: e2) n = eval e1 n + eval e2 n
+  eval (e1 :*: e2) n = eval e1 n * eval e2 n
+
+For example:
+
+  Lava> eval expr 3
+  15
+
+A stack machine to evaluate expressions might have the following
+instructions.
+
+  data INSTR = LIT Integer | DUP | REV | ADD | MUL | HALT
+
+Expressions can be compiled to a sequence of such instructions.
+
+  compile :: Expr -> [INSTR]
+  compile e = comp e ++ [HALT]
+
+  comp X = []
+  comp (N n) = [LIT n]
+  comp (e1 :+: e2) = DUP:comp e2 ++ [REV] ++ comp e1 ++ [ADD]
+  comp (e1 :*: e2) = DUP:comp e2 ++ [REV] ++ comp e1 ++ [MUL]
+
+For example:
+
+  Lava> compile expr
+  [DUP,REV,DUP,DUP,REV,LIT 2,MUL,REV,DUP,REV,ADD,ADD,ADD,HALT]
+
+The semantics of the stack machine is as follows.
+
+  exec :: [INSTR] -> [Integer] -> Integer
+  exec (LIT m : c) (n:s)   = exec c (m:s)
+  exec (DUP   : c) (m:s)   = exec c (m:m:s)
+  exec (REV   : c) (m:n:s) = exec c (n:m:s)
+  exec (ADD   : c) (m:n:s) = exec c (m+n:s)
+  exec (MUL   : c) (m:n:s) = exec c (m*n:s)
+  exec (HALT  : c) (n:s)   = n
+
+To implement the machine at the digital-circuit level, a bit-level
+encoding of the instruction set is required.
+
+  encode :: INSTR -> Integer
+  encode (LIT n) = 1 + 2*fromIntegral n
+  encode DUP     = 2
+  encode REV     = 4
+  encode ADD     = 8
+  encode MUL     = 16
+  encode HALT    = 32
+
+  type DataWidth = N8
+  type Instr = Word DataWidth
+  type Value = Word DataWidth
+
+  isLIT, isDUP, isREV, isADD, isMUL, isHALT :: Instr -> Bit
+  isLIT i  = i `vat` n0
+  isDUP i  = inv (isLIT i) <&> (i `vat` n1)
+  isREV i  = inv (isLIT i) <&> (i `vat` n2)
+  isADD i  = inv (isLIT i) <&> (i `vat` n3)
+  isMUL i  = inv (isLIT i) <&> (i `vat` n4)
+  isHALT i = inv (isLIT i) <&> (i `vat` n5)
+
+  getLIT :: Instr -> Value
+  getLIT i = vtail i <+ low
+
+Note the bit-width of the machine is parameterised by 'DataWidth'.
+
+The machine state consists of an instruction stack, a value stack, a
+multiplier, and a register storing the top element of the value stack.
+
+  data Poly = Poly
+    { code  :: Stack DataWidth AddrWidth
+    , stack :: Stack DataWidth AddrWidth
+    , mult  :: Mult DataWidth
+    , rtop  :: Reg DataWidth
+    }
+
+  type AddrWidth = N10
+
+The implementation of the 'Stack' data type is not be presented here
+(but can be found in the examples directory); it is sufficient to know
+that it supports the following operations.
+
+  top  :: Stack n m -> Word n
+  pop  :: Stack n m -> Recipe
+  push :: Word n -> Stack n m -> Recipe
+
+The function 'newPoly' takes the program (used to initialise the
+instruction stack) and an initial value for the top of the value
+stack.
+
+  newPoly :: [Integer] -> Integer -> New Poly
+  newPoly code x =
+         return Poly
+    `ap` newStack code
+    `ap` newStack []
+    `ap` newMult
+    `ap` newRegInit (fromIntegral x)
+
+The behaviour of the processor is as follows.
+
+  poly :: Poly -> Recipe
+  poly s =
+    let instr = s!code!top in
+      Seq [ Tick
+          , While (instr!isHALT!inv) $
+              Seq [ isLIT instr |> s!rtop <== getLIT instr
+                  , isDUP instr |> s!stack!push (s!rtop!val)
+                  , isREV instr |>
+                      Seq [ s!rtop <== s!stack!top
+                          , s!stack!pop
+                          , s!stack!push (s!rtop!val)
+                          ]
+                  , isADD instr |>
+                      Seq [ s!rtop <== s!rtop!val + s!stack!top
+                          , s!stack!pop
+                          ]
+                  , isMUL instr |>
+                      Seq [ s!mult!multiply (s!rtop!val) (s!stack!top)
+                          , s!rtop <== s!mult!result!val
+                          , s!stack!pop
+                          ]
+                  , s!code!pop
+                  , Tick
+                  ]
+          ]
+
+Each instruction executes in one clock-cycle, apart from
+multiplication which may take up to 'DataWidth' clock-cycles.
+
+To test the processor, a custom simulation routine is useful.
+
+  simPoly :: Expr -> Integer -> Value
+  simPoly e x = simRecipe (newPoly code x) poly (val . rtop)
+    where code = reverse $ map enc $ compile e
+
+  Lava> simPoly expr 3
+  Vec [high,high,high,high,low,low,low,low]
+
+The function 'simPoly' has almost the same type has 'eval', and it is
+straightforward to define a correctness property for the processor.
+
+  prop_poly :: Expr -> Integer -> Bool
+  prop_poly e x = eval e x == wordToInt (simPoly e x)

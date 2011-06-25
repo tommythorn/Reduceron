@@ -1,0 +1,37 @@
+Name:                york-lava
+Version:             0.2
+Author:              Matthew Naylor
+Maintainer:          Matthew Naylor <mfn@cs.york.ac.uk>
+License:             BSD3
+License-file:        LICENSE
+Synopsis:            A library for digital circuit description.
+Description:
+  York Lava is library for describing digital circuits. Descriptions
+  can be simulated in Hugs or GHC, and converted to VHDL compatible with
+  XST, the Xilinx Synthesis Tool.  It is similar to Chalmers
+  Lava, but omits some features and offers a few new ones.
+  See the top-level module "Lava" for pointers to futher information.
+Category:            Hardware
+Build-Depends:       base < 5, haskell98, containers
+Build-Type:          Simple
+Stability:           provisional
+Homepage:            http://www.cs.york.ac.uk/fp/reduceron/
+Hugs-options:        -98 -c1024
+Ghc-options:         -fno-cse -fno-full-laziness
+Hs-source-dirs:      modules
+Exposed-modules:
+  Recipe
+  Lava
+  Lava.Binary
+  Lava.Bit
+  Lava.JList
+  Lava.Prelude
+  Lava.Vector
+  Lava.Vhdl
+Extra-Source-Files:
+  examples/Cube.hs
+  examples/HalfAdd.hs
+  examples/Loopy.hs
+  examples/Mult.hs
+  examples/Poly.hs
+  examples/Stack.hs
