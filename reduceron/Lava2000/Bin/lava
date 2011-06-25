@@ -1,0 +1,1 @@
+hugs -98 -P/home/emax/Program/Lava/Lava2000/Modules:/home/emax/Program/Lava/Lava2000/Modules/Compilers/Hugs: $1

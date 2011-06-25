@@ -1,0 +1,5 @@
+#!/bin/sh
+
+export GHCI=/grp/haskell/ghc-6.6/bin/i386-unknown-linux/ghci
+
+$GHCI -fglasgow-exts -i$YHC_ROOT/src/libraries/core -i$YHC_ROOT/src/libraries/general -i$YHC_ROOT/depends/play -i../Lava2000/Modules:../Lava2000/Modules/Compilers/Ghc: $1

@@ -1,0 +1,81 @@
+#!/bin/sh
+#----------------------------------------------------------------
+#- Wrapper for smv
+#- to be used by the Lava system
+#----------------------------------------------------------------
+
+#- This file gets `File' as an argument, and produces the file
+#- File.out, containing the output of prover.
+
+trap 'echo "(^C) \c"' INT
+
+#----------------------------------------------------------------
+#- Variables
+
+#- options
+
+cd "`dirname $1`"
+File="`echo $1 | sed s!.*/!!`"
+shift
+ShowTime="no"
+
+if [ "$1" = "-showTime" ]
+then
+  ShowTime="yes"
+  shift
+fi
+
+Args="$*"
+
+#- derived
+
+Output="$File.out"
+
+#- constants
+
+Smv="/home/emax/Program/SMV/bin/smv"
+Time="/tmp/lava-proof-time-$$"
+
+#----------------------------------------------------------------
+#- Running Smv
+
+smv_()
+{
+  /usr/bin/time $Smv $File $Args 2> $Time
+}
+
+smv_ > $Output
+
+#----------------------------------------------------------------
+#- Time
+
+seconds()
+{
+  if [ "$ShowTime" = "yes" ]
+  then
+    echo "(t=$2) \c"
+  fi
+}
+
+seconds `tail -3 $Time`
+cat $Time >> $Output
+rm $Time 2> /dev/null
+
+#----------------------------------------------------------------
+#- Check Output
+
+if grep "....false" $Output > /dev/null
+then
+  #- FALSIFIABLE
+  exit 2
+else if grep "....true" $Output > /dev/null
+then
+  #- VALID
+  exit 0
+else
+  #- INDETERMINATE
+  exit 1
+fi; fi
+
+#----------------------------------------------------------------
+#- the end.

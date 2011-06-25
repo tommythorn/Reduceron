@@ -1,0 +1,4 @@
+vhdl work "monitor_bus_bridge.vhd"
+vhdl work "monitor_direct.vhd"
+vhdl work "CHANGEME.vhd"
+vhdl work "top.vhd"
