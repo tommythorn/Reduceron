@@ -59,7 +59,7 @@ run flags fileName =
                           ++ [InlineSmall i | Inline (Just i) <- flags]
                           ++ [NoInline]
      case filter isDisjoint flags of
-       [] -> interp inlineFlag p `seq` return ()
+       [] -> print (interp inlineFlag p)
        [Desugar] ->
          putStrLn $ pretty $ frontend inlineFlag p
        [CompileToC] -> putStrLn $ compile inlineFlag p

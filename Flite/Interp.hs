@@ -22,7 +22,7 @@ data Val =
 instance Show Val where
   show (Lam f) = "lambda!"
   show (C n _ _ vs) = "(" ++ unwords (n:map show vs) ++ ")"
-  show (N i) = show i
+  show (N i) = "" -- was: "show i" but all output is supposed to be Emitted
   show (Error s) = "** Interpreter error: " ++ s
   show (Emit s k) = s ++ show k
   show _ = "*Thunk*"
