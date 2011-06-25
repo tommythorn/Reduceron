@@ -7,6 +7,11 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+
+#define perform(action) (action, 1)
+
+#define error(action) (action, exit(-1), 0)
 
 /* Compile-time options */
 
@@ -156,7 +161,7 @@ Atom dash(Bool sh, Atom a)
   return a;
 }
 
-App dashApp(Bool sh, App* app)
+void dashApp(Bool sh, App* app)
 {
   Int i;
   for (i = 0; i < app->size; i++)
@@ -165,7 +170,7 @@ App dashApp(Bool sh, App* app)
 
 /* Unwinding */
 
-inline Bool nf(App* app)
+static inline Bool nf(App* app)
 {
   return (app->tag == CASE ? 0 : app->details.normalForm);
 }
@@ -191,7 +196,7 @@ void unwind(Bool sh, Int addr)
 
 /* Updating */
 
-inline Int arity(Atom a)
+static inline Int arity(Atom a)
 {
   switch (a.tag) {
     case NUM: return 1;
@@ -225,8 +230,6 @@ void update(Atom top, Int saddr, Int haddr)
 {
   Int len = sp - saddr;
   Int p = sp-2;
-
-  Int i, j;
 
   for (;;) {
     if (len < APSIZE) {
@@ -268,6 +271,8 @@ Atom prim(Prim p, Atom a, Atom b)
     case LEQ: result = n <= m ? trueAtom : falseAtom; break;
     case EMIT: printf("%c", n); result = b; break;
     case EMITINT: printf("%i", n); result = b; break;
+    case SEQ:
+        ;
   }
   return result;
 }
@@ -506,7 +511,7 @@ void init()
 
 /* Dispatch loop */
 
-inline Bool canCollect()
+static inline Bool canCollect()
 {
   return (stack[sp-1].tag != FUN || stack[sp-1].contents.fun.original);
 }
@@ -548,10 +553,6 @@ void dispatch()
 }
 
 /* Parser for .red files */
-
-#define perform(action) (action, 1)
-
-#define error(action) (action, exit(-1), 0)
 
 Int strToBool(Char *s)
 {
@@ -644,7 +645,6 @@ makeListParser(parseAtoms, parseAtom, Atom)
 
 Bool parseApp(App *app)
 {
-  Int i;
   Char str[16];
   Bool success;
   success =
@@ -744,7 +744,7 @@ int main()
   printf("PRS Success = %11lld%%\n",
     (100*prsSuccessCount)/(1+prsCandidateCount));
   printf("#PRS        = %12lld\n", prsSuccessCount);
-  printf("#GCs        = %12lld\n", gcCount);
+  printf("#GCs        = %12lld\n", (long long) gcCount);
   printf("#Cases      = %12lld\n", caseCount);
   printf("==========================\n");
 
