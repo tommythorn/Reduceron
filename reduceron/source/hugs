@@ -1,1 +1,0 @@
-hugs -98 -P../Lava2000/Modules:../Lava2000/Modules/Compilers/Hugs: $1
