@@ -1,0 +1,9 @@
+This is a fork of York's Reduceron, http://www.cs.york.ac.uk/fp/reduceron,
+the work of Matthew Naylor, Colin Runciman and Jason Reich.
+
+I tried to gather as much of the history as was available to me and
+collected reduceron and york-lava in one repository.
+
+Flite is tracked seperately
+
+Tommy Thorn, 2011-06-25
