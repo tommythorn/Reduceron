@@ -17,7 +17,7 @@ Heap layout
 
 A node is a tagged pointer, storable in a single word of memory.
 
-> nodeType = "typedef unsigned long Node;"
+> nodeType = "typedef uintptr_t Node;"
 
 The least-significant bit of a node is a tag stating whether the node
 is an AP, containing a pointer to an application (a sequence of nodes)
@@ -27,6 +27,8 @@ on the heap, or an OTHER, containing something else.
 
 The 2nd least-significant bit of a node is a flag stating whether or
 not the node is the final node of an application.
+
+> destType = "typedef enum dest Dest;"
 
 > macros = unlines
 >   [ "#define isFinal(n) ((n) & 2)"
@@ -52,14 +54,14 @@ If a node is a FUN, its remaining 29-bits contains a 6-bit arity and a
 23-bit function identifier.
 
 >   , "#define getARITY(n) (((n) >> 3) & 63)"
->   , "#define getFUN(n) ((n) >> 9)"
+>   , "#define getFUN(n) (Dest) ((n) >> 9)"
 
 More precisely:
 
 >   , "#define isAP(n) (((n) & 1) == 0)"
 >   , "#define isINT(n) (((n) & 5) == 1)"
 >   , "#define isFUN(n) (((n) & 5) == 5)"
->   , "#define makeAP(a,final) ((unsigned long) (a) | ((final) << 1))"
+>   , "#define makeAP(a,final) ((Node) (a) | ((final) << 1))"
 >   , "#define makeINT(i,final) (((i) << 3) | ((final) << 1) | 1)"
 >   , "#define makeFUN(arity,f,final) " ++
 >              "(((f) << 9) | ((arity) << 3) | ((final) << 1) | 5)"
@@ -84,7 +86,7 @@ Registers
 >   , "Node *hp;"           {- heap pointer -}
 >   , "Node *tsp;"          {- to-space pointer -}
 >   , "Update *usp;"        {- update-stack pointer -}
->   , "unsigned int dest;"  {- destination address for computed jumps -}
+>   , "Dest dest;"          {- destination address for computed jumps -}
 >   ]
 
 Swapping
@@ -241,6 +243,7 @@ any better in C.
 >   , prims          -- primitive definitions
 >   , constrs cs     -- constructor definitions
 >   , defns ds       -- function definitions
+>   , "default: assert(0);"
 >   , "}"
 >   ]
 
@@ -299,15 +302,16 @@ Function compilation
 Map F-lite primitives to suitable C identifiers.
 
 > fun :: Id -> String
-> fun "(+)" = "PRIM_PLUS"
-> fun "(-)" = "PRIM_MINUS"
-> fun "(<=)" = "PRIM_LEQ"
-> fun "(==)" = "PRIM_EQ"
-> fun "(/=)" = "PRIM_NEQ"
-> fun "emit" = "PRIM_EMIT"
-> fun "emitInt" = "PRIM_EMITINT"
-> fun "_|_" = "PRIM_UNDEFINED"
-> fun f = "FUN_" ++ f
+> fun "(+)"      = "PRIM_PLUS"
+> fun "(-)"      = "PRIM_MINUS"
+> fun "(<=)"     = "PRIM_LEQ"
+> fun "(==)"     = "PRIM_EQ"
+> fun "(/=)"     = "PRIM_NEQ"
+> fun "emit"     = "PRIM_EMIT"
+> fun "emitInt"  = "PRIM_EMITINT"
+> fun "_|_"      = "PRIM_UNDEFINED"
+> fun ('s':'w':'a':'p':':':f) = fun f ++ "_SWAPPED"
+> fun f          = "FUN_" ++ f
 
 > declareArgs :: Int -> String
 > declareArgs n = unlines $ map save [1..n]
@@ -326,7 +330,7 @@ Map F-lite primitives to suitable C identifiers.
 > node r vs final (VAR v) =
 >   r ++ " = makeAP(base+" ++ offset ++ "," ++ final ++ ");"
 >   where offset = show $ lookupVar v vs
-> node r vs final (FUN n f) = 
+> node r vs final (FUN n f) =
 >   r ++ " = makeFUN(" ++ show n ++ "," ++ fun f ++ "," ++ final ++ ");"
 
 > lookupVar v vs = case lookup v vs of { Nothing -> error msg ; Just i -> i }
@@ -373,22 +377,22 @@ Primitives
 ----------
 
 > primIds :: [Id]
-> primIds =
->   [ "(+)" , "(-)" , "(<=)" , "(==)", "(/=)", "emit", "emitInt", "_|_" ]
-
-Apply primitive arithmetic operator to 2nd and 3rd stack elements;
-store result in top.
+> primIds = l ++ ["swap:" ++ p | p <- l] ++ ["_|_"]
+>   where l = [ "(+)" , "(-)" , "(<=)" , "(==)", "(/=)", "emit", "emitInt" ]
 
 > arithPrim :: Id -> String -> String
 > arithPrim p op = unlines
 >   [ "case " ++ fun p ++ ":"
 >   , "{"
->   , "top = makeINT(getINT(sp[-1]) " ++ op ++ " getINT(sp[-2]),0);"
+>   , "top = makeINT(getINT(sp[-"++a++"]) " ++ op ++ " getINT(sp[-"++b++"]),0);"
 >   , "sp -= 2;"
 >   , "goto EVAL;"
 >   , "}"
 >   , "break;"
 >   ]
+>   where (a,b) = case p of
+>                 's':_ -> ("2","1")
+>                 _     -> ("1","2")
 
 Ditto for boolean operator.
 
@@ -396,7 +400,7 @@ Ditto for boolean operator.
 > boolPrim p op = unlines
 >   [ "case " ++ fun p ++ ":"
 >   , "{"
->   , "top = (getINT(sp[-1]) " ++ op ++ " getINT(sp[-2])) ? "
+>   , "top = (getINT(sp[-"++a++"]) " ++ op ++ " getINT(sp[-"++b++"])) ? "
 >       ++ "makeFUN(1," ++ fun "True"  ++ ",0) "
 >       ++ ": makeFUN(1," ++ fun "False" ++ ",0);"
 >   , "sp -= 2;"
@@ -404,20 +408,26 @@ Ditto for boolean operator.
 >   , "}"
 >   , "break;"
 >   ]
+>   where (a,b) = case p of
+>                 's':_ -> ("2","1")
+>                 _     -> ("1","2")
 
 Print the second stack element.
 
-> emitPrim :: Id -> String -> String
-> emitPrim p format = unlines
+> emitPrim :: Id -> String -> String -> String
+> emitPrim p format cast = unlines
 >   [ "case " ++ fun p ++ ":"
 >   , "{"
->   , "top = sp[-2];"
->   , "printf(\"" ++ format ++ "\", getINT(sp[-1]));"
+>   , "top = sp[-" ++ b ++ "];"
+>   , "printf(\"" ++ format ++ "\", " ++ cast ++ "getINT(sp[-" ++ a ++ "]));"
 >   , "sp -= 2;"
 >   , "goto EVAL;"
 >   , "}"
 >   , "break;"
 >   ]
+>   where (a,b) = case p of
+>                 's':_ -> ("2","1")
+>                 _     -> ("1","2")
 
 > undefPrim :: String
 > undefPrim = unlines
@@ -432,12 +442,19 @@ Print the second stack element.
 > prims :: String
 > prims = unlines
 >   [ arithPrim "(+)" "+"
+>   , arithPrim "swap:(+)" "+"
 >   , arithPrim "(-)" "-"
+>   , arithPrim "swap:(-)" "-"
 >   , boolPrim "(<=)" "<="
+>   , boolPrim "swap:(<=)" "<="
 >   , boolPrim "(==)" "=="
+>   , boolPrim "swap:(==)" "=="
 >   , boolPrim "(/=)" "!="
->   , emitPrim "emit" "%c"
->   , emitPrim "emitInt" "%i"
+>   , boolPrim "swap:(/=)" "!="
+>   , emitPrim "emit" "%c" "(char)"
+>   , emitPrim "swap:emit" "%c" "(char)"
+>   , emitPrim "emitInt" "%ld" ""
+>   , emitPrim "swap:emitInt" "%ld" ""
 >   , undefPrim
 >   ]
 
@@ -561,14 +578,17 @@ Program compilation
 
 > declareFuns :: Program -> String
 > declareFuns p =
->   unlines $ [def f i | (f, i) <- zip (primIds ++ funIds p) [0..]]
->   where def f i = "#define " ++ fun f ++ " " ++ show i
+>   unlines $ ["enum dest {"] ++ [fun f ++ ","| f <- primIds ++ funIds p] ++ ["};"]
 
 > program :: Program -> String
-> program p = unlines
+> program p = show p
+> program' p = unlines
 >   [ "#include <stdio.h>"
 >   , "#include <stdlib.h>"
+>   , "#include <stdint.h>"
+>   , "#include <assert.h>"
 >   , nodeType
+>   , destType
 >   , updateType
 >   , macros
 >   , declareFuns p
