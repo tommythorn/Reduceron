@@ -2,8 +2,9 @@
 
 York Lava is library for describing digital circuits.  Descriptions
 can be simulated in Hugs or GHC, and converted to VHDL compatible with
-XST, the Xilinx Synthesis Tool.  It is largely compatible with
-Chalmers Lava, but omits some features and offers a few new ones.
+XST, the Xilinx Synthesis Tool or Verilog compatible with Quartus II
+and more.  It is largely compatible with Chalmers Lava, but omits some
+features and offers a few new ones.
 
 New features include:
 
@@ -47,10 +48,12 @@ module Lava
   ( module Lava.Bit
   , module Lava.Vector
   , module Lava.Vhdl
+  , module Lava.Verilog
   , module Lava.Prelude
   ) where
 
 import Lava.Bit
 import Lava.Vector
 import Lava.Vhdl
+import Lava.Verilog
 import Lava.Prelude
