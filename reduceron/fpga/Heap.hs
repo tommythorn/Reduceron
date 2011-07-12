@@ -57,7 +57,7 @@ newHeap ramAlgorithm =
      sigIncA     <- newSig
      sigIncB     <- newSig
      sigReset    <- newSig
-    
+
 
      let ramInsA = RamInputs {
                      ramData    = val sigInputA

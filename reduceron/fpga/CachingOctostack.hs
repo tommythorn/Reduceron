@@ -130,7 +130,7 @@ update o en xs s = Seq ([s!offset <== o, s!writeEn <== en] ++ assigns)
 
 example :: Octostack N18 -> Recipe
 example s =
-  Seq [ s!update 3 (high +> high +> high +> 0) [4, 5, 6] 
+  Seq [ s!update 3 (high +> high +> high +> 0) [4, 5, 6]
       , Tick -- PUSH [4, 5, 6]
       , s!update 2 (high +> high +> 0) [8, 9]
       , Tick -- PUSH [8, 9]

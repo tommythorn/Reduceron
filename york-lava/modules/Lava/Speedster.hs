@@ -191,7 +191,7 @@ ramFiles part nl =
     nonEmpty params = not (null init)
       where init = read (lookupParam params "init") :: [Integer]
 
-    genCoeFile params = 
+    genCoeFile params =
          "memory_initialization_radix = 10;\n"
       ++ "memory_initialization_vector = "
       ++ (unwords $ map show init)

@@ -79,7 +79,7 @@ newPoly code x =
   `ap` newStack []
   `ap` newMult
   `ap` newRegInit (fromIntegral x)
- 
+
 poly :: Poly -> Recipe
 poly s =
   let instr = s!code!top in

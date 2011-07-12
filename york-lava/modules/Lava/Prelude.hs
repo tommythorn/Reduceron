@@ -328,7 +328,7 @@ type Unsigned n = Word n
 
 -- | Convert bit-vector to an integer.
 wordToInt :: Integral a => Word n -> a
-wordToInt = binToNat . map bitToBool . velems 
+wordToInt = binToNat . map bitToBool . velems
 
 instance Eq (Vec n Bit) where
   a == b = error msg

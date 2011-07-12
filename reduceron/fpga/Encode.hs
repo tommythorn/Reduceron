@@ -22,7 +22,7 @@ encodeAtom (PRI n s)
   | s' == "(<=)" = B.primLEQ swap
   | otherwise   = error $ "Encode.encodeAtom: primitive '" ++ s ++ "' "
                        ++ "not yet supported on the Reduceron."
-  where 
+  where
     swap = "swap:" `isPrefixOf` s
     s' = if swap then drop 5 s else s
 

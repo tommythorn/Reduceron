@@ -238,7 +238,7 @@ relocatedAddr = pointer . vhead . atoms
 
 encodeApp :: Integer -> Bool -> Bool -> [Integer] -> Integer
 encodeApp arity n c as
-   | arity >= 0 && arity <= 3 && length as <= 4 = 
+   | arity >= 0 && arity <= 3 && length as <= 4 =
            arity
        .|. (boolToNum n `shiftL` 2)
        .|. (boolToNum c `shiftL` 3)
@@ -338,12 +338,12 @@ templateDestReg2 :: Template -> Word N4
 templateDestReg2 = vrigid . vtake n4 . vdrop n218
 
 mapTemplate :: (Atom -> Atom) -> Template -> Template
-mapTemplate f t = 
+mapTemplate f t =
        templateOffset t
   <++> f (templateTop t)
   <++> vsingle (templatePushAlts t)
   <++> templateAlts t
-  <++> vsingle (templateInstAtoms2 t) 
+  <++> vsingle (templateInstAtoms2 t)
   <++> templateApp2Header t
   <++> templatePushMask t
   <++> vconcat (vmap f (templateApp2Atoms t))
@@ -372,7 +372,7 @@ encodeTemplate
   -> Integer -- Dest reg 2
   -> Integer
 encodeTemplate offset top pushAlts alts
-               instAtoms2 app2Header 
+               instAtoms2 app2Header
                pushMask app2Atoms instApp1 app1
                app1Prim app2Prim
                destReg1 destReg2 = fst encoding

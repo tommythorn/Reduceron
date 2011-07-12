@@ -519,7 +519,7 @@ simDualRam dwidth awidth init (we1:we2:sigs) = trans $
             output2 = IM.findWithDefault zero j m''
             m'      = if head we1 then IM.insert i (map head dbus1) m else m
             m''     = if head we2 then IM.insert j (map head dbus2) m' else m'
-            next    = (output1, output2, 
+            next    = (output1, output2,
                        m'',
                        tail we1, tail we2,
                        map tail dbus1, map tail dbus2,
@@ -541,7 +541,7 @@ data Netlist =
           } deriving Show
 
 bitToNetlist :: IORef Int -> Bit -> IO (JL.JList Net, Wire)
-bitToNetlist i bit = 
+bitToNetlist i bit =
   do val <- readIORef (instanceRef bit)
      num <- readIORef i
      case val of
@@ -568,7 +568,7 @@ netlist a b =
      let wires = JL.map snd result
      let outs  = JL.zipWith (\w b -> (getName b, w)) wires sb
      return (Netlist { namedOutputs = JL.toList outs
-                     , nets = JL.toList (JL.concat nls) 
+                     , nets = JL.toList (JL.concat nls)
                      })
   where
     sa = structure a

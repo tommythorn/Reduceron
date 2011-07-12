@@ -217,7 +217,7 @@ fetchApp r = cond |> r!heap!lookupB (r!newTop!val!pointer)
            <|> isSwapState (r!state)
            <|> (isUnfoldState (r!state) <&> inv (r!code!templateInstAtoms2))
 
-{- 
+{-
 
 Unwinding
 ---------
@@ -348,7 +348,7 @@ splitArity :: Word N3 -> (Word N2, Word N2)
 splitArity n = (app1Arity, app2Arity)
   where
     (a, b, c) = (n `vat` n2, n `vat` n1, n `vat` n0)
-    app1Arity = (a <|> c) +> (a <|> b) +> vempty 
+    app1Arity = (a <|> c) +> (a <|> b) +> vempty
     app2Arity = (a <&> inv c) +> (a <&> (b <|> c)) +> vempty
 
 dashN :: Word N3 -> Vec N8 Atom -> Vec N8 Atom

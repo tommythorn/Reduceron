@@ -4,7 +4,7 @@ A very modest library for join-lists, also known as conc-lists.
 
 -}
 
-module Lava.JList 
+module Lava.JList
   ( JList(..)     -- data JList a = Zero | One a | JList a :+: JList a
   , fromList      -- :: [a] -> Jlist a
   , toList        -- :: JList a -> [a]

@@ -66,7 +66,7 @@ data Recipe
 infixr 1 |>
 -- | Run a recipe only if a condition holds.
 (|>) :: Bit -> Recipe -> Recipe
-b |> r = Cond b r 
+b |> r = Cond b r
 
 time :: Recipe -> Maybe Int
 time Skip = Just 0
@@ -83,7 +83,7 @@ time (Do r b) = Nothing
 finite :: Recipe -> Bool
 finite r = isJust (time r)
 
-slowest :: [Recipe] -> Int 
+slowest :: [Recipe] -> Int
 slowest = snd . maximum . flip zip [0..] . map time
 
 type Schedule = [(Bit, VarId, [Bit])]
@@ -123,8 +123,8 @@ class Var v where
   -- | Return the value of a variable of width /n/.
   val :: v n -> Word n
   -- | Assign a value to a variable of width /n/.
-  (<==) :: v n -> Word n -> Recipe 
- 
+  (<==) :: v n -> Word n -> Recipe
+
 -- | /Signal variables/: assignments to a signal come into effect in the
 -- current clock-cycle, but last only for the duration of that
 -- clock-cycle; if a signal not assigned to in a clock-cycle

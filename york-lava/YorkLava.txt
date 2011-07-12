@@ -86,7 +86,7 @@ outputs named "sum" and "carry".
 The VHDL is written to the directory specified by the first argument
 of 'writeVhdl'.  (Sometimes more than one source file is generated,
 for example when block-RAMs are used.)
- 
+
   Lava> synthesiseHalfAdd
   Creating directory 'HalfAdd/'
   Writing to 'HalfAdd/HalfAdd.vhd'
@@ -114,7 +114,7 @@ Note the least-significant bit comes first.
 
 Each numeric type contains exactly one value.  For example, the type
 'S Z' contains the value 'S Z'.  All type-level numbers are members of
-the type class 'N'. 
+the type class 'N'.
 
   class N n where
     value :: n -> Int
@@ -128,10 +128,10 @@ predefined as constants.
 The 'value' function is non-strict; its result is computed entirely
 from the *type* of its argument.
 
-The function 'vat' indexes a vector. 
+The function 'vat' indexes a vector.
 
   Lava> (13 :: Word N4) `vat` n2
-  low
+  high
 
 A static type error is given if the index is out of bounds.
 
@@ -154,7 +154,7 @@ bits.  For example, the function '===' has type
 
 and can be used to compare any two structures of bits.
 
-  Lava> low === high 
+  Lava> low === high
   low
 
   Lava> (low, high, low) === (low, high, low)

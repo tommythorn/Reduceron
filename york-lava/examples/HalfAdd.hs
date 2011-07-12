@@ -9,5 +9,5 @@ halfAdd a b = (sum, carry)
 main :: IO ()
 main = do print $ halfAdd low high
           writeVhdl "HalfAdd"
-                    (halfAdd (name "a") (name "b")) 
+                    (halfAdd (name "a") (name "b"))
                     (name "sum", name "carry")
