@@ -1,1 +1,1 @@
-ghci -i../../../york-lava/modules/: Main.hs
+ghci -i../../york-lava/modules/: Main.hs
