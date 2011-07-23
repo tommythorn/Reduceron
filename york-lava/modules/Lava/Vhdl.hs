@@ -325,6 +325,7 @@ compStr :: InstanceId -> String
 compStr i = "c" ++ show i
 
 wireStr :: Wire -> String
+wireStr (i, 0) = "w" ++ show i
 wireStr (i, j) = "w" ++ show i ++ "_" ++ show j
 
 consperse :: String -> [String] -> String
