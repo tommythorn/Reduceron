@@ -82,32 +82,43 @@ ramFile part name ramType params = unlines commands
                            else "init_" ++ name ++ ".txt"
 
     commands =
-      [ "SET addpads = False"
+      [ "# York Lava generated this core, targeting Xilinx Core Generator version 13.1"
+      , "#"
+      , "# Memory dimension: " ++ show (2^awidth) ++ " " ++ show dwidth ++ "-bit words"
+      , "#"
+      , "# Memory size " ++ show (dwidth * 2^awidth) ++ " bits ="
+      , "#             " ++ show ((dwidth * 2^awidth) `div` 1024) ++ " Kib"
+      , "#"
+      , "# BEGIN Project Options"
+      , "SET addpads = False"
       , "SET asysymbol = True"
       , "SET busformat = BusFormatAngleBracketNotRipped"
       , "SET createndf = False"
       , "SET designentry = VHDL"
       , "SET device = " ++ partName part
       , "SET devicefamily = " ++ partFamily part
-      , "SET package = " ++ partPackage part
-      , "SET speedgrade = " ++ partSpeedGrade part
-      , "SET flowvendor = Foundation_iSE"
+      , "SET flowvendor = Foundation_ISE"
       , "SET formalverification = False"
       , "SET foundationsym = False"
       , "SET implementationfiletype = Ngc"
+      , "SET package = " ++ partPackage part
       , "SET removerpms = False"
       , "SET simulationfiles = Behavioral"
+      , "SET speedgrade = " ++ partSpeedGrade part
       , "SET verilogsim = False"
       , "SET vhdlsim = True"
       , "# END Project Options"
       , "# BEGIN Select"
-      , "SELECT Block_Memory_Generator family Xilinx,_Inc. 2.8"
+      , "SELECT Block_Memory_Generator xilinx.com:ip:blk_mem_gen:6.1"
       , "# END Select"
       , "# BEGIN Parameters"
+      , "CSET additional_inputs_for_power_estimation=false"
       , if null primType then "CSET algorithm=Minimum_Area"
                          else "CSET algorithm=Fixed_Primitives"
-      --, "CSET assume_synchronous_clk=true"
       , "CSET assume_synchronous_clk=false"
+      , "CSET axi_id_width=4"
+      , "CSET axi_slave_type=Memory_Slave"
+      , "CSET axi_type=AXI4_Full"
       , "CSET byte_size=9"
       , "CSET coe_file=" ++ coeFile
       , "CSET collision_warnings=ALL"
@@ -115,9 +126,12 @@ ramFile part name ramType params = unlines commands
       , "CSET disable_collision_warnings=false"
       , "CSET disable_out_of_range_warnings=false"
       , "CSET ecc=false"
+      , "CSET ecctype=No_ECC"
       , "CSET enable_a=Always_Enabled"
       , "CSET enable_b=Always_Enabled"
+      , "CSET error_injection_type=Single_Bit_Error_Injection"
       , "CSET fill_remaining_memory_locations=true"
+      , "CSET interface_type=Native"
       , "CSET load_init_file=" ++
           (if coeFile == "no_coe_file_loaded" then "false" else "true")
       , "CSET memory_type=" ++
@@ -128,21 +142,35 @@ ramFile part name ramType params = unlines commands
       , "CSET output_reset_value_a=0"
       , "CSET output_reset_value_b=0"
       , "CSET pipeline_stages=0"
+-- CSET port_a_clock=100
+-- CSET port_a_enable_rate=100
+-- CSET port_a_write_rate=50
+-- CSET port_b_clock=100
+-- CSET port_b_enable_rate=100
+-- CSET port_b_write_rate=50
       , "CSET primitive=" ++ if null primType then "8kx2" else primType
       , "CSET read_width_a=" ++ show dwidth
       , "CSET read_width_b=" ++ show dwidth
+      , "CSET register_porta_input_of_softecc=false"
       , "CSET register_porta_output_of_memory_core=false"
       , "CSET register_porta_output_of_memory_primitives=false"
       , "CSET register_portb_output_of_memory_core=false"
       , "CSET register_portb_output_of_memory_primitives=false"
+      , "CSET register_portb_output_of_softecc=false"
       , "CSET remaining_memory_locations=0"
-      , "CSET single_bit_ecc=false"
+      , "CSET reset_memory_latch_a=false"
+      , "CSET reset_memory_latch_b=false"
+      , "CSET reset_priority_a=CE"
+      , "CSET reset_priority_b=CE"
+      , "CSET reset_type=SYNC"
+      , "CSET softecc=false"
+      , "CSET use_axi_id=false"
       , "CSET use_byte_write_enable=false"
-      , "CSET use_ramb16bwer_reset_behavior=false"
+      , "CSET use_error_injection_pins=false"
       , "CSET use_regcea_pin=false"
       , "CSET use_regceb_pin=false"
-      , "CSET use_ssra_pin=false"
-      , "CSET use_ssrb_pin=false"
+      , "CSET use_rsta_pin=false"
+      , "CSET use_rstb_pin=false"
       , "CSET write_depth_a=" ++ show (2^awidth)
       , "CSET write_width_a=" ++ show dwidth
       , "CSET write_width_b=" ++ show dwidth
