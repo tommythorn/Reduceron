@@ -226,10 +226,11 @@ instRam params comp (we1:sigs) =
       initFile = "ram_" ++ compStr comp ++ ".mif"
       dwidth = read (lookupParam params "dwidth") :: Int
       awidth = read (lookupParam params "awidth") :: Int
+      annotation = lookupParam params "annotation"
 
       (dbus1, abus1) = splitAt dwidth sigs
       outs1          = map ((,) comp) [0..dwidth-1]
-      c              = " " ++ compStr comp
+      c              = " " ++ annotation ++ compStr comp
  in
   "  altsyncram" ++ c ++ "(\n" ++
   "   .clock0 (clock),\n" ++
@@ -279,13 +280,14 @@ instRam2 params comp (we1:we2:sigs) =
       initFile = "ram_" ++ compStr comp ++ ".mif"
       dwidth = read (lookupParam params "dwidth") :: Int
       awidth = read (lookupParam params "awidth") :: Int
+      annotation = lookupParam params "annotation"
 
       (dbus, abus)   = splitAt (2*dwidth) sigs
       (abus1, abus2) = splitAt awidth abus
       (dbus1, dbus2) = splitAt dwidth dbus
       outs1          = map ((,) comp) [0..dwidth-1]
       outs2          = map ((,) comp) [dwidth..dwidth*2-1]
-      c              = " " ++ compStr comp
+      c              = " " ++ annotation ++ compStr comp
  in
   "  altsyncram" ++ c ++ "(\n" ++
   "   .clock0 (clock),\n" ++

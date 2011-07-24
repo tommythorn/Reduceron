@@ -226,8 +226,8 @@ data RamInputs n m =
   }
 
 -- | RAM of any width and size, with intialiser.
-ram :: (N n, N m) => [Integer] -> RamAlgorithm -> RamInputs n m -> Word n
-ram init pt inps = Vec $ primRam init pt $
+ram :: (N n, N m) => [Integer] -> String -> RamAlgorithm -> RamInputs n m -> Word n
+ram init annotation pt inps = Vec $ primRam init annotation pt $
   RamInps {
       dataBus     = velems (vrigid $ ramData inps)
     , addressBus  = velems (vrigid $ ramAddress inps)
@@ -235,12 +235,12 @@ ram init pt inps = Vec $ primRam init pt $
   }
 
 -- | Dual-port RAM of any width and size, with intialiser.
-dualRam :: (N n, N m) => [Integer] -> RamAlgorithm
+dualRam :: (N n, N m) => [Integer] -> String -> RamAlgorithm
         -> (RamInputs n m, RamInputs n m) -> (Word n, Word n)
-dualRam init pt (inps0, inps1) = (Vec out0, Vec out1)
+dualRam init annotation pt (inps0, inps1) = (Vec out0, Vec out1)
   where
     (out0, out1) =
-      primDualRam init pt
+      primDualRam init annotation pt
         ( RamInps {
             dataBus     = velems (vrigid $ ramData inps0)
           , addressBus  = velems (vrigid $ ramAddress inps0)

@@ -262,22 +262,20 @@ vhdlArch f name nl =
   ++ "end structural;\n"
 
 ramFiles :: Part -> Netlist -> [(String, String)]
-ramFiles part nl =
-    [ ( "init_ram_" ++ compStr (netId net) ++ ".txt"
-      , genCoeFile $ netParams net)
+ramFiles part nl = concat
+    [ (ramName ++ ".xco", ramFile part ramName (netName net) params)
+      :
+      if nonEmpty params then
+         [("init_ram_" ++ compStr (netId net) ++ ".txt", genCoeFile params)]
+      else
+         []
     | net <- nets nl
     , netName net == "ram" || netName net == "dualRam"
-    , nonEmpty (netParams net)
-    ]
- ++ [ ( "ram_" ++ compStr (netId net) ++ ".xco"
-      , ramFile part
-                ("ram_" ++ compStr (netId net))
-                (netName net)
-                (netParams net))
-    | net <- nets nl
-    , netName net == "ram" || netName net == "dualRam"
+    , let ramName = "ram_" ++ ramAnnotation net ++ compStr (netId net)
+          params = netParams net
     ]
   where
+    ramAnnotation net = lookupParam (netParams net) "annotation"
     nonEmpty params = not (null init)
       where init = read (lookupParam params "init") :: [Integer]
 

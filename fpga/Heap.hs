@@ -47,8 +47,8 @@ data Heap n m =
   , doReset  :: Sig N1
   }
 
-newHeap :: (N n, N m) => RamAlgorithm -> New (Heap (S (S n)) m)
-newHeap ramAlgorithm =
+newHeap :: (N n, N m) => RamAlgorithm -> String -> New (Heap (S (S n)) m)
+newHeap ramAlgorithm annotation =
   do sigInputA   <- newSig
      sigInputB   <- newSig
      sigAddressA <- newSig
@@ -72,7 +72,7 @@ newHeap ramAlgorithm =
                    , ramWrite   = vhead (val sigWriteB)
                    }
 
-     let (ramOutsA, ramOutsB) = dualRam [] ramAlgorithm (ramInsA, ramInsB)
+     let (ramOutsA, ramOutsB) = dualRam [] ("heap_" ++ annotation) ramAlgorithm (ramInsA, ramInsB)
 
      let incA = vhead (val sigIncA)
      let incB = vhead (val sigIncB)

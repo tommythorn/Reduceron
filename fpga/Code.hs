@@ -13,7 +13,7 @@ import Recipe
 type Code m = Word m
 
 newCode :: (N n, N m) => [Integer] -> Word n -> RamAlgorithm -> New (Code m)
-newCode init address ramAlgorithm = return (ram init ramAlgorithm ramIns)
+newCode init address ramAlgorithm = return (ram init "code_" ramAlgorithm ramIns)
   where
      ramIns = RamInputs {
                 ramData    = 0

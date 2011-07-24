@@ -98,7 +98,7 @@ unistack ramAlgorithm push pop input ramWr ramAddr ramDatIn
                , ramAddress = ramAddr
                , ramWrite   = ramWr
                }
-    (ramOutsA, ramOutsB) = dualRam [] ramAlgorithm (ramInsA, ramInsB)
+    (ramOutsA, ramOutsB) = dualRam [] "unistack_" ramAlgorithm (ramInsA, ramInsB)
     ramOuts' = delayEn 0 (grow <|> shrink) $
                  pickG [ shrink --> ramOutsA
                        , grow --> top

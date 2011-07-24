@@ -403,8 +403,8 @@ encodeRamAlgorithm Width36 = "512x36"
 
 -- | Single-port RAM with initialiser.  Use 'Lava.Prelude.ram' for
 -- stronger type-safety.
-primRam :: [Integer] -> RamAlgorithm -> RamInps -> [Bit]
-primRam init ramAlg ins =
+primRam :: [Integer] -> String -> RamAlgorithm -> RamInps -> [Bit]
+primRam init annotation ramAlg ins =
     makeComponent "ram"
   {-   Inputs: -} ([writeEnable ins] ++ dataBus ins ++ addressBus ins)
   {-  Outputs: -} dwidth
@@ -413,6 +413,7 @@ primRam init ramAlg ins =
                   , "dwidth" :-> show dwidth
                   , "awidth" :-> show awidth
                   , "primtype" :-> pt
+                  , "annotation" :-> annotation
                   ]
   {- Continue: -} id
   where
@@ -422,8 +423,8 @@ primRam init ramAlg ins =
 
 -- | Dual-port RAM with initialiser.  Use 'Lava.Prelude.dualRam' for
 -- stronger type-safety.
-primDualRam :: [Integer] -> RamAlgorithm -> (RamInps, RamInps) -> ([Bit], [Bit])
-primDualRam init ramAlg (ins1, ins2) =
+primDualRam :: [Integer] -> String -> RamAlgorithm -> (RamInps, RamInps) -> ([Bit], [Bit])
+primDualRam init annotation ramAlg (ins1, ins2) =
     makeComponent "dualRam"
   {-   Inputs: -} ([writeEnable ins1] ++ [writeEnable ins2] ++
                    dataBus ins1       ++ dataBus ins2       ++
@@ -434,6 +435,7 @@ primDualRam init ramAlg (ins1, ins2) =
                   , "dwidth" :-> show dwidth
                   , "awidth" :-> show awidth
                   , "primtype" :-> pt
+                  , "annotation" :-> annotation
                   ]
   {- Continue: -} (splitAt dwidth)
   where

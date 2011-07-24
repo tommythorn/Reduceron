@@ -43,12 +43,12 @@ data Octostack n =
   , tops2   :: Vec N8 (Word n)
   }
 
-newOctostack f =
+newOctostack f annotation =
   do offsetSig <- newSig
      writeEnSig <- newSig
      dataInSigs <- vsequence (vreplicate n8 newSig)
 
-     let (sz, nsz, ts, ts2) = cachingOctostack f
+     let (sz, nsz, ts, ts2) = cachingOctostack f annotation
                                 (val offsetSig)
                                 (velems $ val writeEnSig)
                                 (velems $ vmap val $ dataInSigs)
@@ -63,7 +63,7 @@ newOctostack f =
               , tops2   = Vec ts2
               }
 
-octostack' offset writes pushes = (size, newSize, outputs)
+octostack' annotation offset writes pushes = (size, newSize, outputs)
   where
     size       = delay 0 newSize
     newSize    = size + extend offset
@@ -79,19 +79,19 @@ octostack' offset writes pushes = (size, newSize, outputs)
 
     ramIns     = reverse (rotLeft rotVal' pushes)
     ramWrites  = reverse (rotl rotVal writes)
-    ramOuts    = map (ram [] ramAlgorithm)
+    ramOuts    = map (ram [] ("octostack_" ++ annotation) ramAlgorithm)
                      (zipWith3 RamInputs ramIns hiNewAddrs ramWrites)
 
     outputs    = rotRight rotVal (reverse ramOuts)
 
-cachingOctostack :: N n => (Vec N8 (Word n) -> Vec N8 (Word n))
+cachingOctostack :: N n => String -> (Vec N8 (Word n) -> Vec N8 (Word n))
   -> Word N4 -> [Bit] -> [Word n] -> (Size, Size, [Word n], [Word n])
-cachingOctostack f offset writes pushes =
+cachingOctostack annotation f offset writes pushes =
     (sz, nsz, map Vec regOuts, map Vec regOuts2)
   where
     vec xs = Vec xs `sameSize` (head pushes)
 
-    (sz, nsz, ramOuts) = octostack' offset pushMask (map vec regOuts)
+    (sz, nsz, ramOuts) = octostack' annotation offset pushMask (map vec regOuts)
 
     (o1, o2)      = halve $ decode (velems offset)
     right         = zipWith (<|>) o1 o2
@@ -154,4 +154,4 @@ example s =
       , Tick
       ]
 
-simExample = simRecipe (newOctostack id) example tops
+simExample = simRecipe (newOctostack "example_" id) example tops

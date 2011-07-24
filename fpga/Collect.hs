@@ -41,7 +41,7 @@ data Collect =
   }
 
 newCollect heap updateStack valueStack sigNewTop =
-  do toSpaceHeap   <- newHeap Width1
+  do toSpaceHeap   <- newHeap Width1 "gc_"
      tspReg        <- newReg
      appToCopyReg  <- newReg
      childReg      <- newReg

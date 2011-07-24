@@ -63,10 +63,10 @@ newReduceron :: [Integer] -> New Reduceron
 newReduceron program =
   do nt   <- newSig
      da   <- newSig
-     v    <- newOctostack (dashN (da!val))
+     v    <- newOctostack "vstack_" (dashN (da!val))
      u    <- newUnistack Width9
      a    <- newUnistack Width9
-     h    <- newHeap Width1
+     h    <- newHeap Width1 ""
      c    <- newCode program (fetch (nt!val) (a!newTopElem)) Width18
      res  <- newReg
      col  <- newCollect h u v nt
