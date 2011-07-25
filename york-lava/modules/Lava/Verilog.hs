@@ -35,7 +35,7 @@ verilogDecls nl =
         [ consperse ", " $ map (wireStr . (,) (netId net)) [0..netNumOuts net - 1]
         | net <- wires ]
   ++
-  bracket " reg " ";\n"
+  bracket "  reg " ";\n"
         [ consperse ", " $ map (regFormat net) [0..netNumOuts net - 1]
         | net <- regs ]
   where
@@ -212,6 +212,8 @@ initRam :: String -> String
 initRam ramName =
   "  initial $readmemh(\"" ++ ramName ++ ".txt\", " ++ ramName ++ ");\n"
 
+-- XXX This instantiates a read-before-write memory. Should it be
+-- changed to a write-first implementation?
 instRam params comp (we:sigs) =
     declRam ramName dwidth awidth ++
     "  reg [" ++ show (dwidth-1) ++ ":0] " ++ hackOut1 ++ " = 0;\n" ++
