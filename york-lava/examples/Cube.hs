@@ -38,3 +38,9 @@ fiveCubed :: Cube -> Recipe
 fiveCubed c = c!cube 5
 
 simFiveCubed = simRecipe newCube fiveCubed (result . mul)
+
+synFiveCubed =
+  do let (s, done) = recipe newCube fiveCubed (delay high low)
+     writeVerilog "FiveCubedExample"
+                  (s!mul!result!val, done)
+                  (nameWord "result", name "done")
