@@ -32,6 +32,6 @@ simExample = simRecipe newMult example result
 
 synExample =
   do let (s, done) = recipe newMult example (delay high low)
-     writeVhdl "MultExample"
-               (s!result!val, done)
-               (nameWord "result", name "done")
+     writeVerilog "MultExample"
+                  (s!result!val, done)
+                  (nameWord "result", name "done")
