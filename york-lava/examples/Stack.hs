@@ -70,6 +70,18 @@ example s =
       , Tick
       , s!pop
       , Tick
+      , s!push 42
+      , Tick
+      , s!push 255
+      , Tick
+      , s!pop
+      , Tick
       ]
 
-simExample = simRecipe (newStack [1,2,3]) example top
+simExample = simRecipe (newStack [7,9,2,3]) example top
+
+synExample =
+  do let (s, done) = recipe (newStack [7,9,2,3]) example (delay high low)
+     writeVerilog "StackExample"
+                  (s!top, done)
+                  (nameWord "result", name "done")
