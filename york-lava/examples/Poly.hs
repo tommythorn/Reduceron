@@ -120,6 +120,6 @@ synPoly :: Expr -> Integer -> IO ()
 synPoly e x =
   do let code = reverse $ map enc $ compile e
      let (s, done) = recipe (newPoly code x) poly (delay high low)
-     writeVhdl "Poly"
+     writeVerilog "Poly"
                (s!rtop!val, done)
                (nameWord "result", name "done")
