@@ -7,5 +7,5 @@ main :: IO ()
 main = do print $ simulateN 10 $ loopy high
           print $ simulateSeq loopy [low, high, low, high]
           writeVerilog "Loopy"
-                       (loopy (name "input"))
-                       (name "output")
+                       (loopy (name "i"))
+                       (name "o")

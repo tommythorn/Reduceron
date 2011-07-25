@@ -21,13 +21,21 @@ verilogModuleHeader :: String -> Netlist -> String
 verilogModuleHeader name nl =
   "module " ++ name ++ "(\n" ++
   consperse ",\n"
-       ([ "  input " ++ v | v <- "clock":inps] ++
-        [ "  output " ++ v | v <- outs]) ++
+       ([ "  input " ++ v | v <- "clock":inps, check v] ++
+        [ "  output " ++ v | v <- outs, check v]) ++
   ");\n\n"
   where
     inps = [ lookupParam (netParams net) "name"
            | net <- nets nl, netName net == "name"]
     outs = map fst (namedOutputs nl)
+
+check name = if name `elem` reserved then
+                error $ "`" ++ name ++ "' is a reserved Verilog keyword"
+             else
+                True
+             where
+             reserved = ["module", "input", "output", "inout", "reg", "wire", "for",
+                         "always", "assign", "begin", "end", "endmodule"]
 
 verilogDecls :: Netlist -> String
 verilogDecls nl =
