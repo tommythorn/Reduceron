@@ -2,7 +2,10 @@ module Lava.Vhdl
   ( writeVhdl
   , writeVhdlForPart
   , Part(..)
-  , v5110t
+  , xc3s200a
+  , xc4vlx25
+  , xc5vlx110t
+  , xc6vlx75t
   ) where
 
 import Lava.Bit
@@ -43,8 +46,8 @@ vhdlEntity name nl =
 
 For example:
 
-> v5110t :: Part
-> v5110t =
+> xc5vlx110t :: Part
+> xc5vlx110t =
 >   Part {
 >     partName       = "xc5vlx110t"
 >   , partFamily     = "virtex5"
@@ -61,13 +64,40 @@ data Part =
   , partSpeedGrade :: String
   }
 
-v5110t :: Part
-v5110t =
+xc3s200a :: Part
+xc3s200a =
+  Part {
+    partName       = "xc3s200a"
+  , partFamily     = "spartan3a"
+  , partPackage    = "vq100"
+  , partSpeedGrade = "-4"
+  }
+
+xc4vlx25 :: Part
+xc4vlx25 =
+  Part {
+    partName       = "xc4vlx25"
+  , partFamily     = "virtex4"
+  , partPackage    = "ff668"
+  , partSpeedGrade = "-10C"
+  }
+
+xc5vlx110t :: Part
+xc5vlx110t =
   Part {
     partName       = "xc5vlx110t"
   , partFamily     = "virtex5"
   , partPackage    = "ff1136"
   , partSpeedGrade = "-1"
+  }
+
+xc6vlx75t :: Part
+xc6vlx75t =
+  Part {
+    partName       = "xc6vlx75t"
+  , partFamily     = "virtex6"
+  , partPackage    = "ff484"
+  , partSpeedGrade = "-2"
   }
 
 ramFile :: Part -> String -> String -> [Parameter] -> String
@@ -297,7 +327,7 @@ writeVhdl ::
             -> a      -- ^ The Bit-structure that is turned into VHDL.
             -> a      -- ^ Names for the outputs of the circuit.
             -> IO ()
-writeVhdl = writeVhdlForPart v5110t
+writeVhdl = writeVhdlForPart xc5vlx110t
 
 -- | Like 'writeVhdl', but allows the target part (FPGA chip) to be specified.
 writeVhdlForPart ::
