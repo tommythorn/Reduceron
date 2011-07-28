@@ -220,16 +220,14 @@ initRam :: String -> String
 initRam ramName =
   "  initial $readmemh(\"" ++ ramName ++ ".txt\", " ++ ramName ++ ");\n"
 
--- XXX This instantiates a read-before-write memory. Should it be
--- changed to a write-first implementation?
 instRam params comp (we:sigs) =
     declRam ramName dwidth awidth ++
-    "  reg [" ++ show (dwidth-1) ++ ":0] " ++ hackOut1 ++ " = 0;\n" ++
-    "  assign " ++ vBus outs1 ++ " = " ++ hackOut1 ++ ";\n" ++
+    "  reg [" ++ show (awidth-1) ++ ":0] " ++ hackOut1 ++ " = 0;\n" ++
+    "  assign " ++ vBus outs1 ++ " = " ++ ramName ++ "[" ++ hackOut1 ++ "];\n" ++
     (if null init then "" else initRam ramName) ++
     v_always_at_posedge_clock
       (v_block
-        [ v_assign hackOut1 (ramName ++ "[" ++ vBus abus1 ++ "]")
+        [ v_assign hackOut1 (vBus abus1)
         , v_if_then (wireStr we)
              (v_assign (ramName ++ "[" ++ vBus abus1 ++ "]") (vBus dbus1))
         ])
@@ -246,17 +244,17 @@ instRam params comp (we:sigs) =
 
 instRam2 params comp (we1:we2:sigs) =
     declRam ramName dwidth awidth ++
-    "  reg [" ++ show (dwidth-1) ++ ":0] " ++ hackOut1 ++ " = 0;\n" ++
-    "  reg [" ++ show (dwidth-1) ++ ":0] " ++ hackOut2 ++ " = 0;\n" ++
-    "  assign " ++ vBus outs1 ++ " = " ++ hackOut1 ++ ";\n" ++
-    "  assign " ++ vBus outs2 ++ " = " ++ hackOut2 ++ ";\n" ++
+    "  reg [" ++ show (awidth-1) ++ ":0] " ++ hackOut1 ++ " = 0;\n" ++
+    "  reg [" ++ show (awidth-1) ++ ":0] " ++ hackOut2 ++ " = 0;\n" ++
+    "  assign " ++ vBus outs1 ++ " = " ++ ramName ++ "[" ++ hackOut1 ++ "];\n" ++
+    "  assign " ++ vBus outs2 ++ " = " ++ ramName ++ "[" ++ hackOut2 ++ "];\n" ++
     (if null init then "" else initRam ramName) ++
     v_always_at_posedge_clock
       (v_block
-        [ v_assign hackOut1 (ramName ++ "[" ++ vBus abus1 ++ "]")
+        [ v_assign hackOut1 (vBus abus1)
         , v_if_then (wireStr we1)
              (v_assign (ramName ++ "[" ++ vBus abus1 ++ "]") (vBus dbus1))
-        , v_assign hackOut2 (ramName ++ "[" ++ vBus abus2 ++ "]")
+        , v_assign hackOut2 (vBus abus2)
         , v_if_then (wireStr we2)
              (v_assign (ramName ++ "[" ++ vBus abus2 ++ "]") (vBus dbus2))
         ])
