@@ -1,0 +1,36 @@
+Reduceron
+
+-2. Replicate the work [DONE, see below]
+
+    This has turned out to be tricky as
+    a. The version of ISE they used is very old
+    b. The WebPACK version doesn't support the xc5vlx110t
+    c. I don't have access to any Xilinx device large enough for this
+       design.
+
+    Thus, we have to make progress on the next step first.
+
+-1. Porting to other devices *and* other vendors [DONE]
+
+    The VHDL backend to completely dependent on Xilinx, especially
+    when it comes to memory instantiation.
+
+    A new Verilog backend will be provided, while trying to
+    keep it as portable as possible.
+
+0. Add support for general IO (a load/store scheme)
+
+1. Richer primitives - at least the full integer suite of compares, logicals, and shifts
+...
+20. Reduced FPGA requirement => External heap, using the internal memory as perhaps a
+    combined heap cache and newspace.  This is a huge topic with lot of implications
+    and doing it without loosing much of the Reduceron perf is challenging.
+...
+30. Expanding value width (full 32-bit integers would be ideal)
+...
+50. There may be a small perf benefit to a fused family of compare-case-of, that is, 
+    rather than generate a boolean just to immediately deconstruct it, do it in one
+    step.
+
+Purely on the Flite side:
+a. Enhanced language  - ideally a full Haskell-subset frontend (Yhc?) (This is p
