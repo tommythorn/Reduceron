@@ -7,6 +7,11 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+
+#define perform(action) (action, 1)
+
+#define error(action) (action, exit(-1), 0)
 
 /* Compile-time options */
 
@@ -16,15 +21,11 @@
 #define MAXLUTS 2
 #define MAXREGS 8
 
-#define MAXHEAPAPPS 32000
-#define MAXSTACKELEMS 8000
+#define MAXHEAPAPPS 4000000
+#define MAXSTACKELEMS 100000
 #define MAXTEMPLATES 8000
 
 #define NAMELEN 128
-
-#define perform(action) (action, 1)
-
-#define error(action) (action, exit(-1), 0)
 
 /* Types */
 
@@ -115,7 +116,7 @@ Int numTemplates;
 /* Profiling info */
 
 Long swapCount, primCount, applyCount, unwindCount,
-     updateCount, selectCount, prsCandidateCount, prsSuccessCount;
+     updateCount, selectCount, prsCandidateCount, prsSuccessCount, caseCount;
 
 typedef struct
   {
@@ -160,7 +161,7 @@ Atom dash(Bool sh, Atom a)
   return a;
 }
 
-App dashApp(Bool sh, App* app)
+void dashApp(Bool sh, App* app)
 {
   Int i;
   for (i = 0; i < app->size; i++)
@@ -169,7 +170,7 @@ App dashApp(Bool sh, App* app)
 
 /* Unwinding */
 
-inline Bool nf(App* app)
+static inline Bool nf(App* app)
 {
   return (app->tag == CASE ? 0 : app->details.normalForm);
 }
@@ -230,8 +231,6 @@ void update(Atom top, Int saddr, Int haddr)
   Int len = sp - saddr;
   Int p = sp-2;
 
-  Int i, j;
-
   for (;;) {
     if (len < APSIZE) {
       upd(top, p, len, haddr);
@@ -272,6 +271,8 @@ Atom prim(Prim p, Atom a, Atom b)
     case LEQ: result = n <= m ? trueAtom : falseAtom; break;
     case EMIT: printf("%c", n); result = b; break;
     case EMITINT: printf("%i", n); result = b; break;
+    case SEQ:
+        ;
   }
   return result;
 }
@@ -314,6 +315,7 @@ void caseSelect(Int index)
   stack[sp-1].contents.fun.arity = 0;
   stack[sp-1].contents.fun.id = lut+index;
   lsp--;
+  caseCount++;
 }
 
 /* Function application */
@@ -503,13 +505,13 @@ void init()
   stack[0] = mainAtom;
   swapCount = primCount = applyCount =
     unwindCount = updateCount = selectCount = 
-      prsCandidateCount = prsSuccessCount = gcCount = 0;
+      prsCandidateCount = prsSuccessCount = gcCount = caseCount = 0;
   initProfTable();
 }
 
 /* Dispatch loop */
 
-inline Bool canCollect()
+static inline Bool canCollect()
 {
   return (stack[sp-1].tag != FUN || stack[sp-1].contents.fun.original);
 }
@@ -643,7 +645,6 @@ makeListParser(parseAtoms, parseAtom, Atom)
 
 Bool parseApp(App *app)
 {
-  Int i;
   Char str[16];
   Bool success;
   success =
@@ -735,15 +736,19 @@ int main()
   printf("Ticks       = %12lld\n", ticks);
   printf("Swap        = %11lld%%\n", (100*swapCount)/ticks);
   printf("Prim        = %11lld%%\n", (100*primCount)/ticks);
+  printf("#Prim       = %12lld\n", primCount);
   printf("Unwind      = %11lld%%\n", (100*unwindCount)/ticks);
   printf("Update      = %11lld%%\n", (100*updateCount)/ticks);
   printf("Apply       = %11lld%%\n", (100*applyCount)/ticks);
+  printf("PRS Cands   = %12lld\n", prsCandidateCount);
   printf("PRS Success = %11lld%%\n",
     (100*prsSuccessCount)/(1+prsCandidateCount));
-  printf("#GCs        = %12d\n", gcCount);
+  printf("#PRS        = %12lld\n", prsSuccessCount);
+  printf("#GCs        = %12lld\n", (long long) gcCount);
+  printf("#Cases      = %12lld\n", caseCount);
   printf("==========================\n");
 
-  displayProfTable();
+  // displayProfTable();
 
   return 0;
 }
