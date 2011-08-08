@@ -14,10 +14,10 @@ module main;
        h[0], h[1], h[2], h[3], h[4], h[5], h[6], h[7], h[8], h[9], h[10], h[11], h[12], h[13], h[14],
        finish);
 
-   always @(posedge clock)
+   always @(posedge clock) begin
       if (finish)
-      begin
-      $display("%05d  res %d state %x heap %d finish %d", $time, r, s, h, finish);
+         $display("%05d  res %d state %x heap %d finish %d", $time, r, s, h, finish);
+      if (finish)
          $finish;
    end
 endmodule
