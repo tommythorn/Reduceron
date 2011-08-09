@@ -1,1 +1,1 @@
-a.out: StackExample.v main.v; iverilog $^ && ./a.out
+a.out: StackExample.v main.v; iverilog ../../simulation/altsyncram.v $^ && ./a.out
