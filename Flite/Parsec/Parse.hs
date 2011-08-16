@@ -38,6 +38,7 @@ operator = T.operator flite
 charLiteral = T.charLiteral flite
 stringLiteral = T.stringLiteral flite
 
+{-
 instance Applicative (GenParser s a) where
     pure  = return
     (<*>) = ap
@@ -45,6 +46,7 @@ instance Applicative (GenParser s a) where
 instance Alternative (GenParser s a) where
     empty = mzero
     (<|>) = mplus
+-}
 
 prog :: Parser Prog
 prog = block defn
