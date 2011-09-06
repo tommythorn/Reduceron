@@ -12,14 +12,21 @@ Pointer tagging scheme:
   +------------------+-----------------------------------------+
   | Tag (LSB first)  | Contents                                |
   +------------------+-----------------------------------------+
-  | 000              | Function arity and address              |
-  | 001              | Primitive function arity and identifier |
-  | 010              | Pointer to application                  |
-  | 011              | Pointer to shared application           |
-  | 100              | Primitive integer                       |
-  | 101              | Constructor arity (+1) and index        |
-  | 110              | Reference to function argument          |
-  | 111              | Reference to register                   |
+  | 000              | Function arity and address              | isFUN
+                       arity:3 addr:10 .. first:1
+  | 001              | Primitive function arity and identifier | isFUN
+                       arity:3 swap:1 add:1 sub:1 eq:1 neq:1 leq:1 .. first:1
+  | 010              | Pointer to application                  | isAP
+                       pointer:...
+  | 011              | Pointer to shared application           | isAP isShared
+                       pointer:...
+  | 100              | Primitive integer                       | isINT
+  | 101              | Constructor arity (+1) and index        | isCON
+                       arity:3 index:10
+  | 110              | Reference to function argument          | isARG
+                       shared:1 index:8
+  | 111              | Reference to register                   | isREG
+                       shared:1 index:8
   +------------------+-----------------------------------------+
 
 Assumptions:
@@ -29,7 +36,7 @@ Assumptions:
 
 -}
 
-type HeapAddrN    = N15
+type HeapAddrN    = S ToSpaceAddrN
 type HeapAddr     = Word HeapAddrN
 type StackAddrN   = N13
 type StackAddr    = Word StackAddrN
@@ -37,34 +44,44 @@ type ArityN       = N3
 type Arity        = Word ArityN
 type FunAddrN     = N10
 type FunAddr      = Word FunAddrN
-type ToSpaceAddrN = N14
+type ToSpaceAddrN = N14  -- half of heap. HERE IT IS, THE MAIN PARAMETER.
 type ToSpaceAddr  = Word ToSpaceAddrN
 
 -- Atoms
 
-atomN      = 18 :: Int
-type AtomN = N18
+atomN      = value atomWidth :: Int
+type AtomN = S (S (S HeapAddrN))
 type Atom  = Word AtomN
+atomWidth :: AtomN
+atomWidth  = undefined
+atomWidth5 = n90 -- = 5 * atomWidth. Ew, is there a better way?
 
 isFUN :: Atom -> Bit
 isFUN a = inv (a `vat` n0) <&> inv (a `vat` n1)
 
+splitAtom :: Atom -> (Word N3, HeapAddr)
+splitAtom = vsplitAt n3
+
+splitFunAtom = vsplitAt n3 . snd . splitAtom
+
 funArity :: Atom -> Arity
-funArity = vtake n3 . vdrop n3
+funArity = fst . splitFunAtom
 
 funAddr :: Atom -> FunAddr
-funAddr = vtake n10 . vdrop n6
+funAddr = vtake n10 . snd . splitFunAtom
 
 funFirst :: Atom -> Bit
-funFirst = vlast
+funFirst = vlast . snd . splitFunAtom
+
+funTag = low +> low +> low +> vempty
 
 makeFUN :: Bit -> Word N3 -> FunAddr -> Atom
-makeFUN b n a = low +> low +> low +> (n <++> a <++> (low +> b +> vempty))
+makeFUN b n a = funTag <++> (n <++> a <++> (low +> b +> vempty)) -- Ew!
 
 encodeFUN :: Bool -> Integer -> Integer -> Integer
 encodeFUN b n a
   | n >= 0 && n <= 7 =
-     (n `shiftL` 3) .|. (a `shiftL` 6) .|. (boolToNum b `shiftL` 17)
+     (n `shiftL` 3) .|. (a `shiftL` 6) .|. (boolToNum b `shiftL` (value atomWidth - 1))
   | otherwise = error "encodeFUN: invalid arguments"
 
 getSwapBit :: Atom -> Bit
@@ -98,14 +115,14 @@ isShared :: Atom -> Bit
 isShared a = a `vat` n2
 
 pointer :: Atom -> HeapAddr
-pointer a = vdrop n3 a
+pointer = snd . splitAtom
 
 makeAP :: Bit -> HeapAddr -> Atom
 makeAP s a = low +> high +> s +> a
 
 encodeAP :: Bool -> Integer -> Integer
 encodeAP s a = 2 .|. (boolToNum s `shiftL` 2) .|. (b `shiftL` 3)
-  where b = if a < 0 then a+(2^15) else a
+  where b = if a < 0 then a+(2^(value atomWidth - 3)) else a
 
 dash :: Bit -> Atom -> Atom
 dash s a = vtake n2 a <++> vsingle shared <++> vdrop n3 a
@@ -115,14 +132,14 @@ isINT :: Atom -> Bit
 isINT a = (a `vat` n0) <&> inv (a `vat` n1) <&> inv (a `vat` n2)
 
 intValue :: Atom -> HeapAddr
-intValue a = vdrop n3 a
+intValue = pointer
 
 makeINT :: HeapAddr -> Atom
 makeINT a = high +> low +> low +> a
 
 encodeINT :: Integer -> Integer
 encodeINT a = 1 .|. (b `shiftL` 3)
-  where b = if a < 0 then a + (2^15) else a
+  where b = if a < 0 then a + (2^(atomN - 3)) else a
 
 isCON :: Atom -> Bit
 isCON a = (a `vat` n0) <&> inv (a `vat` n1) <&> (a `vat` n2)
@@ -134,7 +151,7 @@ conIndex :: Atom -> FunAddr
 conIndex = vtake n10 . vdrop n6
 
 makeCON :: Arity -> FunAddr -> Atom
-makeCON n a = high +> low +> high +> (n <++> a <++> (low +> low +> vempty))
+makeCON n a = high +> low +> high +> (n <++> a <++> (low +> low +> vempty)) -- ew
 
 encodeCON :: Integer -> Integer -> Integer
 encodeCON n a
@@ -151,7 +168,7 @@ argIndex :: Atom -> Word N8
 argIndex = vtake n8 . vdrop n4
 
 makeARG :: Bit -> Word N8 -> Atom
-makeARG s n = high +> high +> low +> s +> (n <++> vreplicate n6 low)
+makeARG s n = high +> high +> low +> s +> (n <++> vreplicate n6 low) -- ew
 
 encodeARG :: Bool -> Int -> Integer
 encodeARG s n
@@ -168,7 +185,7 @@ regIndex :: Atom -> Word N8
 regIndex = vtake n8 . vdrop n4
 
 makeREG :: Bit -> Word N8 -> Atom
-makeREG s n = high +> high +> high +> s +> (n <++> vreplicate n6 low)
+makeREG s n = high +> high +> high +> s +> (n <++> vreplicate n6 low) -- ew
 
 encodeREG :: Bool -> Int -> Integer
 encodeREG s n
@@ -200,8 +217,9 @@ Total width of application = 77 bits
 
 -}
 
-appN      = 77 :: Int
-type AppN = N77
+appN      = value appWidth :: Int -- 5 + 4 * atomWidth
+type AppN = N77 -- ew
+appWidth  = undefined :: AppN
 type App  = Word AppN
 
 appArity :: App -> Word N2
@@ -216,11 +234,13 @@ hasAlts app = app `vat` n3
 isCollected :: App -> Bit
 isCollected app = app `vat` n4
 
+splitApp = vsplitAt n5
+
 atoms :: App -> Vec N4 Atom
-atoms = vrigid . vgroup n18 . vdrop n5
+atoms = vrigid . vgroup atomWidth . snd . splitApp
 
 alts :: App -> FunAddr
-alts app = vtake n10 (vdrop n3 (vlast (atoms app)))
+alts = vtake n10 . vdrop n3 . vlast . atoms
 
 makeApp :: Word N2 -> Bit -> Bit -> Vec N4 Atom -> App
 makeApp arity n c as =
@@ -250,7 +270,7 @@ mapApp f a = vtake n5 a <++> vconcat (vmap f (atoms a))
 
 -- Updates
 
-type UpdateN = N28
+type UpdateN = N28 -- ew
 type Update  = Word UpdateN
 
 makeUpdate :: StackAddr -> HeapAddr -> Update
@@ -288,54 +308,80 @@ Total width of template = 222 bits
 
 -}
 
-type TemplateN = N234
+type TemplateN = N222 -- ew
 type Template = Word TemplateN
 
+tempOffset = vsplitAt n4
+
 templateOffset :: Template -> Word N4
-templateOffset t = vtake n4 t
+templateOffset = fst . tempOffset
+
+tempTop = vsplitAt atomWidth . snd . tempOffset
 
 templateTop :: Template -> Atom
-templateTop = vtake n18 . vdrop n4
+templateTop = fst . tempTop
+
+tempPushAlts = vsplitAt n1 . snd . tempTop
 
 templatePushAlts :: Template -> Bit
-templatePushAlts t = vhead (vdrop n22 t)
+templatePushAlts = vhead . fst . tempPushAlts
+
+tempAlts = vsplitAt n10 . snd . tempPushAlts
 
 templateAlts :: Template -> FunAddr
-templateAlts = vtake n10 . vdrop n23
+templateAlts = fst . tempAlts
+
+tempInstAtoms2 = vsplitAt n1 . snd . tempAlts
 
 templateInstAtoms2 :: Template -> Bit
-templateInstAtoms2 t = vhead (vdrop n33 t)
+templateInstAtoms2 = vhead . fst . tempInstAtoms2
+
+tempApp2Header = vsplitAt n5 . snd . tempInstAtoms2
 
 templateApp2Header :: Template -> Word N5
-templateApp2Header t = vtake n5 (vdrop n34 t)
+templateApp2Header = fst . tempApp2Header
+
+tempPushMask = vsplitAt n5 . snd . tempApp2Header
 
 templatePushMask :: Template -> Word N5
-templatePushMask t = vtake n5 (vdrop n39 t)
+templatePushMask = fst . tempPushMask
+
+tempApp2Atoms = vsplitAt atomWidth5 . snd . tempPushMask
 
 templateApp2Atoms :: Template -> Vec N5 Atom
-templateApp2Atoms = vrigid . vgroup n18 . vtake n90 . vdrop n44
+templateApp2Atoms = vrigid . vgroup atomWidth . fst . tempApp2Atoms
+
+tempInstApp1 = vsplitAt n1 . snd . tempApp2Atoms
 
 templateInstApp1 :: Template -> Bit
-templateInstApp1 t = vhead (vdrop n134 t)
+templateInstApp1 = vhead . fst . tempInstApp1
+
+tempApp1 = vsplitAt appWidth . snd . tempInstApp1
 
 templateApp1 :: Template -> App
-templateApp1 = vtake n77 . vdrop n135
+templateApp1 = fst . tempApp1
 
 templateApp2 :: Template -> App
 templateApp2 t =
   templateApp2Header t <++> vconcat (vtake n4 (templateApp2Atoms t))
 
+tempIsApp1Prim = vsplitAt n1 . snd . tempApp1
+
 templateIsApp1Prim :: Template -> Bit
-templateIsApp1Prim = vhead . vdrop n212
+templateIsApp1Prim = vhead . fst . tempIsApp1Prim
+
+tempIsApp2Prim = vsplitAt n1 . snd . tempIsApp1Prim
+tempDestReg1 = vsplitAt n4 . snd . tempIsApp2Prim
+tempDestReg2 = vsplitAt n4 . snd . tempDestReg1
 
 templateIsApp2Prim :: Template -> Bit
-templateIsApp2Prim = vhead . vdrop n213
+templateIsApp2Prim = vhead . fst . tempIsApp2Prim
 
 templateDestReg1 :: Template -> Word N4
-templateDestReg1 = vrigid . vtake n4 . vdrop n214
+templateDestReg1 = vrigid . fst . tempDestReg1
 
 templateDestReg2 :: Template -> Word N4
-templateDestReg2 = vrigid . vtake n4 . vdrop n218
+templateDestReg2 = vrigid . fst . tempDestReg2
 
 mapTemplate :: (Atom -> Atom) -> Template -> Template
 mapTemplate f t =
@@ -353,7 +399,6 @@ mapTemplate f t =
   <++> vsingle (templateIsApp2Prim t)
   <++> templateDestReg1 t
   <++> templateDestReg2 t
-  <++> vreplicate n12 low
 
 encodeTemplate
   :: Integer -- Offset
@@ -379,15 +424,15 @@ encodeTemplate offset top pushAlts alts
   where
     offset'  = if offset < 0 then offset + 16 else offset
     encoding = (offset'             , 4       )
-            <> (top                 , 18      )
+            <> (top                 , atomN      )
             <> (boolToNum pushAlts  , 1       )
             <> (alts                , 10      )
             <> (boolToNum instAtoms2, 1       )
             <> (app2Header          , 5       )
             <> (pushMask            , 5       )
-            <> (app2Atoms           , 5*18    )
+            <> (app2Atoms           , 5*atomN    )
             <> (boolToNum instApp1  , 1       )
-            <> (app1                , 5 + 4*18)
+            <> (app1                , 5 + 4*atomN)
             <> (boolToNum app1Prim  , 1       )
             <> (boolToNum app2Prim  , 1       )
             <> (destReg1            , 4       )
