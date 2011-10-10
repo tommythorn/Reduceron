@@ -162,7 +162,7 @@
 ("tryMove",4,[167],[ARG False 2,ARG False 3,ARG False 0,ARG False 1],[])
 ("tryMove#1",1,[],[CON 0 1],[])
 ("tryMove#2",1,[],[CON 0 0],[])
-("tryMove#3",0,[],[FUN False 0 393],[APP True [CON 3 0,ARG False 2,ARG False 3,ARG False 4],APP False [INT 0,ARG False 0,ARG False 1,VAR False 0]])
+("tryMove#3",0,[],[FUN False 0 393],[APP True [CON 3 0,ARG False 2,ARG False 3,ARG False 4],APP False [CON 0 66,ARG False 0,ARG False 1,VAR False 0]])
 ("tryMove#4",6,[],[CON 0 1],[])
 ("tryMove#5",0,[164],[FUN False 0 394],[CASE 162 [ARG True 3,INT 0],APP False [FUN True 2 231,ARG True 3,VAR True 9,VAR True 6]])
 ("tryMove#6",5,[166],[ARG False 2,ARG False 3,ARG False 1,ARG False 0,ARG False 4],[])
