@@ -5,18 +5,18 @@ CFLAGS=-O2 -g
 #TEST=CountDown.red
 TEST=MSS.red
 
-bigregress: myemu
-	for x in ../programs/flite/*.red;do echo $$x ; ./myemu < $$x;done
+bigregress: emu-32-bit
+	for x in ../programs/flite/*.red;do echo $$x ; ./emu-32-bit < $$x;done
 
-regress: myemu
-	./myemu < ../programs/flite/$(TEST)
+regress: emu-32-bit
+	./emu-32-bit < ../programs/flite/$(TEST)
 
-all: emu profemu myemu
+all: emu profemu emu-32-bit
 
 emu: emu.c Makefile
 	$(CC) $(CFLAGS) $< -o $@
 
-myemu: myemu.c red_atom.h Makefile
+emu-32-bit: emu-32-bit.c red_atom.h Makefile
 	$(CC) $(CFLAGS) $< -o $@
 
 profemu: profemu.c

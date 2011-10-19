@@ -1,39 +1,59 @@
-#ifndef _RED_ATOM_H
-#define _RED_ATOM_H 1
-
-#include <stdint.h>
-#include "red_types.h"
-
-#ifdef assert
-#undef assert
-#endif
-#define assert(x) (void) 0
-
 /*
-  This describes how we achieve two seamingly mutually exclusive
-  goals: supporting full 32-bit primitive numbers and fitting heap
+  Reduceron Atom and App representation,
+
+  Tommy Thorn, October 2011
+
+  This describes how we achieve two seamingly conflicting goals:
+  supporting full 32-bit primitive numbers and fitting heap
   applications in 128-bits.
+
+  The motivation for full 32-bit integers are many, but in particular
+  much numerical code assumes power-of-two sized integers.  32-bit
+  integers will also simplify interfacing with pre-exiting IO devices.
+
+  The motivation for 128-bit heap cells comes portability and what
+  most memories are designed for.  Typically native memory widths are
+  16-, 32-, and 64-bit, with most modern memory designed for or even
+  requiring burst transfers, which burst must frequently be 4 or 8
+  words.  Extending the current Reduceron representation to 32-bit
+  integers would imply 32+3 = 35-bit atoms, and thus 5+4*35 = 145-bit
+  apps.  While this would trivially fit in 256 bits, it would waste
+  memory capacity and bandwidth (less so if bursts can be terminated).
+
+  It's important to stress that this is only concerned with the
+  representation in external memory. A realistic implementation would
+  not operated directly on packed application as done here, but rather
+  pack and unpack them as they enter and exit the cache.
+
+  Fitting atoms in just 33 bit was the primary goal, but the secondary
+  goal was to allow as much pointer address space as possible.  Thus,
+  some of the complications below comes from minimizing the
+  application overhead (the "Head Tag"), for example the elimination
+  of the size field and the partially implicit representation of the
+  application tag.
+
+
 
   Atom representation
 
   All atoms are represented as 33-bit values, where the top bit
   indicates whether the rest is an unboxed 32-bit primitive integer or
-  a tagged value.  Tagged values have bottom HeadTag (HT) bits
+  a tagged value.  Tagged values have bottom Head Tag (HT) bits
   reserved.
 
-  Effectively we have a multi level tagging scheme (assume HT=7 marked
-  with -------):
+  Effectively we have a multi level tagging scheme (assume HT=6 marked
+  with ------):
 
-  - Integers            1NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN integer
+  - Integers           1NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN integer
   - Tagged Values
-    = Pointers          01sppppppppppppppppppppppp------- shared,heap index
+    = Pointers         01spppppppppppppppppppppppp------ shared,heap index
     = Non-pointers
-      * Constructors    00000.AAAiiiiiiiiiiiiiiiii------- arity,index
-      * Primitives      00001sAAAiiiiiiiiiiiiiiiii------- arity,swapped,index
-      * Arguments       00010s...iiiiiiiiiiiiiiiii------- shared,index
-      * Registers       00011s...iiiiiiiiiiiiiiiii------- shared,index
-      * Functions       00100oAAAiiiiiiiiiiiiiiiii------- original,arity,index
-      * Invalid         00101lr..iiiiiiiiiiiiiiiii------- LUT, REGID, index
+      * Constructors   00000.AAAiiiiiiiiiiiiiiiiii------ arity,index
+      * Primitives     00001sAAAiiiiiiiiiiiiiiiiii------ arity,swapped,index
+      * Arguments      00010s...iiiiiiiiiiiiiiiiii------ shared,index
+      * Registers      00011s...iiiiiiiiiiiiiiiiii------ shared,index
+      * Functions      00100oAAAiiiiiiiiiiiiiiiiii------ original,arity,index
+      * Invalid        00101lr..iiiiiiiiiiiiiiiiii------ LUT, REGID, index
 
   Recall, Argument and Register atoms can only occur in
   templates. Invalid is used to mark unused atom slots and implicitly
@@ -43,12 +63,13 @@
   layout, but that could be change if some, say functions, needs a
   larger address space.
 
+
   Heap applications
 
   While we are primarily concerned with heap allocated apps as opposed
-  to apps in templates, which could have a completely different
-  representation with hardly any consequence, we sacrifice pointer
-  address range for a simpler representation.
+  to apps in templates (which could have a completely different
+  representation with hardly any consequence), we sacrifice some
+  pointer address range for a simpler representation.
 
   The HT bits in the first atom are the application tag bits.  For the
   case where the first atom is a primitive number, we recover the HT
@@ -86,15 +107,20 @@
   - The App tag is implicitly represented by a combination of the GC
     flag and the last atom.
 
-  With an HT of 6, we left with 30 - 6 = 24 bits for the pointer,
-  enough for 16 Mi heap cells, a 256 MiB heap.  The more complicated
-  scheme reduces HT to 4 bit, thus leaving 26 bits for the pointer (=
-  64 Mi cells = 1 GiB).
-
-  This tagging scheme comes from the 128-bit constraint of external
-  memory.  If a cache is used, heap application can be unpacked as
-  they move from external memory into the cache (and vise versa).
+  With an HT of 6, we left with 30-6 = 24 bits for the pointer, enough
+  for 16 Mi heap cells, a 256 MiB heap.  The more complicated scheme
+  reduces HT to 4 bit, thus leaving 26 bits for the pointer (= 64 Mi
+  cells = 1 GiB).
 */
+
+#ifndef _RED_ATOM_H
+#define _RED_ATOM_H 1
+
+#include <stdint.h>
+#include "red_types.h"
+
+#define NDEBUG 1
+#include <assert.h>
 
 typedef uint64_t Atom;
 typedef uint32_t UInt;
@@ -185,102 +211,96 @@ typedef Int Lut;
 typedef enum { AP, CASE, PRIM, COLLECTED } AppTag;
 
 typedef struct {
-    uint32_t atoms_[APSIZE];
+    uint32_t atom[APSIZE];
   } App;
 
-static inline AppTag getAppTag(App a) {
+static inline AppTag getAppTag(App app) {
     return
-        ((getHT(a.atoms_[0]) >> HT_GC) & 1) ? COLLECTED :
-        isLUT(a.atoms_[3]) ? CASE :
-        isPRIM(a.atoms_[3]) ? PRIM :
+        ((getHT(app.atom[0]) >> HT_GC) & 1) ? COLLECTED :
+        isLUT(app.atom[3]) ? CASE :
+        isPRIM(app.atom[3]) ? PRIM :
         AP;}
 
-static inline UInt   getAppSize(App a){
-    return 1 + !isINV(a.atoms_[1]) + !isINV(a.atoms_[2]) + !isINV(a.atoms_[3]);}
-static inline Bool   getAppNF(App a)  {return (getHT(a.atoms_[0]) >> HT_NF) & 1;}
-static inline Lut    getAppLUT(App a) {return getLUTIndex(a.atoms_[3]);}
-static inline UInt   getAppRegId(App a){return getPRIMDest(a.atoms_[3]);}
-static inline Atom   getAppAtom_(App app, int i){
-    Atom a = (uint32_t) app.atoms_[i];
+static inline UInt   getAppSize(App app){
+    return 1 + !isINV(app.atom[1]) + !isINV(app.atom[2]) + !isINV(app.atom[3]);}
 
-    /* This depends on HT_INT3,..,HT_INT0 being in the bottom of the
-       first word */
-    a |= (Atom) ((app.atoms_[0] >> i) & 1) << 32;
+static inline Bool   getAppNF(App app)        {return (getHT(app.atom[0]) >> HT_NF) & 1;}
+static inline Lut    getAppLUT(App app)       {return getLUTIndex(app.atom[3]);}
+static inline UInt   getAppRegId(App app)     {return getPRIMDest(app.atom[3]);}
 
-    if (i || !isINT(a))
-        return a;
-    else
-        return setHT(a, getHT(app.atoms_[1]));
-}
-
-/* This version of getAppAtom() is just to normalize the HT field */
 static inline Atom   getAppAtom(App app, int i) {
-    Atom a = getAppAtom_(app, i);
-    if (isINT(a))
-        return a;
-    else
-        return setHT(a, 0);
-}
+    Atom a = app.atom[i];
 
-static inline App    mkApp(AppTag tag, Int size, bool nf, Int info, Atom *atoms) {
+    /* Recover the integer tag from the head tag */
+    a |= (Atom) ((app.atom[0] >> i) & 1) << 32;
+
+    if (i == 0 && isINT(a))
+        /* Recover the HT bits from the next atom (which can't also be an integer) */
+        a = setHT(a, getHT(app.atom[1]));
+
+    return a;}
+
+
+static Bool atomEq(Atom a, Atom b) {
+    if (isINT(a) && isINT(b))
+        return a == b;
+    else
+        return setHT(a, 0) == setHT(b, 0);}
+
+static inline App    mkApp(AppTag tag, Int size, bool nf, Int info, Atom *atom) {
     App app;
     int i;
     UInt ht = 0;
 
     assert(size >= 1);
 
-    if (isINT(atoms[0])) {
-        if (size >= 2 && /*getINTValue(atoms[0]) != 0 && */ !isPRI(atoms[1]))
-            /* The INT 0 case came up from a Flite "bug" that I've
-               fixed in both Flite and pre-existing binaries */
-            printf("An app with an integer at the head, not followed by a primitive\n");
-    }
+    /* The core App constraint allowing the packed representation */
+    assert(!(size >= 2 && isINT(atom[0]) && isINT(atom[1])));
 
     for (i = 0; i < size; ++i)
-        app.atoms_[i] = atoms[i];
+        app.atom[i] = atom[i];
     for (; i < APSIZE; ++i)
-        app.atoms_[i] = mkINV();
+        app.atom[i] = mkINV();
 
-    if (isINT(atoms[0])) {
-        UInt x = getHT(atoms[0]);
-        app.atoms_[1] = setHT(app.atoms_[1], x);
-        assert(getHT(app.atoms_[1]) == x);
+    if (isINT(atom[0])) {
+        /* We need the HT field so save off those bits in the next atom */
+        app.atom[1] = setHT(app.atom[1], getHT(atom[0]));
         ht |= 1 << HT_INT0;
     }
 
-    if (size > 1 && isINT(atoms[1]))
+    if (size > 1 && isINT(atom[1]))
         ht |= 1 << HT_INT1;
 
-    if (size > 2 && isINT(atoms[2]))
+    if (size > 2 && isINT(atom[2]))
         ht |= 1 << HT_INT2;
 
-    if (size > 3 && isINT(atoms[3]))
+    if (size > 3 && isINT(atom[3]))
         ht |= 1 << HT_INT3;
 
     switch (tag) {
-    case CASE: app.atoms_[3] = mkLUT(info); assert(size < 4); break;
-    case PRIM: app.atoms_[3] = mkPRIM(info); assert(size < 4); break;
+    case CASE: app.atom[3] = mkLUT(info); assert(size < 4); break;
+    case PRIM: app.atom[3] = mkPRIM(info); assert(size < 4); break;
     case AP:   ht |= nf << HT_NF; break;
     case COLLECTED: ht |= 1 << HT_GC; break;
     }
 
-    app.atoms_[0] = setHT(app.atoms_[0], ht);
+    app.atom[0] = setHT(app.atom[0], ht);
 
     assert(getAppSize(app) == size);
     assert(getAppTag(app) == tag);
-    assert(getAppAtom(app, 0) == atoms[0]);
+    assert(atomEq(getAppAtom(app, 0), atom[0]));
     if (size > 1)
-        assert(getAppAtom(app, 1) == atoms[1]);
+        assert(atomEq(getAppAtom(app, 1), atom[1]));
     if (size > 2)
-        assert(getAppAtom(app, 2) == atoms[2]);
+        assert(atomEq(getAppAtom(app, 1), atom[1]));
     if (size > 3)
-        assert(getAppAtom(app, 3) == atoms[3]);
+        assert(atomEq(getAppAtom(app, 1), atom[1]));
 
     return app;}
 
 /* Accelerated access to App atoms */
-static inline void shareAppAtom(App *a, int i) {
-    a->atoms_[i] |= 1 << 30;
+static inline void shareAppAtom(App *app, int i) {
+    app->atom[i] |= 1 << 30;
 }
 
 #endif
