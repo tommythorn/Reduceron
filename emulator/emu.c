@@ -16,9 +16,11 @@
 #define MAXLUTS 2
 #define MAXREGS 8
 
-#define MAXHEAPAPPS 32000
-#define MAXSTACKELEMS 8000
-#define MAXTEMPLATES 8000
+#define MAXHEAPAPPS   8192
+#define MAXSTACKELEMS  512
+#define MAXUSTACKELEMS  64
+#define MAXLSTACKELEMS 512
+#define MAXTEMPLATES   512
 
 #define NAMELEN 128
 
@@ -117,6 +119,8 @@ Int numTemplates;
 Long swapCount, primCount, applyCount, unwindCount,
      updateCount, selectCount, prsCandidateCount, prsSuccessCount;
 
+Int maxHeapUsage, maxStackUsage, maxUStackUsage, maxLStackUsage;
+
 typedef struct
   {
     Bool seen;
@@ -124,6 +128,8 @@ typedef struct
   } ProfEntry;
 
 ProfEntry *profTable;
+
+void stackOverflow();
 
 /* Display profiling table */
 
@@ -468,6 +474,10 @@ void collect()
   updateUStack();
   tmp = heap; heap = heap2; heap2 = tmp;
   hp = gcHigh;
+
+  if (hp > maxHeapUsage) maxHeapUsage = hp;
+  if (hp > MAXHEAPAPPS-200) stackOverflow();
+
   //printf("After GC: %i\n", hp);
 }
 
@@ -478,8 +488,8 @@ void alloc()
   heap = (App*) malloc(sizeof(App) * MAXHEAPAPPS);
   heap2 = (App*) malloc(sizeof(App) * MAXHEAPAPPS);
   stack = (Atom*) malloc(sizeof(Atom) * MAXSTACKELEMS);
-  ustack = (Update*) malloc(sizeof(Update) * MAXSTACKELEMS);
-  lstack = (Lut*) malloc(sizeof(Lut) * MAXSTACKELEMS);
+  ustack = (Update*) malloc(sizeof(Update) * MAXUSTACKELEMS);
+  lstack = (Lut*) malloc(sizeof(Lut) * MAXLSTACKELEMS);
   code = (Template*) malloc(sizeof(Template) * MAXTEMPLATES);
   registers = (Atom*) malloc(sizeof(Atom) * MAXREGS);
   profTable = (ProfEntry*) malloc(sizeof(ProfEntry) * MAXTEMPLATES);
@@ -516,8 +526,9 @@ inline Bool canCollect()
 
 void stackOverflow()
 {
-  printf("Out of stack space.\n");
-  exit(-1);
+    printf("Out of space (hp = %d, sp = %d, usp = %d, lsp = %d).\n",
+           hp, sp, usp, lsp);
+    exit(-1);
 }
 
 void dispatch()
@@ -525,9 +536,13 @@ void dispatch()
   Atom top;
 
   while (!(sp == 1 && stack[0].tag == NUM)) {
-    if (sp > MAXSTACKELEMS-100) stackOverflow();
-    if (usp > MAXSTACKELEMS-100) stackOverflow();
-    if (lsp > MAXSTACKELEMS-100) stackOverflow();
+      if (sp > maxStackUsage) maxStackUsage = sp;
+      if (usp > maxUStackUsage) maxUStackUsage = usp;
+      if (lsp > maxLStackUsage) maxLStackUsage = lsp;
+
+    if (sp > MAXSTACKELEMS-50) stackOverflow();
+    if (usp > MAXUSTACKELEMS-4) stackOverflow();
+    if (lsp > MAXLSTACKELEMS-4) stackOverflow();
     if (hp > MAXHEAPAPPS-200 && canCollect()) collect();
     top = stack[sp-1];
     if (top.tag == VAR) {
@@ -741,9 +756,13 @@ int main()
   printf("PRS Success = %11lld%%\n",
     (100*prsSuccessCount)/(1+prsCandidateCount));
   printf("#GCs        = %12d\n", gcCount);
+  printf("Max Heap    = %12d\n", maxHeapUsage);
+  printf("Max Stack   = %12d\n", maxStackUsage);
+  printf("Max UStack  = %12d\n", maxUStackUsage);
+  printf("Max LStack  = %12d\n", maxLStackUsage);
   printf("==========================\n");
 
-  displayProfTable();
+  //displayProfTable();
 
   return 0;
 }

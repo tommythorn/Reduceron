@@ -22,10 +22,11 @@ module CachingOctostack
 import Lava
 import Recipe
 import List
+import Bytecode
 
 -- Parameters
 
-type Size = Word N13 -- Stores the number of elements on the stack
+type Size = StackAddr -- Stores the number of elements on the stack
 ramAlgorithm = Width18
 
 -- Implementation

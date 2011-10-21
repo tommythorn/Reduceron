@@ -38,14 +38,24 @@ Assumptions:
 
 type HeapAddrN    = S ToSpaceAddrN
 type HeapAddr     = Word HeapAddrN
-type StackAddrN   = N13
+type StackAddrN   = N9 -- N9 should be enough
 type StackAddr    = Word StackAddrN
 type ArityN       = N3
 type Arity        = Word ArityN
-type FunAddrN     = N10
+type FunAddrN     = N9
 type FunAddr      = Word FunAddrN
-type ToSpaceAddrN = N14  -- half of heap. HERE IT IS, THE MAIN PARAMETER.
+type ToSpaceAddrN = N12  -- half of heap. HERE IT IS, THE MAIN PARAMETER.
 type ToSpaceAddr  = Word ToSpaceAddrN
+type UStackAddrN  = N9 -- N6 should be enough
+type LStackAddrN  = N9 -- N9 should be enough
+type UpdateN      = N22 -- ew (UStackAddrN + HeapAddrN)
+
+
+funAddrN     = undefined :: FunAddrN
+funAddrWidth = value funAddrN
+
+stackAddrN   = undefined :: StackAddrN
+stackAddrWidth = value stackAddrN
 
 -- Atoms
 
@@ -54,7 +64,7 @@ type AtomN = S (S (S HeapAddrN))
 type Atom  = Word AtomN
 atomWidth :: AtomN
 atomWidth  = undefined
-atomWidth5 = n90 -- = 5 * atomWidth. Ew, is there a better way?
+atomWidth5 = n80 -- = 5 * atomWidth. Ew, is there a better way?
 
 isFUN :: Atom -> Bit
 isFUN a = inv (a `vat` n0) <&> inv (a `vat` n1)
@@ -68,7 +78,7 @@ funArity :: Atom -> Arity
 funArity = fst . splitFunAtom
 
 funAddr :: Atom -> FunAddr
-funAddr = vtake n10 . snd . splitFunAtom
+funAddr = vtake funAddrN . snd . splitFunAtom
 
 funFirst :: Atom -> Bit
 funFirst = vlast . snd . splitFunAtom
@@ -76,7 +86,7 @@ funFirst = vlast . snd . splitFunAtom
 funTag = low +> low +> low +> vempty
 
 makeFUN :: Bit -> Word N3 -> FunAddr -> Atom
-makeFUN b n a = funTag <++> (n <++> a <++> (low +> b +> vempty)) -- Ew!
+makeFUN b n a = funTag <++> (n <++> a <++> (b +> vempty)) -- Ew!
 
 encodeFUN :: Bool -> Integer -> Integer -> Integer
 encodeFUN b n a
@@ -148,10 +158,10 @@ conArity :: Atom -> Arity
 conArity = vtake n3 . vdrop n3
 
 conIndex :: Atom -> FunAddr
-conIndex = vtake n10 . vdrop n6
+conIndex = vtake funAddrN . vdrop n6
 
 makeCON :: Arity -> FunAddr -> Atom
-makeCON n a = high +> low +> high +> (n <++> a <++> (low +> low +> vempty)) -- ew
+makeCON n a = high +> low +> high +> (n <++> a <++> (low +> vempty)) -- ew
 
 encodeCON :: Integer -> Integer -> Integer
 encodeCON n a
@@ -168,7 +178,7 @@ argIndex :: Atom -> Word N8
 argIndex = vtake n8 . vdrop n4
 
 makeARG :: Bit -> Word N8 -> Atom
-makeARG s n = high +> high +> low +> s +> (n <++> vreplicate n6 low) -- ew
+makeARG s n = high +> high +> low +> s +> (n <++> vreplicate n4 low) -- ew
 
 encodeARG :: Bool -> Int -> Integer
 encodeARG s n
@@ -185,7 +195,7 @@ regIndex :: Atom -> Word N8
 regIndex = vtake n8 . vdrop n4
 
 makeREG :: Bit -> Word N8 -> Atom
-makeREG s n = high +> high +> high +> s +> (n <++> vreplicate n6 low) -- ew
+makeREG s n = high +> high +> high +> s +> (n <++> vreplicate n4 low) -- ew
 
 encodeREG :: Bool -> Int -> Integer
 encodeREG s n
@@ -218,7 +228,7 @@ Total width of application = 77 bits
 -}
 
 appN      = value appWidth :: Int -- 5 + 4 * atomWidth
-type AppN = N77 -- ew
+type AppN = N69 -- ew
 appWidth  = undefined :: AppN
 type App  = Word AppN
 
@@ -240,7 +250,7 @@ atoms :: App -> Vec N4 Atom
 atoms = vrigid . vgroup atomWidth . snd . splitApp
 
 alts :: App -> FunAddr
-alts = vtake n10 . vdrop n3 . vlast . atoms
+alts = vtake funAddrN . vdrop n3 . vlast . atoms
 
 makeApp :: Word N2 -> Bit -> Bit -> Vec N4 Atom -> App
 makeApp arity n c as =
@@ -270,14 +280,13 @@ mapApp f a = vtake n5 a <++> vconcat (vmap f (atoms a))
 
 -- Updates
 
-type UpdateN = N28 -- ew
 type Update  = Word UpdateN
 
 makeUpdate :: StackAddr -> HeapAddr -> Update
 makeUpdate sa ha = sa <++> ha
 
 splitUpdate :: Update -> (StackAddr, HeapAddr)
-splitUpdate u = vsplitAt n13 u
+splitUpdate u = vsplitAt stackAddrN u
 
 -- Templates
 
@@ -308,7 +317,7 @@ Total width of template = 222 bits
 
 -}
 
-type TemplateN = N222 -- ew
+type TemplateN = N201 -- ew
 type Template = Word TemplateN
 
 tempOffset = vsplitAt n4
@@ -326,7 +335,7 @@ tempPushAlts = vsplitAt n1 . snd . tempTop
 templatePushAlts :: Template -> Bit
 templatePushAlts = vhead . fst . tempPushAlts
 
-tempAlts = vsplitAt n10 . snd . tempPushAlts
+tempAlts = vsplitAt funAddrN . snd . tempPushAlts
 
 templateAlts :: Template -> FunAddr
 templateAlts = fst . tempAlts
@@ -426,7 +435,7 @@ encodeTemplate offset top pushAlts alts
     encoding = (offset'             , 4       )
             <> (top                 , atomN      )
             <> (boolToNum pushAlts  , 1       )
-            <> (alts                , 10      )
+            <> (alts                , funAddrWidth      )
             <> (boolToNum instAtoms2, 1       )
             <> (app2Header          , 5       )
             <> (pushMask            , 5       )

@@ -26,10 +26,10 @@ data Collect =
   , newAtom0      :: Reg AtomN
   , newAtom1      :: Reg AtomN
   , newAtom2      :: Reg AtomN
-  , usp           :: Reg N12
-  , uspNew        :: Reg N12
-  , ustack        :: Unistack N12 UpdateN
-  , ustackSize    :: Reg N12
+  , usp           :: Reg UStackAddrN
+  , uspNew        :: Reg UStackAddrN
+  , ustack        :: Unistack UStackAddrN UpdateN
+  , ustackSize    :: Reg UStackAddrN
   , stack         :: Octostack AtomN
   , savedTop      :: Reg AtomN
   , newTop        :: Sig AtomN

@@ -3,13 +3,14 @@ CFLAGS=-O2 -g
 #TEST=Cichelli.red
 #TEST=KnuthBendix.red
 #TEST=CountDown.red
-TEST=MSS.red
+#TEST=MSS.red
+TEST=Sudoku.red
 
-bigregress: emu-32-bit
-	for x in ../programs/flite/*.red;do echo $$x ; ./emu-32-bit < $$x;done
+bigregress: emu
+	for x in ../programs/flite/*.red;do echo $$x ; ./emu < $$x;done
 
-regress: emu-32-bit
-	./emu-32-bit < ../programs/flite/$(TEST)
+regress: emu
+	./emu < ../programs/flite/$(TEST)
 
 all: emu profemu emu-32-bit
 

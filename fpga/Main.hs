@@ -64,7 +64,7 @@ run flags fileName =
           putStrLn $ unwords (mem code)
 
 mem :: [Integer] -> [String]
-mem = concatMap f
+mem = error "broekn" $ concatMap f
   where
     f = map (reverse . binToHex)
       . map (++ [False, False])

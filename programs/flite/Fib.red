@@ -1,4 +1,4 @@
-("main",0,[],[FUN True 1 1,INT 36],[])
+("main",0,[],[FUN True 1 1,INT 20],[])
 ("fib",1,[2],[ARG True 0,PRI 2 "(<=)",INT 1,ARG True 0],[])
 ("fib#1",0,[],[FUN False 0 4],[PRIM 0 [ARG True 0,PRI 2 "(-)",INT 2],PRIM 1 [ARG True 0,PRI 2 "(-)",INT 1]])
 ("fib#2",1,[],[INT 1],[])

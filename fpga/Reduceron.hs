@@ -41,8 +41,8 @@ data Reduceron =
   , state      :: State
   , dashTopN   :: Sig N3
   , vstack     :: Octostack AtomN
-  , ustack     :: Unistack N12 UpdateN
-  , astack     :: Unistack N12 FunAddrN
+  , ustack     :: Unistack UStackAddrN UpdateN
+  , astack     :: Unistack LStackAddrN FunAddrN
   , heap       :: Heap HeapAddrN AppN
   , code       :: Code TemplateN
   , regFile1   :: RegFile N4 AtomN
