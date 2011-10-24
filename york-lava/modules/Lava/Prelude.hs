@@ -254,28 +254,29 @@ dualRam init pt (inps0, inps1) = (Vec out0, Vec out1)
 
 ---------------------------------- Arithmetic ---------------------------------
 
-simAdder = undefined
+fullAdd :: Bit -> Bit -> Bit -> (Bit, Bit)
+fullAdd cin a b = (sum, cout)
+  where sum' = a <#> b
+        sum  = xorcy (sum', cin)
+        cout = muxcy sum' (a, cin)
 
-adder :: Bit -> [Bit] -> [Bit] -> [Bit]
-adder c a b =
-  if width /= length b
-  then error "adder: must be applied to equal sized inputs"
-  else
-    makeComponent "adder"
-  {-   Inputs: -} (c : a ++ b)
-  {-  Outputs: -} width
-  {- Simulate: -} (simAdder width)
-  {-   Params: -} [ "width" :-> show width ]
-  {- Continue: -} id
-  where width = length a
+binAdd :: Bit -> [Bit] -> [Bit] -> [Bit]
+binAdd c a b = add c a b
+  where
+    add c [a]    [b]    = [sum, cout]
+      where (sum, cout) = fullAdd c a b
+    add c (a:as) [b]    = add c (a:as) [b,b]
+    add c [a]    (b:bs) = add c [a,a] (b:bs)
+    add c (a:as) (b:bs) = sum : add cout as bs
+      where (sum, cout) = fullAdd c a b
 
 infixl 6 /+/
 (/+/) :: [Bit] -> [Bit] -> [Bit]
-a /+/ b = adder low a b
+a /+/ b = init (binAdd low a b)
 
 infixl 6 /-/
 (/-/) :: [Bit] -> [Bit] -> [Bit]
-a /-/ b = adder high a (map inv b)
+a /-/ b = init (binAdd high a (map inv b))
 
 infix 4 /</
 (/</) :: [Bit] -> [Bit] -> Bit
@@ -294,7 +295,7 @@ infix 4 />=/
 a />=/ b = b /<=/ a
 
 ult :: [Bit] -> [Bit] -> Bit
-a `ult` b = inv $ last $ a /-/ b
+a `ult` b = inv $ last $ binAdd high a (map inv b)
 
 ule :: [Bit] -> [Bit] -> Bit
 a `ule` b = inv (b `ult` a)
@@ -307,11 +308,11 @@ a `uge` b = b `ule` a
 
 -- | Two's complement of a bit-list.
 complement :: [Bit] -> [Bit]
-complement a = [low | _ <- a] /-/ a
+complement a = init $ binAdd high (map inv a) [low]
 
 -- | Addition of a single bit to a bit-list.
 bitPlus :: Bit -> [Bit] -> [Bit]
-bitPlus a b = adder a [low | _ <- b] b
+bitPlus a b = init (binAdd a (map (const low) b) b)
 
 ---------------------------------- Bit Vectors --------------------------------
 
@@ -365,7 +366,7 @@ instance Ordered (Vec n Bit) where
 natSub :: N n => Word n -> Word n -> Word n
 natSub a b = Vec $ mapG (last r <&>) (init r)
   where (x, y) = (velems a, velems b)
-        r = x /-/ y
+        r = binAdd high x (map inv y)
 
 ------------------------------ Signed Bit Vectors -----------------------------
 

@@ -86,7 +86,6 @@ verilogInst "delay"   = delay False
 verilogInst "delayEn" = delay True
 verilogInst "ram"     = instRam
 verilogInst "dualRam" = instRam2
-verilogInst "adder"   = instAdder
 verilogInst s = error ("Verilog: unknown component '" ++ s ++ "'")
 
 muxcyInst params dst [ci,di,s] =
@@ -220,56 +219,6 @@ delay True params comp [_, ce, d] =
 
 vBus :: [Wire] -> String
 vBus bus = "{" ++ argList (map wireStr (reverse bus)) ++ "}"
-
-vInst :: String -> Int -> [(String, [Wire])] -> [(String, String)] -> String
-vInst name comp args instParams =
-    concat ["  ", name, " ", compStr comp, "(", argList (map param args), ");\n"] ++
-    "  defparam" ++
-    argList [ "\n    " ++ compStr comp ++ "." ++ formal ++ " = " ++ actual
-            | (formal, actual) <- instParams ] ++
-    ";\n"
-  where param (formal, actual) = "." ++ formal ++ "(" ++ vBus actual ++ ")"
-
-{-
-
-Better yet: lpm_add_sub
-
-module lpm_add_sub ( .result(outs), cout, overflow, .add_sub, .cin(c), .dataa(a), .datab(b),
-clock, clken, aclr );
-parameter lpm_type = "lpm_add_sub";
-parameter lpm_width = 1;
-parameter lpm_direction  = "UNUSED";
-parameter lpm_representation = "UNSIGNED";
-parameter lpm_pipeline = 0;
-parameter lpm_hint = "UNUSED";
-input  [lpm_width-1:0] dataa, datab;
-input  add_sub, cin;
-input  clock;
-input  clken;
-input  aclr;
-output [lpm_width-1:0] result;
-output cout, overflow;
-endmodule
-
-  lpm_add_sub cXXX (.result(outs), .cin(c), .dataa(a), .datab(b));
--}
-
-instAdder params comp (c:ab) =
-  vInst "lpm_add_sub"
-        comp
-        [("result", outs), ("cin", [c]), ("dataa", a), ("datab", b)]
-        [("lpm_width", show width)]
-  where
-     outs = map ((,) comp) [0..width-1]
-     (a,b) = splitAt width ab
-     width = read (lookupParam params "width") :: Int
-
-instAdder' params comp (c:ab) =
-   concat ["  assign ", vBus outs, " = ", vBus a, " + ", vBus b, " + ", wireStr c, ";\n" ]
-   where
-     outs = map ((,) comp) [0..width-1]
-     (a,b) = splitAt width ab
-     width = read (lookupParam params "width") :: Int
 
 instRam params comp (we1:sigs) =
  let  init = read (lookupParam params "init") :: [Integer]
