@@ -1,9 +1,70 @@
+
+               Practical Reduceron for Embedded Systems
+
 This is a fork of York's Reduceron, http://www.cs.york.ac.uk/fp/reduceron,
 the work of Matthew Naylor, Colin Runciman and Jason Reich.
 
-I tried to gather as much of the history as was available to me and
-collected reduceron and york-lava in one repository.
+As much of the history as was available has been gathered and
+reduceron, york-lava, and the Flite distribution have been merged into
+one repository.
 
-Flite is tracked seperately
+To build:
 
-Tommy Thorn, 2011-06-25
+  First the F-lite -> Red compiler:
+  $ (cd flite; cabal install)
+
+  Next, the Reduceron Red -> RTL generator:
+  $ cd fpga; ghc -O -i../york-lava/modules/: Main.hs
+
+  Translate your favorite program:
+  $ flite -r ../programs/Fib.hs | ./Main -v
+
+  Optionally, simulate:
+  $ make -C Reduceron
+
+  Finally, building a Reduceron system for DE2-70
+  $ cd Reduceron/DE2-70; quartus_map Reduceron;
+  $ quartus_fit Reduceron; quartus_asm Reduceron
+
+  Some manual effort is needed here, but should be straight forward if
+  you are used to working with DE2-70.  Note, the generated
+  Reduceron.v is the same regardless of the Red input, only the memory
+  initialization file changes.
+
+
+
+Master Goal: To make Reduceron usuable for embedded projects
+
+Plan:
+
+Step 1: Port to Verilog and Altera. DONE!
+Step 2: Shrink to fit mid-sized FPGA kits (eg. DE2-70 and DE2-115). DONE!
+
+In random order:
+
+Step H1: Move the heap (and tospace?) to external memory
+Step H2: Add a heap cache/newspace memory
+Step X: Add IO primitives (load and store from Avalon bus)
+Step Y: Add richer set of primitives
+Step H3: Implement the external heap representation from emu-32.c
+Step Z: Performance improvements
+
+Open questions:
+
+Q1: Currently there doesn't seem an efficient way to handle toplevel
+    variable bindings (CAFs).  What did the York team have in mind
+    there or does it require an extension?  (Obviously one can treat
+    them all other functional arguments, but that would mean a lot of
+    parameters to pass around).
+
+Q2: Why does Flite default to 0 for the MAXREGS parameter?  Eg, why is
+
+      redDefaults = CompileToRed 6 4 2 1 0
+
+Q3: What happend to Memo 24?
+
+Questions, suggestions, help, etc. are most welcome,
+please write reduceron@thorn.ws
+
+
+Tommy Thorn, 2011-11-03
