@@ -208,9 +208,9 @@ individual block-RAMs.
 Choosing 'MinArea' causes the "Minimum Area" algorithm to be used; any
 other choice results in the "Fixed Primitives" algorithm being used.
 See the Xilinx Core Generator documentation for details on these
-algorithms.
+algorithms.  This argument is ignored for the Verilog backend.
 
-The 3rd argument species the data-input and address buses, along with
+The 3rd argument specifies the data-input and address buses, along with
 a write-enable signal.  The type parameters 'n' and 'm' are the widths
 of the data and address buses respectively.
 
