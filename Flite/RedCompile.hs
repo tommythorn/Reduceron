@@ -119,7 +119,7 @@ tr p (f, args, spine, body) (Var v) =
             [] -> error ("Unbound variable: " ++ v)
             i:_ -> i
 tr p d (Ctr c n i) = R.CON n i
-tr p d Bottom = R.INT 0
+tr p d Bottom = R.CON 0 66 -- This should never happen
 
 -- Set boolean 'original' flag on funtions; if true, function was
 -- originally defined, and if false, function was introduced in
