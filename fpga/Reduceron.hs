@@ -406,6 +406,7 @@ alu f a b =
     , isSUB f --> makeINT (a-b)
     , (isNEQ f <|> isEQ f) --> bool ((a === b) <#> isNEQ f)
     , isLEQ f --> bool (Signed a |<=| Signed b)
+    , isAND f --> makeINT (vzipWith (<&>) a b)
     ]
 
 {-

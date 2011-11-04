@@ -57,6 +57,7 @@ expr' = pure Case <*> (key "case" |> expr) <*> (key "of" |> block alt)
 prim :: Parser String
 prim = tok "(+)" <|> tok "(-)" <|> tok "(==)" <|> tok "(/=)" <|> tok "(<=)"
    <|> key "emit" <|> key "emitInt"
+   <|> tok "(.&.)"
 
 pat :: Parser Pat
 pat = pure Var <*> lowerIdent

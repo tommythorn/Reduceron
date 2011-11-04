@@ -100,23 +100,25 @@ getSwapBit a = a `vat` n6
 invSwapBit :: Atom -> Atom
 invSwapBit a = vtake n6 a <++> vsingle (inv (a `vat` n6)) <++> vdrop n7 a
 
-isADD, isSUB, isEQ, isNEQ, isLEQ :: Atom -> Bit
+isADD, isSUB, isEQ, isNEQ, isLEQ, isAND :: Atom -> Bit
 isADD a = a `vat` n7
 isSUB a = a `vat` n8
 isEQ  a = a `vat` n9
 isNEQ a = a `vat` n10
 isLEQ a = a `vat` n11
+isAND a = a `vat` n12
 
 b2i :: Bool -> Integer
 b2i False = 0
 b2i True = 1
 
-primADD, primSUB, primEQ, primNEQ, primLEQ :: Bool -> Integer
+primADD, primSUB, primEQ, primNEQ, primLEQ, primAND :: Bool -> Integer
 primADD s = 4 .|. (2 `shiftL` 3) .|. ((b2i s) `shiftL` 6) .|. (1 `shiftL` 7)
 primSUB s = 4 .|. (2 `shiftL` 3) .|. ((b2i s) `shiftL` 6) .|. (1 `shiftL` 8)
 primEQ  s = 4 .|. (2 `shiftL` 3) .|. ((b2i s) `shiftL` 6) .|. (1 `shiftL` 9)
 primNEQ s = 4 .|. (2 `shiftL` 3) .|. ((b2i s) `shiftL` 6) .|. (1 `shiftL` 10)
 primLEQ s = 4 .|. (2 `shiftL` 3) .|. ((b2i s) `shiftL` 6) .|. (1 `shiftL` 11)
+primAND s = 4 .|. (2 `shiftL` 3) .|. ((b2i s) `shiftL` 6) .|. (1 `shiftL` 12)
 
 isAP :: Atom -> Bit
 isAP a = inv (a `vat` n0) <&> (a `vat` n1)

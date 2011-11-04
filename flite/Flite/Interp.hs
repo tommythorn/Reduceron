@@ -4,6 +4,7 @@ import Flite.Syntax hiding (Lam)
 import Data.Array
 import Flite.InterpFrontend
 import Flite.Inline
+import Data.Bits
 
 infixl :@
 
@@ -116,6 +117,7 @@ prims = let (-->) = (,) in
  , "(==)" --> logical2 (==)
  , "(/=)" --> logical2 (/=)
  , "(<=)" --> logical2 (<=)
+ , "(.&.)" --> arith2 (.&.)
  , "emit" --> (Lam $ \a -> Lam $ \k -> forceInt a $ \a' -> Emit [toEnum a'] k)
  , "emitInt" --> (Lam $ \a -> Lam $ \k -> forceInt a $ \a' -> Emit (show a') k)
  ]
@@ -139,6 +141,8 @@ logical2 op = Lam $ \a -> Lam $ \b ->
 	forceInt a $ \a' ->
 	forceInt b $ \b' ->
 		if (op a' b') then true else false
+
+
 
 false :: Val
 false = C "False" 0 0 []
