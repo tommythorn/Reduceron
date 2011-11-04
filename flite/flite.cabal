@@ -1,0 +1,80 @@
+Name:               flite
+Version:            0.6.0
+Synopsis:           f-lite compiler, interpreter and libraries
+License:            BSD3
+License-file:       LICENSE
+Author:             Matthew Naylor
+Maintainer:         Jason Reich <jason@cs.york.ac.uk>, Matthew Naylor <mfn@cs.york.ac.uk>
+Stability:          provisional
+Homepage:           http://www.cs.york.ac.uk/fp/reduceron/
+Build-Type:         Simple
+Cabal-Version:      >=1.6
+Description:        The f-lite language is a subset of Haskell 98 and Clean consisting of function
+                    definitions, pattern matching, limited let expressions, function applications and
+                    constructor applications expressed in the explicit 'braces' layout-insensitive format.
+                    
+                    'flite' uses Parsec. It supports some lambda expressions, infix usage of
+                    binary primitive operators and infix application of other functions using backticks.
+                    Information is returned about syntax errors.
+                    
+                    'flite-pure' uses its own parser and, therefore, does not depend on an external libraries.
+                    It only supports the original language definition.
+
+                    See README for more information. Example flite programs included in source distribution.
+Category:           Compiler
+Extra-Source-Files: README examples/*.hs
+
+Flag Pure
+    Description:   Use the pure parser instead of the Parsec
+    Default:       False
+
+Executable flite-pure
+    Main-is:       fl-pure.hs
+    Other-Modules:  Flite.CallGraph, Flite.Case, Flite.Compile, Flite.CompileBackend
+                    Flite.CompileFrontend, Flite.ConcatApp, Flite.Dependency,
+                    Flite.Descend, Flite.Flatten, Flite.Flite, Flite.Fresh, Flite.Identify,
+                    Flite.Identity, Flite.Inline, Flite.IntInfer,
+                    Flite.Interp, Flite.InterpFrontend, Flite.LambdaLift, Flite.Let, 
+                    Flite.Matching, Flite.Parse, Flite.ParseLib, Flite.Predex, Flite.Pretty,
+                    Flite.RedCompile, Flite.RedFrontend, Flite.RedSyntax, Flite.Strictness
+                    Flite.State, Flite.Strictify, Flite.Syntax, Flite.Traversals, Flite.Writer,
+                    Flite.Writer, Flite.WriterState, Flite.WorkerWrapper
+    if flag(pure)
+        Build-Depends: base >= 3 && < 5, haskell98 >= 1 && < 2,
+                       array >= 0 && < 1, containers >= 0 && < 1
+    else
+        buildable:     False
+
+Executable flite
+    Main-is:       fl-parsec.hs
+    if flag(pure)
+        buildable:     False
+    else
+        Build-Depends: base >= 3 && < 5, haskell98 >= 1 && < 2,
+                       array >= 0 && < 1, containers >= 0 && < 1,
+                       parsec >= 3
+        Other-Modules:  Flite.CallGraph, Flite.Case, Flite.Compile, Flite.CompileBackend
+                        Flite.CompileFrontend, Flite.ConcatApp, Flite.Descend, Flite.Flatten, 
+                        Flite.Fresh, Flite.Identify, Flite.Identity, Flite.Inline, Flite.Interp, 
+                        Flite.InterpFrontend, Flite.LambdaLift, Flite.Let, Flite.Matching, 
+                        Flite.Predex, Flite.Pretty, Flite.RedCompile, Flite.RedFrontend, 
+                        Flite.RedSyntax, Flite.State, Flite.Strictify, Flite.Syntax, 
+                        Flite.Traversals, Flite.Writer, Flite.Writer, Flite.WriterState,
+                        Flite.Parsec.Parse, Flite.Parsec.Flite, Flite.Parsec.Prelude,
+                        Flite.Dependency, Flite.IntInfer, Flite.Strictness, Flite.WorkerWrapper
+    
+Library
+    Build-Depends:   base >= 3 && < 5, haskell98 >= 1 && < 2,
+                     array >= 0 && < 1, containers >= 0 && < 1,
+                     parsec >= 3
+    Exposed-modules: Flite.CallGraph, Flite.Case, Flite.ConcatApp,
+                     Flite.Descend, Flite.Fresh, Flite.Identify, Flite.Identity,
+                     Flite.Inline, Flite.Let, Flite.Matching, Flite.Pretty, Flite.RedCompile, 
+                     Flite.Syntax, Flite.Traversals, Flite.Writer, Flite.Interp,
+                     Flite.Parsec.Parse, Flite.Parsec.Prelude, Flite.Parsec.Flite
+    Other-Modules:  Flite.Compile, Flite.CompileBackend
+                    Flite.CompileFrontend, Flite.Flatten,
+                    Flite.InterpFrontend, Flite.LambdaLift, Flite.Predex, 
+                    Flite.RedFrontend, Flite.RedSyntax,
+                    Flite.State, Flite.Strictify, Flite.WriterState,
+                    Flite.Dependency, Flite.IntInfer, Flite.Strictness, Flite.WorkerWrapper
