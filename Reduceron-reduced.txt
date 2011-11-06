@@ -39,6 +39,8 @@ Tested working:
 - Taut          OK
 - While         FAIL TO TERMINATE
 
+All failures but Braun reproduce when run on an emulator with explicit
+truncation.
 
 
 Program too large:

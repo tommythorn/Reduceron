@@ -24,6 +24,10 @@
 
 #define NAMELEN 128
 
+/* Simulate the limited integer range */
+#define ATOMWIDTH 16
+#define TRUNCATE(x) ((int) (x) << (35 - ATOMWIDTH) >> (35 - ATOMWIDTH))
+
 #define perform(action) (action, 1)
 
 #define error(action) (action, exit(-1), 0)
@@ -271,8 +275,8 @@ Atom prim(Prim p, Atom a, Atom b)
   n = a.contents.num;
   m = b.contents.num;
   switch(p) {
-    case ADD: result.tag = NUM; result.contents.num = n+m; break;
-    case SUB: result.tag = NUM; result.contents.num = n-m; break;
+    case ADD: result.tag = NUM; result.contents.num = TRUNCATE(n+m); break;
+    case SUB: result.tag = NUM; result.contents.num = TRUNCATE(n-m); break;
     case EQ: result = n == m ? trueAtom : falseAtom; break;
     case NEQ: result = n != m ? trueAtom : falseAtom; break;
     case LEQ: result = n <= m ? trueAtom : falseAtom; break;
@@ -598,6 +602,7 @@ Bool parseAtom(Atom* result)
 
   return (
     (  scanf(" INT%*[ (]%i)", &result->contents.num) == 1
+    && perform(result->contents.num = TRUNCATE(result->contents.num))
     && perform(result->tag = NUM)
     )
     ||
