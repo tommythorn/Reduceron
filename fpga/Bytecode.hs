@@ -14,8 +14,8 @@ Pointer tagging scheme:
   +------------------+-----------------------------------------+
   | 000              | Function arity and address              | isFUN
                        arity:3 addr:10 .. first:1
-  | 001              | Primitive function arity and identifier | isFUN
-                       arity:3 swap:1 add:1 sub:1 eq:1 neq:1 leq:1 .. first:1
+  | 001              | Primitive function arity and identifier | isADD, isSUB, ...
+                       arity:3 swap:1 add:1 sub:1 eq:1 neq:1 leq:1 and:1 ...
   | 010              | Pointer to application                  | isAP
                        pointer:...
   | 011              | Pointer to shared application           | isAP isShared
