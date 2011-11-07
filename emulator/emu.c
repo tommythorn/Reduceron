@@ -56,7 +56,7 @@ typedef struct { Int arity; Int index; } Con;
 
 typedef struct { Bool original; Int arity; Int id; } Fun;
 
-typedef enum { ADD, SUB, EQ, NEQ, LEQ, EMIT, EMITINT, SEQ } Prim;
+typedef enum { ADD, SUB, EQ, NEQ, LEQ, EMIT, EMITINT, SEQ, AND } Prim;
 
 typedef struct { Int arity; Bool swap; Prim id; } Pri;
 
@@ -282,6 +282,7 @@ Atom prim(Prim p, Atom a, Atom b)
     case LEQ: result = n <= m ? trueAtom : falseAtom; break;
     case EMIT: printf("%c", n); result = b; break;
     case EMITINT: printf("%i", n); result = b; break;
+    case AND: result.tag = NUM; result.contents.num = TRUNCATE(n&m); break;
   }
   return result;
 }
@@ -593,6 +594,7 @@ void strToPrim(Char *s, Prim *p, Bool *b)
   if (!strcmp(s, "(==)")) { *p = EQ; return; }
   if (!strcmp(s, "(/=)")) { *p = NEQ; return; }
   if (!strcmp(s, "(<=)")) { *p = LEQ; return; }
+  if (!strcmp(s, "(.&.)")) { *p = AND; return; }
   error(printf("Parse error: unknown primitive %s\n", s));
 }
 
