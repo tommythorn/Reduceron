@@ -19,6 +19,7 @@ data Val =
   | Lambda Id Val
   | Lam (Val -> Val)
   | Emit String Val
+  | Iow Int Int Val
 
 instance Show Val where
   show (Lam f) = "lambda!"
@@ -26,6 +27,7 @@ instance Show Val where
   show (N i) = "" -- was: "show i" but all output is supposed to be Emitted
   show (Error s) = "** Interpreter error: " ++ s
   show (Emit s k) = s ++ show k
+  show (Iow a d k) = "[[" ++ show a ++ " <- " ++ show d ++ "]]" ++ show k
   show _ = "*Thunk*"
 
 lut :: [Val] -> Val
@@ -95,6 +97,7 @@ infixl 0 @@
 (C s arity i args) @@ x = C s (arity-1) i (x:args)
 (Error s) @@ x = Error s
 (Emit s k) @@ x = Emit s (k @@ x)
+(Iow a d k) @@ x = Iow a d (k @@ x)
 x @@ y = Error $ "Run-time type error : " ++ show x ++ " @@ " ++ show y
 
 run :: Val -> [Val] -> Val
@@ -118,6 +121,7 @@ prims = let (-->) = (,) in
  , "(/=)" --> logical2 (/=)
  , "(<=)" --> logical2 (<=)
  , "(.&.)" --> arith2 (.&.)
+ , "(*<-)" --> (Lam $ \a -> Lam $ \d -> Lam $ \k -> forceInt a $ \a' -> forceInt d $ \d' -> Iow a' d' k)
  , "emit" --> (Lam $ \a -> Lam $ \k -> forceInt a $ \a' -> Emit [toEnum a'] k)
  , "emitInt" --> (Lam $ \a -> Lam $ \k -> forceInt a $ \a' -> Emit (show a') k)
  ]
@@ -128,7 +132,8 @@ fix f = let a = f @@ a in a
 forceInt :: Val -> (Int -> Val) -> Val
 forceInt (N i) 		f = f i
 forceInt (Emit s k)	f = Emit s (forceInt k f)
-forceInt a			f = Error $ "Integer expected. " ++ show a
+forceInt (Iow a d k)	f = Iow a d (forceInt k f)
+forceInt a		f = Error $ "Integer expected. " ++ show a
 
 arith2 :: (Int -> Int -> Int) -> Val
 arith2 op = Lam $ \a -> Lam $ \b ->
