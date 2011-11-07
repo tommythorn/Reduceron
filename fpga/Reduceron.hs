@@ -49,6 +49,9 @@ data Reduceron =
   , regFile2   :: RegFile N4 AtomN
   , result     :: Reg AtomN
   , collector  :: Collect
+  , ioAddr     :: Sig HeapAddrN
+  , ioWriteData:: Sig HeapAddrN
+  , ioWrite    :: Sig N1
   }
 
 newReduceron :: [Integer] -> New Reduceron
@@ -70,6 +73,10 @@ newReduceron program =
      let next = nextState (nt!val) du (v!OS.newSize) (h!Heap.size)
                   (col!collecting!val!vhead)
 
+     ioAddr      <- newSig
+     ioWrite     <- newSig
+     ioWriteData <- newSig
+
      return $ Reduceron {
                 top        = delay 0 (nt!val)
               , newTop     = nt
@@ -84,6 +91,9 @@ newReduceron program =
               , regFile2   = rf2
               , result     = res
               , collector  = col
+              , ioAddr     = ioAddr
+              , ioWrite    = ioWrite
+              , ioWriteData= ioWriteData
               }
 
 {-
@@ -386,19 +396,29 @@ according to Memo 40.
 prim :: Reduceron -> Recipe
 prim r = isSwapState (r!state) |>
   Seq [
-    ready |> Seq [ r!newTop <== result, r!vstack!update (-2) 0 [] ]
+    ready |>
+      Seq [ r!newTop <== result
+          , inv iow |> r!vstack!update (-2) 0 []
+
+          -- Handle IO primitives
+          , iow |> Seq [ r!vstack!update (-3) 0 []
+                       , r!ioWrite     <== 1
+                       , r!ioAddr      <== sw ? (arg2!intValue, arg1!intValue)
+                       , r!ioWriteData <== sw ? (arg1!intValue, arg2!intValue) ]
+          ]
   , inv ready |>
       Seq [ r!newTop <== arg2, r!vstack!update 0 3 [pr!invSwapBit, arg1] ]
   ]
   where
     pr = r!vstack!OS.tops `vat` n0
+    iow = isIOW pr
     sw = pr!getSwapBit
     arg1 = r!top
     arg2 = r!vstack!OS.tops `vat` n1
     ready = arg2!isINT
     result0 = alu pr (arg1!intValue) (arg2!intValue)
     result1 = alu pr (arg2!intValue) (arg1!intValue)
-    result = sw ? (result1, result0)
+    result = iow ? (r!vstack!OS.tops `vat` n2, sw ? (result1, result0))
 
 alu f a b =
   pickG
