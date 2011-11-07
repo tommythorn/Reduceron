@@ -7,6 +7,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <assert.h>
 
 /* Compile-time options */
 
@@ -56,7 +57,7 @@ typedef struct { Int arity; Int index; } Con;
 
 typedef struct { Bool original; Int arity; Int id; } Fun;
 
-typedef enum { ADD, SUB, EQ, NEQ, LEQ, EMIT, EMITINT, SEQ, AND } Prim;
+typedef enum { ADD, SUB, EQ, NEQ, LEQ, EMIT, EMITINT, SEQ, AND, IOW } Prim;
 
 typedef struct { Int arity; Bool swap; Prim id; } Pri;
 
@@ -268,7 +269,7 @@ void swap()
 
 /* Primitive reduction */
 
-Atom prim(Prim p, Atom a, Atom b)
+Atom prim(Prim p, Atom a, Atom b, Atom c)
 {
   Atom result;
   Num n, m;
@@ -283,6 +284,7 @@ Atom prim(Prim p, Atom a, Atom b)
     case EMIT: printf("%c", n); result = b; break;
     case EMITINT: printf("%i", n); result = b; break;
     case AND: result.tag = NUM; result.contents.num = TRUNCATE(n&m); break;
+    case IOW: printf("[[%d <- %d]]", n, m); result = c; break;
   }
   return result;
 }
@@ -299,10 +301,10 @@ void applyPrim()
   else if (stack[sp-3].tag == NUM
         || p.id == EMIT || p.id == EMITINT) {
     if (p.swap == 1)
-      stack[sp-3] = prim(p.id, stack[sp-3], stack[sp-1]);
+        stack[sp-3] = prim(p.id, stack[sp-3], stack[sp-1], stack[sp-4]);
     else
-      stack[sp-3] = prim(p.id, stack[sp-1], stack[sp-3]);
-    sp-=2;
+        stack[sp-3] = prim(p.id, stack[sp-1], stack[sp-3], stack[sp-4]);
+    sp -= p.arity;
     primCount++;
   }
   else {
@@ -365,7 +367,7 @@ void instApp(Int base, Int argPtr, App *app)
     rid = app->details.regId;
     if (a.tag == NUM && b.tag == NUM) {
       prsSuccessCount++;
-      registers[rid] = prim(app->atoms[1].contents.pri.id, a, b);
+      registers[rid] = prim(app->atoms[1].contents.pri.id, a, b, b);
     }
     else {
       registers[rid].tag = VAR;
@@ -595,6 +597,7 @@ void strToPrim(Char *s, Prim *p, Bool *b)
   if (!strcmp(s, "(/=)")) { *p = NEQ; return; }
   if (!strcmp(s, "(<=)")) { *p = LEQ; return; }
   if (!strcmp(s, "(.&.)")) { *p = AND; return; }
+  if (!strcmp(s, "(*<-)")) { *p = IOW; return; }
   error(printf("Parse error: unknown primitive %s\n", s));
 }
 
