@@ -54,7 +54,8 @@ prog = block defn
 block :: Parser a -> Parser [a]
 block p = braces (p `sepEndBy` semi) <?> "block"
 
-primitives = ["(+)", "(-)", "(==)", "(/=)", "(<=)", "emit", "emitInt", "(.&.)"]
+primitives = ["(+)", "(-)", "(==)", "(/=)", "(<=)", "emit", "emitInt", "(.&.)",
+              "(*<-)"]
 
 -- | Build an application out of an infix operation
 infixApp t x y = App t [x, y]

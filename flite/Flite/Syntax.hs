@@ -40,7 +40,7 @@ type App = [Exp]
 -- Primitive functions
 
 isPrimId :: Id -> Bool
-isPrimId p = isBinaryPrim p || isUnaryPrim p
+isPrimId p = isBinaryPrim p || isUnaryPrim p || isTernaryPrim p
 
 isBinaryPrim :: Id -> Bool
 isBinaryPrim "(+)"  = True
@@ -56,6 +56,10 @@ isUnaryPrim "(!)"  = True
 isUnaryPrim "emit" = True
 isUnaryPrim "emitInt" = True
 isUnaryPrim _ = False
+
+isTernaryPrim :: Id -> Bool
+isTernaryPrim "(*<-)"  = True
+isTernaryPrim _ = False
 
 isPredexId :: Id -> Bool
 isPredexId = isBinaryPrim
