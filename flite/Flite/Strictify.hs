@@ -29,7 +29,7 @@ strictifyPrim = onExp prim
     prim (App (Fun f) (a:b:rest))
       | isPrimId f = mkApp result (map prim rest)
       where (a', b') = (prim a, prim b)
-            result = if isInt a'
+            result = if isInt a' && not (isInt b')
                        then App b' [Fun ("swap:"++f), a']
                        else App a' [Fun f, b']
     prim (App (Fun f) es)
