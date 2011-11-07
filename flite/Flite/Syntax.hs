@@ -59,6 +59,7 @@ isUnaryPrim _ = False
 
 isTernaryPrim :: Id -> Bool
 isTernaryPrim "(*<-)"  = True
+isTernaryPrim ('s':'w':'a':'p':':':f) = isTernaryPrim f
 isTernaryPrim _ = False
 
 isPredexId :: Id -> Bool
