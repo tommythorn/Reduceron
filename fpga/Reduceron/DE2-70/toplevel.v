@@ -524,19 +524,27 @@ assign  AUD_ADCLRCK =   AUD_DACLRCK;
    reg  [15:0] res = ~0;
    wire [ 6:0] s;
    wire [12:0] h;
+   wire        iowrite;
+   wire [12:0] ioaddr, iowd;
    wire        finish;
 
    reg [6:0]   oHEX1_D,oHEX0_D;
 
-assign  oLEDR       =   res[15:3];
-assign  oLEDG       =   {res[2:0],s};
+   reg [12:0]  wd = 0;
 
-always @ (posedge iCLK_50) begin
-   {oHEX1_D,oHEX1_DP,oHEX0_D,oHEX0_DP} <= h;
+   assign      oLEDR       =   res[15:3];
+   assign      oLEDG       =   {res[2:0],s};
 
-   if (finish)
-      res <= r;
-end
+   always @ (posedge iCLK_50) begin
+      if (iowrite)
+         wd <= iowd;
+
+      {oHEX1_D,oHEX1_DP,oHEX0_D,oHEX0_DP} <= wd;
+
+      if (finish)
+         res <= r;
+   end
+
    Reduceron Reduceron_inst
       (iCLK_50,
        r[0], r[1], r[2], r[3], r[4], r[5], r[6], r[7],
@@ -544,5 +552,8 @@ end
 
        s[0], s[1], s[2], s[3], s[4], s[5], s[6],
        h[0], h[1], h[2], h[3], h[4], h[5], h[6], h[7], h[8], h[9], h[10], h[11], h[12],
+       iowrite,
+       ioaddr[0], ioaddr[1], ioaddr[2], ioaddr[3], ioaddr[4], ioaddr[5], ioaddr[6], ioaddr[7], ioaddr[8], ioaddr[9], ioaddr[10], ioaddr[11], ioaddr[12],
+       iowd[0], iowd[1], iowd[2], iowd[3], iowd[4], iowd[5], iowd[6], iowd[7], iowd[8], iowd[9], iowd[10], iowd[11], iowd[12],
        finish);
 endmodule
