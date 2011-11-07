@@ -101,11 +101,13 @@ isNormal (R.CON n c:rest) = length rest <= n
 isNormal (R.FUN b n f:rest) = length rest < n
 isNormal _ = False
 
+primArity f = if isTernaryPrim f then 3 else 2
+
 tr p d (Int i) = R.INT i
-tr p d (Prim f) = R.PRI 2 f
+tr p d (Prim f) = R.PRI (primArity f) f
 tr p d (Fun f) =
   case xs of
-    [] -> R.PRI 2 f
+    [] -> R.PRI (primArity f) f
     (i, args):_ -> R.FUN False (length args) i
   where xs = [(i, args) | ((g, args, rhs), i) <- zip p [0..], f == g]
 tr p (f, args, spine, body) (Var v) =
