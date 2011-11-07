@@ -50,15 +50,21 @@ run flags fileName =
        in  writeVhdl "Reduceron"
                      --(r!result!val, fin)
                      --(nameWord "result", name "finish")
-                     (r!result!val, r!state, r!heap!Heap.size, fin)
-                     (nameWord "result", nameWord "state", nameWord "heapSize", name "finish")
+                     (r!result!val, r!state, r!heap!Heap.size,
+                      r!ioWrite!val, r!ioAddr!val, r!ioWriteData!val,
+                      fin)
+                     (nameWord "result", nameWord "state", nameWord "heapSize",
+                      nameWord "ioWrite", nameWord "ioAddr", nameWord "ioWriteData",
+                      name "finish")
      when (GenVerilog `elem` flags) $
        let (r, fin) = recipe (newReduceron code) dispatch (delay high low)
        in  writeVerilog "Reduceron"
-                     --(r!result!val, fin)
-                     --(nameWord "result", name "finish")
-                     (r!result!val, r!state, r!heap!Heap.size, fin)
-                     (nameWord "result", nameWord "state", nameWord "heapSize", name "finish")
+                     (r!result!val, r!state, r!heap!Heap.size,
+                      r!ioWrite!val, r!ioAddr!val, r!ioWriteData!val,
+                      fin)
+                     (nameWord "result", nameWord "state", nameWord "heapSize",
+                      nameWord "ioWrite", nameWord "ioAddr", nameWord "ioWriteData",
+                      name "finish")
      when (Mem `elem` flags) $
        do putStr "@0 "
           putStrLn $ unwords (mem code)
