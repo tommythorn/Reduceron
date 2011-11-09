@@ -1,12 +1,65 @@
 
-               Practical Reduceron for Embedded Systems
 
-This is a fork of York's Reduceron, http://www.cs.york.ac.uk/fp/reduceron,
-the work of Matthew Naylor, Colin Runciman and Jason Reich.
+                    Reduceron for Embedded Systems
+
+
+WHAT IS REDUCERON?
+
+Reduceron is a high performance FPGA softcore for running lazy functional
+programs, complete with hardware garbage collection.  Reduceron has been
+implemented on various FPGAs with clock frequency ranging from 60 to 150
+MHz depending on the FPGA.  A high degree of parallelism allows Reduceron
+to implement graph evaluation very efficiently.
+
+Reduceron is the work of Matthew Naylor, Colin Runciman and Jason Reich,
+who have kindly made their work available for others to use.  Please see
+http://www.cs.york.ac.uk/fp/reduceron for supporting articles, memos, and
+original distribution.
+
+
+OK, WHAT'S THIS THEN?
+
+The present is a fork of the original distribution which intends to take
+the (York) Reduceron from the research prototype to the point where it
+can be useful for embedded projects.  One could imagine an Arduino-like
+ecosystem, except replacing C++ for Haskell and the inexpensive Atmel AVR
+for a less inexpensive FPGA.
+
+The York Reduceron needs the following enhancements to meet our needs:
+
+ 0. The heap and program must (for the most parts) be kept in external
+    memory, with FPGA block memory used for the stacks etc and optionally
+    for heap and program caches.
+
+    This simultaneously enables smaller and less expensive FPGAs to be
+    used as well as allows for a much larger heap and larger programs.
+
+ 1. Access to memory mapped IO devices (and optionally, RAM).
+
+ 2. Richer set of primitives, including multiplication, shifts, logical
+    and, or, ...
+
+ 3. Support for 32-bit integers - this greatly simplifies interfacing to
+    existing IO devices and simplifies various numerical computations.
+
+[[Work is progressing on all four fronts, but we are not there yet.]]
+
+
+While Reduceron technically refers to the FPGA implementation, it is
+supported by
+
+ - Flite: the F-lite to Red translator.  This is a critical piece.
+ - A emulator in C: useful for regression testing and experiments
+ - York Lava: Reduceron is a York Lava program, which generate HDL
+ - Support for Verilog simulation and synthesis for various FPGA dev kits.
+
 
 As much of the history as was available has been gathered and
 reduceron, york-lava, and the Flite distribution have been merged into
 one repository.
+
+
+HOW DO I USE IT?
 
 To build:
 
@@ -32,28 +85,28 @@ To build:
   initialization file changes.
 
 
-
-Master Goal: To make Reduceron usuable for embedded projects
+WHERE IS THIS GOING?
 
 Plan:
 
-Step 1: Port to Verilog and Altera. DONE!
-Step 2: Shrink to fit mid-sized FPGA kits (eg. DE2-70 and DE2-115). DONE!
+  Step 1: Port to Verilog and Altera. DONE!
+  Step 2: Shrink to fit mid-sized FPGA kits (eg. DE2-70 and DE2-115). DONE!
 
-In some order:
+  In some order:
 
-Step Y: Add key primitives (mul, AND, OR, XOR, SHL, ASR, SHR (TBD))
-        (*), (.&.), (.|.), (.^.), (.<<.), (.>>.)
-        DONE: (.&.)
-Step X: Add IO primitives (store and load from the IO bus)
-	(*<-), (<-*)
-        DONE: (*<-) though room for improvement
-Step H1: Move the heap (and tospace?) to external memory
-Step H2: Add a heap cache/newspace memory
-Step H3: Implement the external heap representation from emu-32.c
-Step Z: Performance improvements
+  Step I: Add primitives (mul, AND, OR, XOR, SHL, ASR, [SHR], ...)
+          (*), (.&.), (.|.), (.^.), (.<<.), (.>>.)
+          DONE: (.&.)
+  Step X: Add IO primitives (store and load from the IO bus)
+          (*<-), (<-*) [subword variants]
+          DONE: (*<-) with room for improvement
+  Step H1: Move the heap [and tospace] to external memory
+  Step H2: Add a heap cache/newspace memory
+  Step H3: Implement the external heap representation from emu-32.c
+  Finally: Performance improvements
 
-Open questions:
+
+WHAT? MORE QUESTIONS?
 
 Q1: Currently there doesn't seem an efficient way to handle toplevel
     variable bindings (CAFs).  What did the York team have in mind
@@ -69,6 +122,3 @@ Q3: What happend to Memo 24?
 
 Questions, suggestions, help, etc. are most welcome,
 please write reduceron@thorn.ws
-
-
-Tommy Thorn, 2011-11-03
