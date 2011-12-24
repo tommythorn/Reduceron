@@ -532,14 +532,19 @@ assign  AUD_ADCLRCK =   AUD_DACLRCK;
 
    reg [12:0]  wd = 0;
 
-   assign      oLEDR       =   res[15:3];
+   assign      oLEDR       =   (!iKEY[3] ? res[15:3] :
+                                !iKEY[2] ? s         :
+                                !iKEY[1] ? h         :
+                                !iKEY[0] ? wd        :
+                                'h 5555);
+
    assign      oLEDG       =   {res[2:0],s};
 
    always @ (posedge iCLK_50) begin
       if (iowrite)
          wd <= iowd;
 
-      {oHEX1_D,oHEX1_DP,oHEX0_D,oHEX0_DP} <= wd;
+      //{oHEX1_D,oHEX1_DP,oHEX0_D,oHEX0_DP} <= wd;
 
       if (finish)
          res <= r;
