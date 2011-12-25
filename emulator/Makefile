@@ -6,6 +6,8 @@ CFLAGS=-O2 -g
 #TEST=MSS.red
 TEST=Sudoku.red
 
+all: emu
+
 bigregress: emu
 	for x in ../programs/flite/*.red;do echo $$x ; ./emu < $$x;done
 

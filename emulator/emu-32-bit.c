@@ -237,6 +237,7 @@ Atom prim(Prim p, Atom a, Atom b)
     case LEQ: result = n <= m ? trueAtom : falseAtom; break;
     case EMIT: printf("%c", n); result = b; break;
     case EMITINT: printf("%i", n); result = b; break;
+    default: assert(0); return mkINT(0);
   }
   return result;
 }
@@ -634,8 +635,8 @@ Bool parseApp(App *app)
   Bool success;
   Atom atoms[APSIZE];
   AppTag tag;
-  Bool nf;
-  Int info, size;
+  Bool nf = false;
+  Int info = 0, size;
 
   success =
     (  scanf(" APP %5s ", str) == 1

@@ -7,6 +7,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <strings.h>
 #include <assert.h>
 
 /* Compile-time options */
@@ -134,7 +135,7 @@ typedef struct
 
 ProfEntry *profTable;
 
-void stackOverflow();
+void stackOverflow(const char *);
 
 /* Display profiling table */
 
@@ -171,7 +172,7 @@ Atom dash(Bool sh, Atom a)
   return a;
 }
 
-App dashApp(Bool sh, App* app)
+void dashApp(Bool sh, App* app)
 {
   Int i;
   for (i = 0; i < app->size; i++)
@@ -180,7 +181,7 @@ App dashApp(Bool sh, App* app)
 
 /* Unwinding */
 
-inline Bool nf(App* app)
+static inline Bool nf(App* app)
 {
   return (app->tag == CASE ? 0 : app->details.normalForm);
 }
@@ -275,7 +276,7 @@ Atom prim(Prim p, Atom a, Atom b, Atom c)
   Num n, m;
   n = a.contents.num;
   m = b.contents.num;
-  switch(p) {
+  switch (p) {
     case ADD: result.tag = NUM; result.contents.num = TRUNCATE(n+m); break;
     case SUB: result.tag = NUM; result.contents.num = TRUNCATE(n-m); break;
     case EQ: result = n == m ? trueAtom : falseAtom; break;
@@ -285,6 +286,7 @@ Atom prim(Prim p, Atom a, Atom b, Atom c)
     case EMITINT: printf("%i", n); result = b; break;
     case AND: result.tag = NUM; result.contents.num = TRUNCATE(n&m); break;
     case IOW: printf("[[%d <- %d]]", n, m); result = c; break;
+    case SEQ: assert(0);
   }
   return result;
 }
@@ -301,9 +303,9 @@ void applyPrim()
   else if (stack[sp-3].tag == NUM
         || p.id == EMIT || p.id == EMITINT) {
     if (p.swap == 1)
-        stack[sp-3] = prim(p.id, stack[sp-3], stack[sp-1], stack[sp-4]);
+        stack[sp-3] = prim(p.id, stack[sp-3], stack[sp-1], stack[4 <= sp ? sp-4 : 0]);
     else
-        stack[sp-3] = prim(p.id, stack[sp-1], stack[sp-3], stack[sp-4]);
+        stack[sp-3] = prim(p.id, stack[sp-1], stack[sp-3], stack[4 <= sp ? sp-4 : 0]);
     sp -= p.arity;
     primCount++;
   }
@@ -483,7 +485,7 @@ void collect()
   hp = gcHigh;
 
   if (hp > maxHeapUsage) maxHeapUsage = hp;
-  if (hp > MAXHEAPAPPS-200) stackOverflow();
+  if (hp > MAXHEAPAPPS-200) stackOverflow("heap");
 
   //printf("After GC: %i\n", hp);
 }
@@ -526,15 +528,15 @@ void init()
 
 /* Dispatch loop */
 
-inline Bool canCollect()
+static inline Bool canCollect()
 {
   return (stack[sp-1].tag != FUN || stack[sp-1].contents.fun.original);
 }
 
-void stackOverflow()
+void stackOverflow(const char *which)
 {
-    printf("Out of space (hp = %d, sp = %d, usp = %d, lsp = %d).\n",
-           hp, sp, usp, lsp);
+    printf("%s is out of space (hp = %d, sp = %d, usp = %d, lsp = %d).\n",
+           which, hp, sp, usp, lsp);
     exit(-1);
 }
 
@@ -547,9 +549,9 @@ void dispatch()
       if (usp > maxUStackUsage) maxUStackUsage = usp;
       if (lsp > maxLStackUsage) maxLStackUsage = lsp;
 
-    if (sp > MAXSTACKELEMS-50) stackOverflow();
-    if (usp > MAXUSTACKELEMS-4) stackOverflow();
-    if (lsp > MAXLSTACKELEMS-4) stackOverflow();
+    if (sp > MAXSTACKELEMS-50) stackOverflow("stack");
+    if (usp > MAXUSTACKELEMS-4) stackOverflow("update stack");
+    if (lsp > MAXLSTACKELEMS-4) stackOverflow("case stack");
     if (hp > MAXHEAPAPPS-200 && canCollect()) collect();
     top = stack[sp-1];
     if (top.tag == VAR) {
