@@ -1,4 +1,4 @@
-module Flite.Interp (interp, frontend, Val (..)) where
+module Flite.Interp (interp, frontend, Val (..), showEmitOnly) where
 
 import Flite.Syntax hiding (Lam)
 import Data.Array
@@ -24,11 +24,14 @@ data Val =
 instance Show Val where
   show (Lam f) = "lambda!"
   show (C n _ _ vs) = "(" ++ unwords (n:map show vs) ++ ")"
-  show (N i) = "" -- was: "show i" but all output is supposed to be Emitted
+  show (N i) = show i
   show (Error s) = "** Interpreter error: " ++ s
   show (Emit s k) = s ++ show k
   show (Iow a d k) = "[[" ++ show a ++ " <- " ++ show d ++ "]]" ++ show k
   show _ = "*Thunk*"
+
+showEmitOnly (Emit s k) = s ++ showEmitOnly k
+showEmitOnly _          = ""
 
 lut :: [Val] -> Val
 lut vs = Lut (listArray (0, length vs) vs)
