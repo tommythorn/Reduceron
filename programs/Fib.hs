@@ -5,6 +5,6 @@ fib n = case (<=) n 1 of {
           False -> (+) (fib ((-) n 2)) (fib ((-) n 1));
         };
 
-main = fib 36;
+main = fib 20;
 
 }
