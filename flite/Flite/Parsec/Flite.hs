@@ -21,11 +21,13 @@ data Flag =
   | InlineH (Maybe Int)
   | StrictnessAnalysis
   | InlineI (Maybe Int)
+  | VerboseResult
   deriving Eq
 
 isDisjoint (InlineH i) = False
 isDisjoint (InlineI i) = False
 isDisjoint StrictnessAnalysis = False
+isDisjoint VerboseResult = False
 isDisjoint flag = True
 
 options :: [OptDescr Flag]
@@ -39,6 +41,7 @@ options =
   , Option ['i'] [] (OptArg (InlineI . fmap read) "MAXAPS")
                     "inline small function bodies late"
   , Option ['s'] [] (NoArg StrictnessAnalysis) "employ strictness analysis"
+  , Option ['v'] [] (NoArg VerboseResult) "show the integer result from main"
   ]
   where
     redDefaults = CompileToRed 6 4 2 1 0
@@ -68,7 +71,11 @@ run flags fileName =
                           ++ [InlineSmall i | InlineI (Just i) <- flags]
                           ++ [NoInline]
      case filter isDisjoint flags of
-       [] -> print (interp (inlineFlagH, inlineFlagI) p)
+       [] -> let res = interp (inlineFlagH, inlineFlagI) p in
+             if VerboseResult `elem` flags then
+               print res
+             else
+               putStrLn (showEmitOnly res)
        [Desugar] ->
          putStrLn $ pretty $ frontend (inlineFlagH, inlineFlagI) p
        [CompileToC] -> putStrLn $ compile (inlineFlagH, inlineFlagI) p
