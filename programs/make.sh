@@ -1,1 +1,3 @@
-ls *.hs | xargs -i compile.sh {}
+#!/bin/bash
+
+ls *.hs | xargs -n 1 ./compile.sh
