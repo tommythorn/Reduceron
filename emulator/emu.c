@@ -759,7 +759,7 @@ Int parse(Int n, Template *ts)
 
 /* Main function */
 
-int main()
+int main(int argc, const char **argv)
 {
   Long ticks;
 
@@ -769,25 +769,28 @@ int main()
   init();
   dispatch();
 
-  printf("\n==== EXECUTION REPORT ====\n");
-  printf("Result      = %12i\n", stack[0].contents.num);
-  ticks = swapCount + primCount + applyCount +
-            unwindCount + updateCount;
-  printf("Ticks       = %12lld\n", ticks);
-  printf("Swap        = %11lld%%\n", (100*swapCount)/ticks);
-  printf("Prim        = %11lld%%\n", (100*primCount)/ticks);
-  printf("Unwind      = %11lld%%\n", (100*unwindCount)/ticks);
-  printf("Update      = %11lld%%\n", (100*updateCount)/ticks);
-  printf("Apply       = %11lld%%\n", (100*applyCount)/ticks);
-  printf("PRS Success = %11lld%%\n",
-    (100*prsSuccessCount)/(1+prsCandidateCount));
-  printf("#GCs        = %12d\n", gcCount);
-  printf("Max Heap    = %12d\n", maxHeapUsage);
-  printf("Max Stack   = %12d\n", maxStackUsage);
-  printf("Max UStack  = %12d\n", maxUStackUsage);
-  printf("Max LStack  = %12d\n", maxLStackUsage);
-  printf("==========================\n");
-
+  if (argc == 2 && strcmp(argv[1], "-v") == 0) {
+      printf("\n==== EXECUTION REPORT ====\n");
+      printf("Result      = %12i\n", stack[0].contents.num);
+      ticks = swapCount + primCount + applyCount +
+          unwindCount + updateCount;
+      printf("Ticks       = %12lld\n", ticks);
+      printf("Swap        = %11lld%%\n", (100*swapCount)/ticks);
+      printf("Prim        = %11lld%%\n", (100*primCount)/ticks);
+      printf("Unwind      = %11lld%%\n", (100*unwindCount)/ticks);
+      printf("Update      = %11lld%%\n", (100*updateCount)/ticks);
+      printf("Apply       = %11lld%%\n", (100*applyCount)/ticks);
+      printf("PRS Success = %11lld%%\n",
+             (100*prsSuccessCount)/(1+prsCandidateCount));
+      printf("#GCs        = %12d\n", gcCount);
+      printf("Max Heap    = %12d\n", maxHeapUsage);
+      printf("Max Stack   = %12d\n", maxStackUsage);
+      printf("Max UStack  = %12d\n", maxUStackUsage);
+      printf("Max LStack  = %12d\n", maxLStackUsage);
+      printf("==========================\n");
+  }
+  else
+      printf("%d\n", stack[0].contents.num);
   //displayProfTable();
 
   return 0;
