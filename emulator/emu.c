@@ -136,6 +136,7 @@ typedef struct
 ProfEntry *profTable;
 
 void stackOverflow(const char *);
+void integerAddOverflow(int a, int b);
 
 /* Display profiling table */
 
@@ -242,8 +243,6 @@ void update(Atom top, Int saddr, Int haddr)
   Int len = sp - saddr;
   Int p = sp-2;
 
-  Int i, j;
-
   for (;;) {
     if (len < APSIZE) {
       upd(top, p, len, haddr);
@@ -277,8 +276,18 @@ Atom prim(Prim p, Atom a, Atom b, Atom c)
   n = a.contents.num;
   m = b.contents.num;
   switch (p) {
-    case ADD: result.tag = NUM; result.contents.num = TRUNCATE(n+m); break;
-    case SUB: result.tag = NUM; result.contents.num = TRUNCATE(n-m); break;
+    case ADD:
+        result.tag = NUM;
+        result.contents.num = TRUNCATE(n+m);
+        if (result.contents.num != n+m)
+            integerAddOverflow(n, m);
+        break;
+    case SUB:
+        result.tag = NUM;
+        result.contents.num = TRUNCATE(n-m);
+        if (result.contents.num != n-m)
+            integerAddOverflow(n, -m);
+        break;
     case EQ: result = n == m ? trueAtom : falseAtom; break;
     case NEQ: result = n != m ? trueAtom : falseAtom; break;
     case LEQ: result = n <= m ? trueAtom : falseAtom; break;
@@ -540,6 +549,13 @@ void stackOverflow(const char *which)
     exit(-1);
 }
 
+void integerAddOverflow(int a, int b)
+{
+    printf("Integer range exhausted in addition of %d+%d = %d\n",
+           a, b, a+b);
+    exit(-1);
+}
+
 void dispatch()
 {
   Atom top;
@@ -670,10 +686,8 @@ makeListParser(parseAtoms, parseAtom, Atom)
 
 Bool parseApp(App *app)
 {
-  Int i;
   Char str[16];
-  Bool success;
-  success =
+  Bool success =
     (  scanf(" APP %5s ", str) == 1
     && perform(app->tag = AP)
     && perform(app->details.normalForm = strToBool(str))
