@@ -18,16 +18,17 @@
 #define MAXLUTS 2
 #define MAXREGS 8
 
-#define MAXHEAPAPPS   8192
-#define MAXSTACKELEMS  512
-#define MAXUSTACKELEMS  64
-#define MAXLSTACKELEMS 512
-#define MAXTEMPLATES   512
+#define MAXHEAPAPPS    8192
+#define MAXSTACKELEMS  1024
+#define MAXUSTACKELEMS   64
+#define MAXLSTACKELEMS  512
+#define MAXTEMPLATES   1024
 
 #define NAMELEN 128
 
-/* Simulate the limited integer range */
-#define ATOMWIDTH 16
+/* Simulate the limited integer range (anything less than 18 and
+ * CountDown breaks, anything less than 22 and While breaks). */
+#define ATOMWIDTH 22
 #define TRUNCATE(x) ((int) (x) << (35 - ATOMWIDTH) >> (35 - ATOMWIDTH))
 
 #define perform(action) (action, 1)
