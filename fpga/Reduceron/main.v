@@ -27,7 +27,7 @@ module main;
       if (iowrite)
          $display("%05d  IO Write  [%d] <- %d", $time/10,
                   ioaddr, iowd);
-
+/*
       if (s[5] != gc)
          if (s[5])
             $display("%05d  start  GC", $time/10);
@@ -36,13 +36,16 @@ module main;
 
       if (hp != h)
          $display("%05d  hp = %d", $time/10, hp);
+*/
 
       gc <= s[5];
       hp <= h;
 
       if (finish)
-         $display("%05d  res %d (tag %d) state %x heap %d finish %d", $time/10,
-                  r / 8, r[2:0], s, h, finish);
+/*         $display("%05d  res %d (tag %d) state %x heap %d finish %d", $time/10,
+                  r / 8, r[2:0], s, h, finish);*/
+         $display("%1d", r/8);
+
       if (finish)
          $finish;
    end

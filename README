@@ -28,8 +28,8 @@ for a less inexpensive FPGA.
 The York Reduceron needs the following enhancements to meet our needs:
 
  0. The heap and program must (for the most parts) be kept in external
-    memory, with FPGA block memory used for the stacks etc and optionally
-    for heap and program caches.
+    memory, with FPGA block memory used for the stacks and heap and
+    program caches.
 
     This simultaneously enables smaller and less expensive FPGAs to be
     used as well as allows for a much larger heap and larger programs.
@@ -48,8 +48,8 @@ The York Reduceron needs the following enhancements to meet our needs:
 While Reduceron technically refers to the FPGA implementation, it is
 supported by
 
- - Flite: the F-lite to Red translator.  This is a critical piece.
- - A emulator in C: useful for regression testing and experiments
+ - Flite: the F-lite to Red translator.
+ - A Red emulator in C
  - York Lava: Reduceron is a York Lava program, which generate HDL
  - Support for Verilog simulation and synthesis for various FPGA dev kits.
 
@@ -61,16 +61,19 @@ one repository.
 
 HOW DO I USE IT?
 
+Optionally: just run make in the toplevel directory and a large regression
+run will start. The Verilog simulation part will take weeks to finish.
+
 To build:
 
   First the F-lite -> Red compiler:
-  $ (cd flite; cabal install)
+  $ make -C flite
 
   Next, the Reduceron Red -> RTL generator:
-  $ cd fpga; ghc -O -i../york-lava/modules/: Main.hs
+  $ make -C fpga
 
   Translate your favorite program:
-  $ flite -r ../programs/Fib.hs | ./Main -v
+  $ cd fpga; flite -r ../programs/Fib.hs | ./Red -v
 
   Optionally, simulate:
   $ make -C Reduceron
@@ -90,7 +93,10 @@ WHERE IS THIS GOING?
 Plan:
 
   Step 1: Port to Verilog and Altera. DONE!
-  Step 2: Shrink to fit mid-sized FPGA kits (eg. DE2-70 and DE2-115). DONE!
+
+  Step 2: Shrink to fit mid-sized FPGA kits (eg. DE2-70 and DE2-115).
+          DONE! (However note that the shrunk version doesn't run all
+          examples)
 
   In some order:
 
@@ -102,7 +108,7 @@ Plan:
           DONE: (*<-) with room for improvement
   Step H1: Move the heap [and tospace] to external memory
   Step H2: Add a heap cache/newspace memory
-  Step H3: Implement the external heap representation from emu-32.c
+  Step H3: Implement the emu-32.c representation for the external heap
   Finally: Performance improvements
 
 

@@ -1,0 +1,2 @@
+regress:
+	$(MAKE) -C programs
