@@ -100,12 +100,21 @@ Plan:
 
   In some order:
 
+  Step ?: Improve Lava simulation and RTL gen
+       - Add a C backend for much faster simulation
+       - Use names from the design
+       - generate busses where possible
+
   Step I: Add primitives (mul, AND, OR, XOR, SHL, ASR, [SHR], ...)
           (*), (.&.), (.|.), (.^.), (.<<.), (.>>.)
           DONE: (.&.)
   Step X: Add IO primitives (store and load from the IO bus)
           (*<-), (<-*) [subword variants]
           DONE: (*<-) with room for improvement
+
+  Step ?: Add the ability to accept bubbles (eg. cache misses)
+       - Start with (<-*) which will block for some cycles until IO returns
+
   Step H1: Move the heap [and tospace] to external memory
   Step H2: Add a heap cache/newspace memory
   Step H3: Implement the emu-32.c representation for the external heap

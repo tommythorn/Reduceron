@@ -1,3 +1,4 @@
+module Cube where
 import Lava
 import Recipe
 import Mult
@@ -44,3 +45,9 @@ synFiveCubed =
      writeVerilog "FiveCubedExample"
                   (s!mul!result!val, done)
                   (nameWord "result", name "done")
+
+cFiveCubed =
+  do let (s, done) = recipe newCube fiveCubed (delay high low)
+     writeC "FiveCubedExample"
+            (s!mul!result!val, done)
+            (nameWord "result", name "done")

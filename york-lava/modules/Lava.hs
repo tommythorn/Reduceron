@@ -49,6 +49,7 @@ module Lava
   , module Lava.Vector
   , module Lava.Vhdl
   , module Lava.Verilog
+  , module Lava.C
   , module Lava.Prelude
   ) where
 
@@ -56,4 +57,5 @@ import Lava.Bit
 import Lava.Vector
 import Lava.Vhdl
 import Lava.Verilog
+import Lava.C
 import Lava.Prelude

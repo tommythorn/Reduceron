@@ -315,6 +315,20 @@ function to the final state, to select the desired outputs.
   Lava> simExample
   Vec [high,low,low,high,high,low,low,low]
 
+Recipes can be simulated with the C backend for much faster simulation
+performance (required for realistic applications)
+
+  csimExample =
+    do let (s, done) = recipe newMult example (delay high low)
+       writeC "MultExample"
+              (s!result!val, done)
+              (nameWord "result", name "done")
+
+XXX: The details of this are subject to change.
+
+MultExample.c then contains a single function MultExample() returning
+the result of s!result!val when done transitions high.
+
 The example can be synthesised by calling 'recipe' which is similar to
 'simRecipe' but takes a single-cycle pulse indicating when to start,
 and produces a single-cycle pulse indicating when the recipe has
