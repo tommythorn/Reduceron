@@ -12,13 +12,14 @@ import Collect
 
 import Heap
 
-data Flag = Simulate | Generate | GenVerilog | Mem deriving Eq
+data Flag = Simulate | Generate | GenVerilog | GenC | Mem deriving Eq
 
 options :: [OptDescr Flag]
 options =
   [ Option ['s'] [] (NoArg Simulate) "simulate"
   , Option ['g'] [] (NoArg Generate) "generate VHDL"
   , Option ['v'] [] (NoArg GenVerilog) "generate Verilog"
+  , Option ['c'] [] (NoArg GenC) "generate C"
   , Option ['m'] [] (NoArg Mem) "generate .mem file "
   ]
 
@@ -65,6 +66,11 @@ run flags fileName =
                      (nameWord "result", nameWord "state", nameWord "heapSize",
                       nameWord "ioWrite", nameWord "ioAddr", nameWord "ioWriteData",
                       name "finish")
+     when (GenC `elem` flags) $
+       let (r, fin) = recipe (newReduceron code) dispatch (delay high low)
+       in  writeC "Reduceron"
+                     (r!result!val, fin)
+                     (nameWord "result", name "done")
      when (Mem `elem` flags) $
        do putStr "@0 "
           putStrLn $ unwords (mem code)
