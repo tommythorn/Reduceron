@@ -1,3 +1,4 @@
+module Poly where
 import Lava
 import Recipe
 import Mult
@@ -121,5 +122,13 @@ synPoly e x =
   do let code = reverse $ map enc $ compile e
      let (s, done) = recipe (newPoly code x) poly (delay high low)
      writeVerilog "Poly"
+               (s!rtop!val, done)
+               (nameWord "result", name "done")
+
+cPoly :: Expr -> Integer -> IO ()
+cPoly e x =
+  do let code = reverse $ map enc $ compile e
+     let (s, done) = recipe (newPoly code x) poly (delay high low)
+     writeC "Poly"
                (s!rtop!val, done)
                (nameWord "result", name "done")
