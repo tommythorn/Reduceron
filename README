@@ -1,5 +1,4 @@
 
-
                     Reduceron for Embedded Systems
 
 
@@ -50,7 +49,7 @@ supported by
 
  - Flite: the F-lite to Red translator.
  - A Red emulator in C
- - York Lava: Reduceron is a York Lava program, which generate HDL
+ - York Lava: Reduceron is a York Lava program, which generate VHDL and Verilog
  - Support for Verilog simulation and synthesis for various FPGA dev kits.
 
 
