@@ -44,11 +44,11 @@ type ArityN       = N3
 type Arity        = Word ArityN
 type FunAddrN     = N9
 type FunAddr      = Word FunAddrN
-type ToSpaceAddrN = N12  -- half of heap. HERE IT IS, THE MAIN PARAMETER.
+type ToSpaceAddrN = N13  -- half of heap. HERE IT IS, THE MAIN PARAMETER.
 type ToSpaceAddr  = Word ToSpaceAddrN
 type UStackAddrN  = N9 -- N6 should be enough
 type LStackAddrN  = N9 -- N9 should be enough
-type UpdateN      = N22 -- ew (UStackAddrN + HeapAddrN)
+type UpdateN      = N23 -- ew (UStackAddrN + HeapAddrN)
 
 
 funAddrN     = undefined :: FunAddrN
@@ -64,7 +64,7 @@ type AtomN = S (S (S HeapAddrN))
 type Atom  = Word AtomN
 atomWidth :: AtomN
 atomWidth  = undefined
-atomWidth5 = n80 -- = 5 * atomWidth. Ew, is there a better way?
+atomWidth5 = n85 -- = 5 * atomWidth. Ew, is there a better way?
 
 isFUN :: Atom -> Bit
 isFUN a = inv (a `vat` n0) <&> inv (a `vat` n1)
@@ -86,7 +86,7 @@ funFirst = vlast . snd . splitFunAtom
 funTag = low +> low +> low +> vempty
 
 makeFUN :: Bit -> Word N3 -> FunAddr -> Atom
-makeFUN b n a = funTag <++> (n <++> a <++> (b +> vempty)) -- Ew!
+makeFUN b n a = funTag <++> (n <++> a <++> (low +> b +> vempty)) -- Ew!
 
 encodeFUN :: Bool -> Integer -> Integer -> Integer
 encodeFUN b n a
@@ -165,7 +165,7 @@ conIndex :: Atom -> FunAddr
 conIndex = vtake funAddrN . vdrop n6
 
 makeCON :: Arity -> FunAddr -> Atom
-makeCON n a = high +> low +> high +> (n <++> a <++> (low +> vempty)) -- ew
+makeCON n a = high +> low +> high +> (n <++> a <++> (low +> low +> vempty)) -- ew
 
 encodeCON :: Integer -> Integer -> Integer
 encodeCON n a
@@ -182,7 +182,7 @@ argIndex :: Atom -> Word N8
 argIndex = vtake n8 . vdrop n4
 
 makeARG :: Bit -> Word N8 -> Atom
-makeARG s n = high +> high +> low +> s +> (n <++> vreplicate n4 low) -- ew
+makeARG s n = high +> high +> low +> s +> (n <++> vreplicate n5 low) -- ew
 
 encodeARG :: Bool -> Int -> Integer
 encodeARG s n
@@ -199,7 +199,7 @@ regIndex :: Atom -> Word N8
 regIndex = vtake n8 . vdrop n4
 
 makeREG :: Bit -> Word N8 -> Atom
-makeREG s n = high +> high +> high +> s +> (n <++> vreplicate n4 low) -- ew
+makeREG s n = high +> high +> high +> s +> (n <++> vreplicate n5 low) -- ew
 
 encodeREG :: Bool -> Int -> Integer
 encodeREG s n
@@ -232,7 +232,7 @@ Total width of application = 77 bits
 -}
 
 appN      = value appWidth :: Int -- 5 + 4 * atomWidth
-type AppN = N69 -- ew
+type AppN = N73 -- ew
 appWidth  = undefined :: AppN
 type App  = Word AppN
 
@@ -321,7 +321,7 @@ Total width of template = 222 bits
 
 -}
 
-type TemplateN = N201 -- ew
+type TemplateN = N211 -- 10 * atomWidth + 41  ew
 type Template = Word TemplateN
 
 tempOffset = vsplitAt n4
