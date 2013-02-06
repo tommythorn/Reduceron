@@ -3,9 +3,9 @@ import Recipe
 import Reduceron
 import Syntax
 import Encode
-import Monad
+import Control.Monad
 import Hex
-import System
+import System.Environment
 import System.Console.GetOpt
 
 import Collect

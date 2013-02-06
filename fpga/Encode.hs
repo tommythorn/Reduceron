@@ -2,8 +2,8 @@ module Encode where
 
 import Data.Bits
 import Syntax
-import List
-import Maybe
+import Data.List
+import Data.Maybe
 import qualified Bytecode as B
 import Debug.Trace
 

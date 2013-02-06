@@ -14,7 +14,7 @@ Suggestions for improvements:
 
 import Lava.Bit
 import Lava.Binary
-import System
+import System.Cmd
 import Numeric (showHex)
 
 verilogModuleHeader :: String -> Netlist -> String

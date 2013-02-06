@@ -47,8 +47,8 @@ module Recipe
   ) where
 
 import Lava
-import List
-import Maybe
+import Data.List
+import Data.Maybe
 
 type VarId = Int
 

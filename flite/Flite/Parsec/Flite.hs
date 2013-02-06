@@ -10,8 +10,8 @@ import Flite.Inline
 import Flite.Compile
 import Flite.RedCompile
 import Data.List
-import System
 import System.IO
+import System.Environment
 import System.Console.GetOpt
 
 data Flag =

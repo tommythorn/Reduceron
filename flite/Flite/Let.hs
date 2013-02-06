@@ -5,7 +5,7 @@ import Flite.Syntax
 import Flite.Traversals
 import Flite.Descend
 import Flite.Fresh
-import List
+import Data.List
 
 mkLet :: [Binding] -> Exp -> Exp
 mkLet [] e = e

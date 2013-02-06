@@ -14,10 +14,8 @@ regress: regress-emu \
 $(EMU): ../emulator/emu.c
 	$(MAKE) -C ../emulator emu
 
-flite.built:
-	cd ../flite; cabal configure
-	cd ../flite; cabal build
-	touch $@
+$(FLITE):
+	$(MAKE) -C ../flite
 
 $(RED):
 	$(MAKE) -C ../fpga
@@ -30,7 +28,7 @@ regress-emu: $(patsubst %,%.emu-checked,$(WORKLOADS))
 
 regress-flite-sim: $(patsubst %,%.flite-sim-checked,$(WORKLOADS))
 
-%.flite-sim-checked: %.hs flite.built
+%.flite-sim-checked: %.hs $(FLITE)
 	$(FLITE) -v $< | diff -u $(patsubst %.hs,gold/run/%.out,$<) - && touch $@
 
 regress-flite-comp: $(patsubst %,%.flite-comp-checked,$(WORKLOADS))

@@ -21,7 +21,7 @@ module CachingOctostack
 
 import Lava
 import Recipe
-import List
+import Data.List
 import Bytecode
 
 -- Parameters

@@ -16,7 +16,7 @@ module Lava.JList
   ) where
 
 import Prelude hiding (map, mapM, concat, zipWith)
-import Monad hiding (mapM)
+import Control.Monad hiding (mapM)
 
 data JList a = Zero | One a | JList a :+: JList a
   deriving (Show, Eq)

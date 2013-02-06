@@ -40,7 +40,7 @@ Executable flite-pure
                     Flite.State, Flite.Strictify, Flite.Syntax, Flite.Traversals, Flite.Writer,
                     Flite.Writer, Flite.WriterState, Flite.WorkerWrapper
     if flag(pure)
-        Build-Depends: base >= 3 && < 5, haskell98 >= 1 && < 2,
+        Build-Depends: base >= 3 && < 5,
                        array >= 0 && < 1, containers >= 0 && < 1
     else
         buildable:     False
@@ -50,7 +50,7 @@ Executable flite
     if flag(pure)
         buildable:     False
     else
-        Build-Depends: base >= 3 && < 5, haskell98 >= 1 && < 2,
+        Build-Depends: base >= 3 && < 5,
                        array >= 0 && < 1, containers >= 0 && < 1,
                        parsec >= 3
         Other-Modules:  Flite.CallGraph, Flite.Case, Flite.Compile, Flite.CompileBackend
@@ -64,7 +64,7 @@ Executable flite
                         Flite.Dependency, Flite.IntInfer, Flite.Strictness, Flite.WorkerWrapper
 
 Library
-    Build-Depends:   base >= 3 && < 5, haskell98 >= 1 && < 2,
+    Build-Depends:   base >= 3 && < 5,
                      array >= 0 && < 1, containers >= 0 && < 1,
                      parsec >= 3
     Exposed-modules: Flite.CallGraph, Flite.Case, Flite.ConcatApp,

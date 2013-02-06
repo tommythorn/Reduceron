@@ -60,6 +60,9 @@ one repository.
 
 HOW DO I USE IT?
 
+The was last tested with Haskell Platform 2012.4.0.0 for Mac OS X,
+64-bit, but I expect it should work the same on Linux and Windows.
+
 Optionally: just run make in the toplevel directory and a large regression
 run will start. The Verilog simulation part will take weeks to finish.
 
@@ -94,8 +97,8 @@ Plan:
   Step 1: Port to Verilog and Altera. DONE!
 
   Step 2: Shrink to fit mid-sized FPGA kits (eg. DE2-70 and DE2-115).
-          DONE! (However note that the shrunk version doesn't run all
-          examples)
+          Partially done (However note that the shrunk version doesn't
+          run all examples)
 
   In some order:
 

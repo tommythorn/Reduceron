@@ -188,7 +188,7 @@ module Lava.Vector
   ) where
 
 import Data.List
-import Monad
+import Control.Monad
 
 data Z = Z
 data S a = S a

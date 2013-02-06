@@ -1,6 +1,6 @@
 module Lava.Binary where
 
-import Char
+import Data.Char
 
 binToNat :: Integral a => [Bool] -> a
 binToNat [] = 0
