@@ -1,4 +1,8 @@
-WORKLOADS=$(patsubst %.hs,%,$(shell ls *.hs))
+#WORKLOADS=$(patsubst %.hs,%,$(shell ls *.hs))
+# Workloads sorted by time to execute
+WORKLOADS=And Example SmallFib Fib Parts Sudoku KnuthBendix CountDown Adjoxo Cichelli \
+Taut While Braun MSS Clausify OrdList Queens Queens2 PermSort SumPuz Mate2 Mate
+
 
 EMU=../emulator/emu
 FLITE=../flite/dist/build/Flite/flite
