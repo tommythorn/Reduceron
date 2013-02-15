@@ -9,7 +9,7 @@ Example      00000006  works
 SmallFib     0000000D  works
 Fib          00002AC2  works
 Parts        000015E4  works
-KnuthBendix  0000320F  FAILS (expected: the program is big > 512)
+KnuthBendix  0000320F  FAILS This is unexprected
 CountDown    00000000  works
 Adjoxo       00000044  works
 Cichelli     00000824  works
@@ -24,7 +24,7 @@ Queens2      00000A78  works
 PermSort     00000001  works
 SumPuz       00000003  works
 Mate2        000000BD  works
-Mate         000000BD  FAILS (expected: the program is big > 512)
+Mate         000000BD  works
 
 The MSS failure is concerning.
 - It's not the range of integers

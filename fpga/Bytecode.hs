@@ -42,7 +42,7 @@ type StackAddrN   = N9 -- N9 should be enough
 type StackAddr    = Word StackAddrN
 type ArityN       = N3
 type Arity        = Word ArityN
-type FunAddrN     = N9
+type FunAddrN     = N10
 type FunAddr      = Word FunAddrN
 type ToSpaceAddrN = N13  -- half of heap. HERE IT IS, THE MAIN PARAMETER.
 type ToSpaceAddr  = Word ToSpaceAddrN
@@ -86,7 +86,7 @@ funFirst = vlast . snd . splitFunAtom
 funTag = low +> low +> low +> vempty
 
 makeFUN :: Bit -> Word N3 -> FunAddr -> Atom
-makeFUN b n a = funTag <++> (n <++> a <++> (low +> b +> vempty)) -- Ew!
+makeFUN b n a = funTag <++> (n <++> a <++> (b +> vempty)) -- Ew!
 
 encodeFUN :: Bool -> Integer -> Integer -> Integer
 encodeFUN b n a
@@ -165,7 +165,7 @@ conIndex :: Atom -> FunAddr
 conIndex = vtake funAddrN . vdrop n6
 
 makeCON :: Arity -> FunAddr -> Atom
-makeCON n a = high +> low +> high +> (n <++> a <++> (low +> low +> vempty)) -- ew
+makeCON n a = high +> low +> high +> (n <++> a <++> (low +> vempty)) -- ew
 
 encodeCON :: Integer -> Integer -> Integer
 encodeCON n a
@@ -319,9 +319,11 @@ Template structure:
 
 Total width of template = 222 bits
 
+NB: The actual values are different - these are just illustrations
+
 -}
 
-type TemplateN = N211 -- 10 * atomWidth + 41  ew
+type TemplateN = N212 -- 10 * atomWidth + 42  ew
 type Template = Word TemplateN
 
 tempOffset = vsplitAt n4
