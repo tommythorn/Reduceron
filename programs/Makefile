@@ -1,11 +1,14 @@
 #WORKLOADS=$(patsubst %.hs,%,$(shell ls *.hs))
 # Workloads sorted by time to execute
-WORKLOADS=And Example SmallFib Fib Parts Sudoku KnuthBendix CountDown Adjoxo Cichelli \
-Taut While Braun MSS Clausify OrdList Queens Queens2 PermSort SumPuz Mate2 Mate
-
+#
+# Sudoku after Parts, but is omitted as it uses "emit" which has no hardware
+# support
+WORKLOADS=And Example SmallFib Fib Parts KnuthBendix CountDown Adjoxo \
+          Cichelli Taut While Braun MSS Clausify OrdList Queens Queens2 \
+          PermSort SumPuz Mate2 Mate
 
 EMU=../emulator/emu
-FLITE=../flite/dist/build/Flite/flite
+FLITE=../flite/dist/build/flite/flite
 RED=../fpga/Red
 
 regress: regress-emu \
@@ -51,5 +54,8 @@ regress-red-verilog-sim: $(patsubst %,%.red-verilog-sim-checked,$(WORKLOADS))
 	cd ../fpga; ./Red -v ../programs/$<
 	time $(MAKE) -C ../fpga/Reduceron | diff -u $(patsubst gold/compiled/%.red,gold/run/%.out,$<) - && touch $@
 
-regress-red-verilog-run:
-	echo Not implemented YET. It will be difficult to make very general.
+regress-red-verilog-run: $(patsubst %,%.red-verilog-run-checked,$(WORKLOADS))
+
+%.red-verilog-run-checked: gold/compiled/%.red $(RED)
+	cd ../fpga; ./Red -v ../programs/$< && cp Reduceron/*.mif Reduceron/DE2-115
+	make -C ../fpga/Reduceron/DE2-115

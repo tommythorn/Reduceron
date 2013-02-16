@@ -1,5 +1,6 @@
+# why I need sudo here?
 program: Reduceron.sof
-	quartus_pgm Reduceron.cdf
+	sudo quartus_pgm Reduceron.cdf
 
 Reduceron.sof: toplevel.v ../Reduceron.v ram_c128.mif
 	quartus_map Reduceron
