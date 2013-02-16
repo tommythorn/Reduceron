@@ -68,27 +68,26 @@ run will start. The Verilog simulation part will take weeks to finish.
 
 To build:
 
-  First the F-lite -> Red compiler:
-  $ make -C flite
+  make
 
-  Next, the Reduceron Red -> RTL generator:
-  $ make -C fpga
+Or run a specific test suite:
 
-  Translate your favorite program:
-  $ cd fpga; flite -r ../programs/Fib.hs | ./Red -v
+  make -C programs $X
 
-  Optionally, simulate:
-  $ make -C Reduceron
+where $X is one of regress-emu, regress-flite-sim, regress-flite-comp,
+or regress-red-verilog-sim.
 
-  Finally, building a Reduceron system for DE2-70
-  $ cd Reduceron/DE2-70; quartus_map Reduceron;
-  $ quartus_fit Reduceron; quartus_asm Reduceron
+To build a hardware version of a given test
 
-  Some manual effort is needed here, but should be straight forward if
-  you are used to working with DE2-70.  Note, the generated
-  Reduceron.v is the same regardless of the Red input, only the memory
-  initialization file changes.
+  cd fpga; make && flite -r ../programs/$P | ./Red -v
 
+where $P is one of the programs (.hs).  Next, build a Reduceron system
+for DE2-115:
+
+  make -C Reduceron/DE2-115
+
+Unfortunately programs can't currently be loaded dynamically but are
+baked into the FPGA image.  It's a high priority goal to change that.
 
 WHERE IS THIS GOING?
 
@@ -97,8 +96,7 @@ Plan:
   Step 1: Port to Verilog and Altera. DONE!
 
   Step 2: Shrink to fit mid-sized FPGA kits (eg. DE2-70 and DE2-115).
-          Partially done (However note that the shrunk version doesn't
-          run all examples)
+          Done (not all examples work currently, see STATUS)
 
   In some order:
 
@@ -106,10 +104,14 @@ Plan:
        - Add a C backend for much faster simulation
        - Use names from the design
        - generate busses where possible
+       - Make the design resettable
+
+  Step ?: Make programs dynamically loadable.
 
   Step I: Add primitives (mul, AND, OR, XOR, SHL, ASR, [SHR], ...)
           (*), (.&.), (.|.), (.^.), (.<<.), (.>>.)
           DONE: (.&.)
+
   Step X: Add IO primitives (store and load from the IO bus)
           (*<-), (<-*) [subword variants]
           DONE: (*<-) with room for improvement
