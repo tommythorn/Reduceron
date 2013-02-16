@@ -75,10 +75,12 @@ module toplevel
             tx_word <= res[16:3];
             finish_r <= 0;
          end
+/*
          else if (s[5] && !old_gc) begin
             tx_nibbles <= 3;
             tx_word[35:32] <= 9;
          end
+*/
       end
       else begin
          rs232out_we <= 1;
