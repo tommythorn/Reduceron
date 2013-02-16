@@ -51,20 +51,23 @@ type LStackAddrN  = N9 -- N9 should be enough
 type UpdateN      = N23 -- ew (UStackAddrN + HeapAddrN)
 
 
-funAddrN     = undefined :: FunAddrN
-funAddrWidth = value funAddrN
+heapAddrN         = undefined :: HeapAddrN
+heapAddrWidth     = value heapAddrN
 
-stackAddrN   = undefined :: StackAddrN
-stackAddrWidth = value stackAddrN
+funAddrN          = undefined :: FunAddrN
+funAddrWidth      = value funAddrN
+
+stackAddrN        = undefined :: StackAddrN
+stackAddrWidth    = value stackAddrN
 
 -- Atoms
 
-atomN      = value atomWidth :: Int
-type AtomN = S (S (S HeapAddrN))
-type Atom  = Word AtomN
-atomWidth :: AtomN
-atomWidth  = undefined
-atomWidth5 = n85 -- = 5 * atomWidth. Ew, is there a better way?
+type AtomN        = S (S (S HeapAddrN))
+type Atom         = Word AtomN
+
+atomN             = undefined :: AtomN
+atomWidth         = value atomN :: Int
+atomWidth5        = n85 -- = 5 * atomN. Ew, is there a better way?
 
 isFUN :: Atom -> Bit
 isFUN a = inv (a `vat` n0) <&> inv (a `vat` n1)
@@ -91,7 +94,7 @@ makeFUN b n a = funTag <++> (n <++> a <++> (b +> vempty)) -- Ew!
 encodeFUN :: Bool -> Integer -> Integer -> Integer
 encodeFUN b n a
   | n >= 0 && n <= 7 =
-     (n `shiftL` 3) .|. (a `shiftL` 6) .|. (boolToNum b `shiftL` (value atomWidth - 1))
+     (n `shiftL` 3) .|. (a `shiftL` 6) .|. (boolToNum b `shiftL` (atomWidth - 1))
   | otherwise = error "encodeFUN: invalid arguments"
 
 getSwapBit :: Atom -> Bit
@@ -136,7 +139,7 @@ makeAP s a = low +> high +> s +> a
 
 encodeAP :: Bool -> Integer -> Integer
 encodeAP s a = 2 .|. (boolToNum s `shiftL` 2) .|. (b `shiftL` 3)
-  where b = if a < 0 then a+(2^(value atomWidth - 3)) else a
+  where b = if a < 0 then a+(2^heapAddrWidth) else a
 
 dash :: Bit -> Atom -> Atom
 dash s a = vtake n2 a <++> vsingle shared <++> vdrop n3 a
@@ -153,7 +156,7 @@ makeINT a = high +> low +> low +> a
 
 encodeINT :: Integer -> Integer
 encodeINT a = 1 .|. (b `shiftL` 3)
-  where b = if a < 0 then a + (2^(atomN - 3)) else a
+  where b = if a < 0 then a + (2^heapAddrWidth) else a
 
 isCON :: Atom -> Bit
 isCON a = (a `vat` n0) <&> inv (a `vat` n1) <&> (a `vat` n2)
@@ -231,10 +234,10 @@ Total width of application = 77 bits
 
 -}
 
-appN      = value appWidth :: Int -- 5 + 4 * atomWidth
-type AppN = N73 -- ew
-appWidth  = undefined :: AppN
-type App  = Word AppN
+type AppN         = N73 -- 5 + 4 * atomN ew
+type App          = Word AppN
+appN              = undefined :: AppN
+appWidth          = value appN
 
 appArity :: App -> Word N2
 appArity app = vtake n2 app
@@ -251,7 +254,7 @@ isCollected app = app `vat` n4
 splitApp = vsplitAt n5
 
 atoms :: App -> Vec N4 Atom
-atoms = vrigid . vgroup atomWidth . snd . splitApp
+atoms = vrigid . vgroup atomN . snd . splitApp
 
 alts :: App -> FunAddr
 alts = vtake funAddrN . vdrop n3 . vlast . atoms
@@ -276,7 +279,7 @@ encodeApp arity n c as
            arity
        .|. (boolToNum n `shiftL` 2)
        .|. (boolToNum c `shiftL` 3)
-       .|. (join atomN as `shiftL` 5)
+       .|. (join atomWidth as `shiftL` 5)
    | otherwise = error "encodeApp: invalid parameters"
 
 mapApp :: (Atom -> Atom) -> App -> App
@@ -323,7 +326,7 @@ NB: The actual values are different - these are just illustrations
 
 -}
 
-type TemplateN = N212 -- 10 * atomWidth + 42  ew
+type TemplateN = N212 -- 10 * atomN + 42  ew
 type Template = Word TemplateN
 
 tempOffset = vsplitAt n4
@@ -331,7 +334,7 @@ tempOffset = vsplitAt n4
 templateOffset :: Template -> Word N4
 templateOffset = fst . tempOffset
 
-tempTop = vsplitAt atomWidth . snd . tempOffset
+tempTop = vsplitAt atomN . snd . tempOffset
 
 templateTop :: Template -> Atom
 templateTop = fst . tempTop
@@ -364,14 +367,14 @@ templatePushMask = fst . tempPushMask
 tempApp2Atoms = vsplitAt atomWidth5 . snd . tempPushMask
 
 templateApp2Atoms :: Template -> Vec N5 Atom
-templateApp2Atoms = vrigid . vgroup atomWidth . fst . tempApp2Atoms
+templateApp2Atoms = vrigid . vgroup atomN . fst . tempApp2Atoms
 
 tempInstApp1 = vsplitAt n1 . snd . tempApp2Atoms
 
 templateInstApp1 :: Template -> Bit
 templateInstApp1 = vhead . fst . tempInstApp1
 
-tempApp1 = vsplitAt appWidth . snd . tempInstApp1
+tempApp1 = vsplitAt appN . snd . tempInstApp1
 
 templateApp1 :: Template -> App
 templateApp1 = fst . tempApp1
@@ -438,20 +441,20 @@ encodeTemplate offset top pushAlts alts
                destReg1 destReg2 = fst encoding
   where
     offset'  = if offset < 0 then offset + 16 else offset
-    encoding = (offset'             , 4       )
-            <> (top                 , atomN      )
-            <> (boolToNum pushAlts  , 1       )
-            <> (alts                , funAddrWidth      )
-            <> (boolToNum instAtoms2, 1       )
-            <> (app2Header          , 5       )
-            <> (pushMask            , 5       )
-            <> (app2Atoms           , 5*atomN    )
-            <> (boolToNum instApp1  , 1       )
-            <> (app1                , 5 + 4*atomN)
-            <> (boolToNum app1Prim  , 1       )
-            <> (boolToNum app2Prim  , 1       )
-            <> (destReg1            , 4       )
-            <> (destReg2            , 4       )
+    encoding = (offset'             , 4)
+            <> (top                 , atomWidth)
+            <> (boolToNum pushAlts  , 1)
+            <> (alts                , funAddrWidth)
+            <> (boolToNum instAtoms2, 1)
+            <> (app2Header          , 5)
+            <> (pushMask            , 5)
+            <> (app2Atoms           , 5*atomWidth)
+            <> (boolToNum instApp1  , 1)
+            <> (app1                , 5 + 4*atomWidth)
+            <> (boolToNum app1Prim  , 1)
+            <> (boolToNum app2Prim  , 1)
+            <> (destReg1            , 4)
+            <> (destReg2            , 4)
 
 -- Constants
 
