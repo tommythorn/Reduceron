@@ -49,8 +49,8 @@ data Reduceron =
   , regFile2   :: RegFile N4 AtomN
   , result     :: Reg AtomN
   , collector  :: Collect
-  , ioAddr     :: Sig HeapAddrN
-  , ioWriteData:: Sig HeapAddrN
+  , ioAddr     :: Sig NumberN
+  , ioWriteData:: Sig NumberN
   , ioWrite    :: Sig N1
   }
 

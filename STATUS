@@ -9,14 +9,14 @@ Example      00000006  works
 SmallFib     0000000D  works
 Fib          00002AC2  works
 Parts        000015E4  works
-KnuthBendix  0000320F  FAILS This is unexprected
+KnuthBendix  0000320F  FAILS This is unexpected
 CountDown    00000000  works
 Adjoxo       00000044  works
 Cichelli     00000824  works
 Taut         00000001  works
-While        00000028  FAILS (expected: integer range too narrow)
+While        00000028  works
 Braun        00000001  works
-MSS          00000C30  FAILS This is unexpected
+MSS          00000C30  works
 Clausify     00000000  works
 OrdList      00000001  works
 Queens       00000A78  works
@@ -25,7 +25,3 @@ PermSort     00000001  works
 SumPuz       00000003  works
 Mate2        000000BD  works
 Mate         000000BD  works
-
-The MSS failure is concerning.
-- It's not the range of integers
-- It's not the amount heap, stack, update stack, label stack

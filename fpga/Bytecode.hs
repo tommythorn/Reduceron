@@ -50,6 +50,11 @@ type UStackAddrN  = N9 -- N6 should be enough
 type LStackAddrN  = N9 -- N9 should be enough
 type UpdateN      = N23 -- ew (UStackAddrN + HeapAddrN)
 
+-- In order to enlargen the integer range without affecting the heap
+-- size we break the previous assumption that pointers and integers
+-- are the same size.
+type NumberN      = S HeapAddrN
+type Number       = Word NumberN
 
 heapAddrN         = undefined :: HeapAddrN
 heapAddrWidth     = value heapAddrN
@@ -60,19 +65,22 @@ funAddrWidth      = value funAddrN
 stackAddrN        = undefined :: StackAddrN
 stackAddrWidth    = value stackAddrN
 
+numberN           = undefined :: NumberN
+numberWidth       = value numberN
+
 -- Atoms
 
-type AtomN        = S (S (S HeapAddrN))
+type AtomN        = S (S (S NumberN))
 type Atom         = Word AtomN
 
 atomN             = undefined :: AtomN
 atomWidth         = value atomN :: Int
-atomWidth5        = n85 -- = 5 * atomN. Ew, is there a better way?
+atomWidth5        = n90 -- = 5 * atomN. Ew, is there a better way?
 
 isFUN :: Atom -> Bit
 isFUN a = inv (a `vat` n0) <&> inv (a `vat` n1)
 
-splitAtom :: Atom -> (Word N3, HeapAddr)
+splitAtom :: Atom -> (Word N3, Number)
 splitAtom = vsplitAt n3
 
 splitFunAtom = vsplitAt n3 . snd . splitAtom
@@ -89,7 +97,7 @@ funFirst = vlast . snd . splitFunAtom
 funTag = low +> low +> low +> vempty
 
 makeFUN :: Bit -> Word N3 -> FunAddr -> Atom
-makeFUN b n a = funTag <++> (n <++> a <++> (b +> vempty)) -- Ew!
+makeFUN b n a = funTag <++> (n <++> a <++> (low +> b +> vempty)) -- Ew!
 
 encodeFUN :: Bool -> Integer -> Integer -> Integer
 encodeFUN b n a
@@ -132,10 +140,10 @@ isShared :: Atom -> Bit
 isShared a = a `vat` n2
 
 pointer :: Atom -> HeapAddr
-pointer = snd . splitAtom
+pointer = vtake heapAddrN . snd . splitAtom
 
 makeAP :: Bit -> HeapAddr -> Atom
-makeAP s a = low +> high +> s +> a
+makeAP s a = low +> high +> s +> (a <++> low +> vempty)
 
 encodeAP :: Bool -> Integer -> Integer
 encodeAP s a = 2 .|. (boolToNum s `shiftL` 2) .|. (b `shiftL` 3)
@@ -148,15 +156,15 @@ dash s a = vtake n2 a <++> vsingle shared <++> vdrop n3 a
 isINT :: Atom -> Bit
 isINT a = (a `vat` n0) <&> inv (a `vat` n1) <&> inv (a `vat` n2)
 
-intValue :: Atom -> HeapAddr
-intValue = pointer
+intValue :: Atom -> Number
+intValue = snd . splitAtom
 
-makeINT :: HeapAddr -> Atom
+makeINT :: Number -> Atom
 makeINT a = high +> low +> low +> a
 
 encodeINT :: Integer -> Integer
 encodeINT a = 1 .|. (b `shiftL` 3)
-  where b = if a < 0 then a + (2^heapAddrWidth) else a
+  where b = if a < 0 then a + (2^numberWidth) else a
 
 isCON :: Atom -> Bit
 isCON a = (a `vat` n0) <&> inv (a `vat` n1) <&> (a `vat` n2)
@@ -168,7 +176,7 @@ conIndex :: Atom -> FunAddr
 conIndex = vtake funAddrN . vdrop n6
 
 makeCON :: Arity -> FunAddr -> Atom
-makeCON n a = high +> low +> high +> (n <++> a <++> (low +> vempty)) -- ew
+makeCON n a = high +> low +> high +> (n <++> a <++> low +> low +> vempty) -- ew
 
 encodeCON :: Integer -> Integer -> Integer
 encodeCON n a
@@ -185,7 +193,7 @@ argIndex :: Atom -> Word N8
 argIndex = vtake n8 . vdrop n4
 
 makeARG :: Bit -> Word N8 -> Atom
-makeARG s n = high +> high +> low +> s +> (n <++> vreplicate n5 low) -- ew
+makeARG s n = high +> high +> low +> s +> (n <++> vreplicate n6 low) -- ew
 
 encodeARG :: Bool -> Int -> Integer
 encodeARG s n
@@ -202,7 +210,7 @@ regIndex :: Atom -> Word N8
 regIndex = vtake n8 . vdrop n4
 
 makeREG :: Bit -> Word N8 -> Atom
-makeREG s n = high +> high +> high +> s +> (n <++> vreplicate n5 low) -- ew
+makeREG s n = high +> high +> high +> s +> (n <++> vreplicate n6 low) -- ew
 
 encodeREG :: Bool -> Int -> Integer
 encodeREG s n
@@ -234,7 +242,7 @@ Total width of application = 77 bits
 
 -}
 
-type AppN         = N73 -- 5 + 4 * atomN ew
+type AppN         = N77 -- 5 + 4 * atomN ew
 type App          = Word AppN
 appN              = undefined :: AppN
 appWidth          = value appN
@@ -326,8 +334,8 @@ NB: The actual values are different - these are just illustrations
 
 -}
 
-type TemplateN = N212 -- 10 * atomN + 42  ew
-type Template = Word TemplateN
+type TemplateN = N222 -- 10 * atomN + 42  ew
+type Template  = Word TemplateN
 
 tempOffset = vsplitAt n4
 
