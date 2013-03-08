@@ -1,7 +1,7 @@
 duplicates :: Eq a => [a] -> [a]
 duplicates []      =  []
 duplicates (x:xs)  =
-  if not (contains d x) && contains xs x then x:d else d 
+  if not (contains d x) && contains xs x then x:d else d
   where
   d  =  duplicates xs
 
@@ -20,4 +20,3 @@ perms xs      =  [x:p | (x,xs') <- picks xs, p <- perms xs']
 picks :: [a] -> [(a,[a])]
 picks []      =  []
 picks (x:xs)  =  (x,xs) : [(x',x:xs') | (x',xs') <- picks xs]
-

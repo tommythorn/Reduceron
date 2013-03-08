@@ -1,5 +1,5 @@
 {- ---------------------------------------------------------------------------
-Defines data type IdKind which tells of which kind an identifier is, 
+Defines data type IdKind which tells of which kind an identifier is,
 e.g. a module identifier or a class identifier
 -}
 
@@ -17,7 +17,7 @@ data IdKind = Var
             | Modid
             | MethodInstance
             | MethodDefault
-	    | Field
+            | Field
 
 ordIdKind :: IdKind -> Int
 ordIdKind  Var    =  1
@@ -57,4 +57,3 @@ instance Show IdKind where
   showsPrec _d MethodDefault  = ("Default method"++)
   showsPrec _d MethodInstance = ("Instance method"++)
   showsPrec _d Field = ("Field"++)
-

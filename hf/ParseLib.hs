@@ -3,8 +3,8 @@ module ParseLib(-- defined in ParseCore
                 Pos, ParseError, ParseResult
                ,ParseBad, ParseGood, Parser
                ,initError,initBad,initGood      -- Start values for parseError,
-						-- parseBad, parseGood
-	       ,parseit
+                                                -- parseBad, parseGood
+               ,parseit
                ,parse, ap, chk, orelse, into    -- The core
                ,token                           -- parse terminal
                ,parseFail                       -- Failing parser
@@ -15,19 +15,19 @@ module ParseLib(-- defined in ParseCore
                ,parseAp, parseChk               -- parse & (ap | chk)
                ,apCut, chkCut, intoCut          -- No return if fst succeed
                ,literal                         -- Parse literal
-	       ,optional, Maybe 		-- Zero or one item
+               ,optional, Maybe                 -- Zero or one item
                ,many, some                      -- Zero/one or more items.
-						-- Cut after each item.
+                                                -- Cut after each item.
                ,manySep, someSep                -- Zero/one or more items with
-						-- separator.  Cut after each
-						-- item.
+                                                -- separator.  Cut after each
+                                                -- item.
                ,manysSep, somesSep              -- Zero/one or more items with
-						-- one or more separators. Cut
-						-- after each item.
+                                                -- one or more separators. Cut
+                                                -- after each item.
                ,rcurl                           -- Parse '}' and fix one if
-						-- needed and possible.
+                                                -- needed and possible.
                ,parseRest                       -- Always true, returns rest
-						-- of the input
+                                                -- of the input
                ) where
 
 import Lex
@@ -41,14 +41,8 @@ infixl 5 `parseChk`
 infixl 5 `revChk`
 infixl 5 `chkCut`
 
-#if defined(__HASKELL98__)
-#define EVAL(b)
-#else
-#define EVAL(b) (Eval b) =>
-#endif
 
-
-revAp :: EVAL(b)  Parser a i c -> Parser (a->b) i c -> Parser b i c
+revAp :: Parser a i c -> Parser (a->b) i c -> Parser b i c
 revAp     x y = \good bad ->
                 x       (\u -> y (\v -> let vu = v u in seq vu (good vu)) bad)
                         bad
@@ -99,7 +93,7 @@ cases tps dp = \good bad input@((pos,t,_,_):input') err@(pe,_et,msg) ->
                         cases'' pos t good input' dp ep et (show t' : em) tps
 
 
-parseAp :: EVAL(b)  (a->b) -> Parser a i c -> Parser b i c
+parseAp :: (a->b) -> Parser a i c -> Parser b i c
 parseAp     x y = \good ->
                         y (\v -> let xv = x v in seq xv (good xv) )
 
@@ -107,7 +101,7 @@ parseChk :: b -> Parser a i c -> Parser b i c
 parseChk    x y = \good ->
                         y (\_  -> good x)
 
-apCut :: EVAL(b)  Parser (a->b) i c -> Parser a i c -> Parser b i c
+apCut :: Parser (a->b) i c -> Parser a i c -> Parser b i c
 apCut     x y = \good bad->
                 x       (\u input' _err' -> y (\v -> let uv = u v in seq uv (good uv)) initBad input' initError)
                         bad
@@ -160,8 +154,8 @@ optional ::
 literal t = token (\pos t' -> if t==t' then Right pos else Left (show t))
 
 optional p = Just `parseAp` p
-		`orelse`
-	     parse Nothing
+                `orelse`
+             parse Nothing
 
 many p = some p `orelse` parse []
 
@@ -191,9 +185,9 @@ manysSep s p = somesSep s p `orelse` parse []
 somesSep s p = (:) `parseAp` p `apCut` manysSep' s p
 
 
---- Really specialized 
+--- Really specialized
 
-rcurl :: Parser Lex  [PosToken] c    
+rcurl :: Parser Lex  [PosToken] c
 rcurl = \good bad (pt@(pos,t,_,_):input) err ->
         case t of
           L_RCURL  -> good t input err
@@ -204,8 +198,5 @@ rcurl = \good bad (pt@(pos,t,_,_):input) err ->
 
 
 -- Accept the rest of the input
-parseRest :: Parser [PosToken]  [PosToken] c    
+parseRest :: Parser [PosToken]  [PosToken] c
 parseRest = \good _bad input err -> good input input err
-
-
-

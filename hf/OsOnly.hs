@@ -6,7 +6,7 @@ module OsOnly
   , hierarchical
   ) where
 
-import Char (isUpper)
+import Data.Char (isUpper)
 
 fixDependFile :: Bool -> String -> String -> String
 fixHatAuxFile :: Bool -> String -> String -> String
@@ -15,7 +15,7 @@ fixHatTransDir :: t -> String -> String
 fixHatTransFile :: Bool -> String -> String -> String
 fixObjectFile :: Bool -> String -> String -> String
 fixTypeFile :: Bool -> String -> String -> String
-strip :: (Num t) => t -> String -> String
+strip :: (Num t, Eq t) => t -> String -> String
 
 isPrelude :: String -> Bool
 isPrelude str = {-take (7::Int)-} str == "Prelude"
@@ -59,7 +59,7 @@ fixTypeFile   isUnix rootdir s = rootdir ++ fixFile isUnix s "hi"
 fixObjectFile isUnix rootdir s = rootdir ++ fixFile isUnix s "hc"
 fixDependFile isUnix rootdir s = rootdir ++ fixFile isUnix s "dep"
 fixHatAuxFile isUnix rootdir s = rootdir ++ fixFile isUnix s "hx"
-fixHatFileBase _isUnix rootdir s = rootdir ++ s 
+fixHatFileBase _isUnix rootdir s = rootdir ++ s
 
 fixHatTransDir _isUnix rootdir =
   if null rootdir then "Hat"
@@ -128,6 +128,3 @@ isVowel '\xc5' = True   -- AA
 isVowel '\xc4' = True   -- AE
 isVowel '\xd4' = True   -- OE
 isVowel _   = False
-
-
-

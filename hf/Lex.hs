@@ -2,7 +2,7 @@ module Lex(Lex(..),LexAnnot(..),TokenId) where
 
 import Extra(strStr,strChr)
 import TokenId(TokenId)
-import Ratio
+import Data.Ratio
 
 data LexAnnot = LexArity     TokenId Int
               | LexPrimitive TokenId (String,String)  -- id (opcode,strictness)
@@ -11,7 +11,7 @@ instance Show LexAnnot where
   showsPrec _d (LexArity     fun a)   = showString "{#- ARITY " . shows fun . showString " = " . shows a  . showString "#-}"
   showsPrec _d (LexPrimitive fun s)   = showString "{#- PRIMITIVE ". shows fun . showString " = " . shows s  . showString "#-}"
 
-data Lex = 
+data Lex =
       L_EOF
     | L_ERROR Char     -- illegal character
     | L_LPAR
@@ -156,10 +156,10 @@ instance Eq Lex where
     _           == _           = False
 
 instance Show Lex where
-	-- Note: EOF really means end-of-file, but because error messages
-	--   saying "got blah but expected EOF" are less than helpful,
-	--   I have changed the string for EOF to indicate the likely cause
-	--   of the parse error.
+        -- Note: EOF really means end-of-file, but because error messages
+        --   saying "got blah but expected EOF" are less than helpful,
+        --   I have changed the string for EOF to indicate the likely cause
+        --   of the parse error.
   showsPrec _d (L_EOF)       = showString  "{-end-of-definition-or-EOF-}"
   showsPrec _d (L_ERROR c)   = showString  "{-ERROR " . showChar c . showString "-}"
   showsPrec _d (L_LPAR )     = showString  "("
@@ -187,7 +187,7 @@ instance Show Lex where
   showsPrec _d (L_Tidle)        = showString  "~"
   showsPrec _d (L_LessMinus)    = showString  "<-"
   showsPrec _d (L_MinusGreater) = showString  "->"
-  showsPrec _d (L_Underscore)   = showString  "_ " 
+  showsPrec _d (L_Underscore)   = showString  "_ "
   showsPrec _d (L_AVARID s)     = shows s
   showsPrec _d (L_AVAROP s)     = showChar '(' . shows s . showChar ')'
   showsPrec d (L_ACONID s)     = showsPrec d  s

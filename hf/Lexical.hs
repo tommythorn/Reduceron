@@ -9,7 +9,7 @@ module Lexical(lexical,lexicalCont,Lex
 import Extra(Pos,toPos,strPos,insertPos)
 import Lex
 import LexPre
-import SysDeps(PackedString,packString,unpackPS)
+import Data.ByteString.Char8(ByteString,pack,unpack)
 import TokenId
 
 type PosToken = (Pos,Lex, LexState, [PosTokenPre])
@@ -23,7 +23,7 @@ lexical :: Bool -> [Char] -> [Char] -> [PosToken]
 -- indentation for the layout rule
 lexical u file l = iLex [0] 0 (beginning (lexPre u file' l))
   where
-    file' = packString file
+    file' = pack file
     -- handle pragmas and start and missing "module" header
     beginning :: [PosTokenPre] -> [PosTokenPre]
     beginning toks =
@@ -45,14 +45,14 @@ lexicalCont (p,t,(i:s@(i':_)),r) =
                      case r of
                        ((f,_,_,_):_) -> Right (piLex f s i' p t r)
                 else Left "Layout }"
-lexicalCont (_p,_t, []  ,_r) = 
+lexicalCont (_p,_t, []  ,_r) =
                 Left "Layout }"
 
 ---  local
 
 iLex :: LexState -> Int -> [PosTokenPre] -> [PosToken]
 iLex _s _i [] = []
-iLex s i ((f,p,c,t):pt) = 
+iLex s i ((f,p,c,t):pt) =
   seq p $
   if c > i then
     piLex f s i p t pt
@@ -66,13 +66,13 @@ iLex s i ((f,p,c,t):pt) =
   (_:s'@(i':_)) = s
   p' = insertPos p
 
-piLex :: PackedString -> LexState -> Int -> Pos -> Lex -> [PosTokenPre] 
+piLex :: ByteString -> LexState -> Int -> Pos -> Lex -> [PosTokenPre]
       -> [PosToken]
 piLex _file s i p tok tr@((f,p',c,t'):pt)
       | tok `elem` [L_let, L_where, L_of, L_do] =
           (p,tok,s,tr)
-          : if t' == L_LCURL 
-              then seq p' $ (p',L_LCURL, s,pt) : iLex (0:s) 0 pt 
+          : if t' == L_LCURL
+              then seq p' $ (p',L_LCURL, s,pt) : iLex (0:s) 0 pt
             else
                 let p'' = insertPos p' in seq p'' $ (p'', L_LCURL',s,tr)
                 : if c > i then
@@ -82,9 +82,9 @@ piLex _file s i p tok tr@((f,p',c,t'):pt)
 piLex _file s _i p L_LCURL  pt =
           (p,L_LCURL,s,pt)
           : iLex (0:s) 0 pt
-piLex file s i p L_RCURL  pt = 
+piLex file s i p L_RCURL  pt =
       if i == 0
-      then case s of 
+      then case s of
              (_:s'@(i':_)) -> (p,L_RCURL,s,pt) : iLex s' i' pt
              _             -> failPos file p "Unbalanced '}' (Stack empty)."
       else failPos file p "Unbalanced '}' (No explicit '{' in scope)"
@@ -93,5 +93,5 @@ piLex _file s i p t pt  =
           : iLex s i pt
 
 
-failPos :: PackedString -> Pos -> [Char] -> a
-failPos file p msg = error ("Internal in " ++ unpackPS file ++ " at " ++ strPos p ++ ": " ++ msg ++ "\n")
+failPos :: ByteString -> Pos -> [Char] -> a
+failPos file p msg = error ("Internal in " ++ unpack file ++ " at " ++ strPos p ++ ": " ++ msg ++ "\n")

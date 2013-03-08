@@ -213,11 +213,11 @@ lit a = literal (a::Lex)
 eof :: Parser Pos [PosToken] c
 eof = lit L_EOF
 
-unboxed = 
-  True `parseChk` k_unboxed 
+unboxed =
+  True `parseChk` k_unboxed
   `orelse`
   parse False
- 
+
 lbrack :: Parser Pos [PosToken] c
 lbrack = lit L_LBRACK
 rbrack :: Parser Pos [PosToken] c
@@ -247,11 +247,11 @@ k_primitive = lvarid tprimitive "primitive"
 k_prefix = lvarid tprefix "prefix"
 k_unboxed = lvarid tunboxed "unboxed"
 k_forall ::
-		ParseGood Pos [PosToken] c
-		-> ParseBad c [PosToken]
-		-> [PosToken]
-		-> ParseError
-		-> ParseResult c [PosToken]
+                ParseGood Pos [PosToken] c
+                -> ParseBad c [PosToken]
+                -> [PosToken]
+                -> ParseError
+                -> ParseResult c [PosToken]
 k_forall = lvarid tforall "forall"
 k_dot = lvarop tdot "dot"
 k_rarrow = lvarop t_Arrow "->"
@@ -323,11 +323,11 @@ tuple0 = token (\pos t -> case t of L_ACONID x | isUnit x -> Right (pos,x) ; _ -
 aconid = token (\pos t -> case t of L_ACONID x -> Right (pos,x) ; _ -> Left "<conid>")
 aconop = token (\pos t -> case t of L_ACONOP x -> Right (pos,x) ; _ -> Left "<conop>")
 avarid = token (\pos t -> case t of L_AVARID x -> Right (pos,x)
---			            L_primitive -> Right (pos,tprimitive)  -- Not a Haskell 1.3 reserved word
---			            L_prefix   -> Right (pos,tprefix)  -- Not a Haskell 1.3 reserved word
---			            L_unboxed  -> Right (pos,tunboxed) -- Not a Haskell 1.3 reserved word
---			            L_as       -> Right (pos,tas)      -- Not a Haskell 1.3 reserved word
-				    _ -> Left "<varid>")
+--                                  L_primitive -> Right (pos,tprimitive)  -- Not a Haskell 1.3 reserved word
+--                                  L_prefix   -> Right (pos,tprefix)  -- Not a Haskell 1.3 reserved word
+--                                  L_unboxed  -> Right (pos,tunboxed) -- Not a Haskell 1.3 reserved word
+--                                  L_as       -> Right (pos,tas)      -- Not a Haskell 1.3 reserved word
+                                    _ -> Left "<varid>")
 avarop = token (\pos t -> case t of L_AVAROP x -> Right (pos,x) ; _ -> Left "<varop>")
 
 varid = avarid

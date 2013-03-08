@@ -28,9 +28,9 @@ import Translate(translate)
 -- some miscellaneous settings
 primFlags :: (Bool, Bool, Bool)
 primFlags = (False   -- bool is not the same as Word
-	    ,False   -- && || not is not primitive
-	    ,False   -- translate into prim only when strict
-	    )
+            ,False   -- && || not is not primitive
+            ,False   -- translate into prim only when strict
+            )
 
 -- some nicer error handling
 catchError :: Either b a -> String -> (b->String) -> IO a
@@ -54,27 +54,25 @@ main' :: [String] -> IO t
 main' args = do
   let flags = processArgs args
   source <- getContents
-  lexdata	-- :: [PosToken]
+  lexdata       -- :: [PosToken]
            <- return (lexical (sUnderscore flags) (sSourceFile flags)
-                              (if sUnlit flags 
-                                then unlit (sSourceFile flags) source 
+                              (if sUnlit flags
+                                then unlit (sSourceFile flags) source
                                 else source))
   {-
-  pF (sLex flags) "Lexical" 
+  pF (sLex flags) "Lexical"
        (mixSpace (map (\ (p,l,_,_) -> strPos p ++ ':':show l) lexdata))
   -}
 
 
   {- parse source code -}
-  parsedPrg	-- :: Module TokenId
+  parsedPrg     -- :: Module TokenId
             <- catchError (parseit parseProg lexdata)
                           ("In file: "++sSourceFile flags) showErr
   {-
   pF (sParse flags) "Parse" (prettyPrintTokenId flags ppModule parsedPrg)
-  -} 
+  -}
 
   putStr (prettyPrintTokenId flags ppModule (translate flags parsedPrg))
-        
+
   exitWith (ExitSuccess)
-
-

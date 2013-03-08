@@ -43,13 +43,12 @@ module Flags
 -}
   ) where
 
-import IO
 import OsOnly(fixRootDir,fixHatAuxFile,fixHatTransFile,fixHatTransDir,fixHatFileBase)
-import List(isPrefixOf)
-import Char(isDigit)
+import Data.List(isPrefixOf)
+import Data.Char(isDigit)
+import System.IO(hPutStr,stderr)
 
-
-data Flags = FF 
+data Flags = FF
   {
 {- sRealFile   :: String
   ,sSourceFile :: String
@@ -62,27 +61,27 @@ data Flags = FF
 -}
 
 --v Flags to control compilation
-   sUnix       :: Bool	-- either unix or RiscOS
-  ,sUnlit      :: Bool	-- unliterate the source code
-  ,sPrelude    :: Bool	-- keep prelude defns in interface file
+   sUnix       :: Bool  -- either unix or RiscOS
+  ,sUnlit      :: Bool  -- unliterate the source code
+  ,sPrelude    :: Bool  -- keep prelude defns in interface file
 
 --v Flags to control compilation for tracing
-  ,sDbgTrusted :: Bool	-- trust this module
+  ,sDbgTrusted :: Bool  -- trust this module
 
 --v Flags for machine architecture / configuration
-  ,sUnderscore :: Bool	-- force H'98 underscores
+  ,sUnderscore :: Bool  -- force H'98 underscores
 
 --v debugging flags - show program / import tables (after each compiler phase)
-  ,sLex        :: Bool	-- input	after lexing
-  ,sParse      :: Bool	-- ast		after parsing
-  ,sTraceFns   :: Bool	-- ast		after tracing transform (fns)
-  ,sIBound     :: Bool	-- aux tree     after ast annotation
+  ,sLex        :: Bool  -- input        after lexing
+  ,sParse      :: Bool  -- ast          after parsing
+  ,sTraceFns   :: Bool  -- ast          after tracing transform (fns)
+  ,sIBound     :: Bool  -- aux tree     after ast annotation
 
 --v pretty-printing flags
   ,sShowWidth  :: Int   -- width for showing intermediate program
   ,sShowIndent :: Int   -- indentation for nesting shown intermediate program
   ,sShowQualified :: Bool -- show qualified ids as far as possible
-  
+
 {-
 --v hpc flags
   ,sHpcTransFile :: String
@@ -100,8 +99,8 @@ data Flags = FF
 {- If first argument is True, then print second and third with formatting -}
 pF :: Bool -> [Char] -> [Char] -> IO ()
 pF flag title text =
-  if flag 
-    then hPutStr stderr ( "======\t"++title++":\n"++text++"\n") 
+  if flag
+    then hPutStr stderr ( "======\t"++title++":\n"++text++"\n")
     else return ()
 
 {- ---------------------------------------------------------------------------
@@ -130,11 +129,11 @@ processArgs xs = flags
      [sourcefile] -> (sourcefile,sourcefile)
      [realfile,sourcefile] -> (realfile,sourcefile)
      _ -> error ("\nUsage: hat-trans file.[l]hs\n" ++
-       	  	 "       hat-trans tmpfile.[l]hs origfile.[l]hs\n")
+                 "       hat-trans tmpfile.[l]hs origfile.[l]hs\n")
 -}
 
  flags = FF
-  { 
+  {
 {-
     sRealFile   = realfile0
   , sSourceFile = sourcefile0
@@ -149,16 +148,16 @@ processArgs xs = flags
   , sSrcDir   = fixHatTransDir isUnix rootdir
 -}
 
-    sUnix = fElem True  "unix" xs          	
+    sUnix = fElem True  "unix" xs
   -- ^ Use unix file names
-  , sUnlit = fElem False "unlit" xs         	
+  , sUnlit = fElem False "unlit" xs
   -- ^ Unliterate the source code
-  , sPrelude = fElem False "prelude" xs		
+  , sPrelude = fElem False "prelude" xs
   -- Keep prelude definitions in interface file
 
   , sDbgTrusted = fElem False "trusted" xs    -- "trusted" module (don't trace)
 
-  , sUnderscore = fElem True "underscore" xs 
+  , sUnderscore = fElem True "underscore" xs
   -- ^ Enable H'98 underscore-is-lower-case
 
   , sLex = fElem False "lex" xs         -- show lexical input
@@ -166,10 +165,10 @@ processArgs xs = flags
   , sTraceFns = fElem False "tracefns" xs  -- ast after transforming functions
   , sIBound = fElem False "ibound" xs   -- aux tree after ast annotation
 
-  , sShowWidth = cardFlag 80 "showwidth=" xs  -- set width for showing 
+  , sShowWidth = cardFlag 80 "showwidth=" xs  -- set width for showing
                                               -- intermediate program
   , sShowIndent = cardFlag 2 "showindent=" xs -- set indentation for nesting
-  , sShowQualified = fElem True "showqualified" xs  
+  , sShowQualified = fElem True "showqualified" xs
   -- ^ show qualified ids as far as possible
 {-
   , sHpcTransFile = stringFlag "hpctrans.out.hs" "transfile=" xs
@@ -180,7 +179,7 @@ processArgs xs = flags
   , sHpcBoolCover = fElem True "boolcover" xs
 -}
   }
-   
+
 {- obtain list of filenames from argument list -}
 getFiles :: [String] -> [String]
 getFiles = filter (\xs -> case xs of ('-':_) -> False ; _ -> True)
@@ -188,14 +187,14 @@ getFiles = filter (\xs -> case xs of ('-':_) -> False ; _ -> True)
 
 {- obtain list of include paths from argument list -}
 getIncludes :: [String] -> [String]
-getIncludes = map (drop (2::Int)) . 
-              filter (\xs -> case xs of ('-':'I':_) -> True  
-                                        ('-':'i':_) -> True  
+getIncludes = map (drop (2::Int)) .
+              filter (\xs -> case xs of ('-':'I':_) -> True
+                                        ('-':'i':_) -> True
                                         _           -> False)
 
 {- obtain list of prelude paths from argument list -}
 getPreludes :: [String] -> [String]
-getPreludes = map (drop (2::Int)) . 
+getPreludes = map (drop (2::Int)) .
               filter (\xs -> case xs of ('-':'P':_) -> True ; _ -> False)
 
 
@@ -217,7 +216,7 @@ Ignores syntactically incorrect options.
 cardFlag :: Int -> [Char] -> [String] -> Int
 cardFlag def f flags = if null settings then def else read (last settings)
   where
-  settings = filter (all isDigit) . map (drop (length f + 1)) . 
+  settings = filter (all isDigit) . map (drop (length f + 1)) .
              filter (isPrefixOf ('-':f)) $ flags
 
 
@@ -229,6 +228,5 @@ If the option is not given, then the default value (first arg.) is returned.
 stringFlag :: String -> String -> [String] -> String
 stringFlag def f flags = if null settings then def else last settings
   where
-  settings = map (drop (length f + 1)) . 
+  settings = map (drop (length f + 1)) .
              filter (isPrefixOf ('-':f)) $ flags
-

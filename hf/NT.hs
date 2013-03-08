@@ -1,15 +1,15 @@
 {-# OPTIONS -fno-warn-incomplete-patterns #-}
 module NT ( NT(..), NewType(..), Kind(..)
-	, mkNTvar, mkNTexist, mkNTcons
-	, anyNT, consNT, freeNT, freshNT, polyNT, strTVar
-	, sndNTvar, strNT, strictNT, transCtxs, useNT
-	, contextNT, ntContext2Pair, stripNT, anyVarNT
-	) where
+        , mkNTvar, mkNTexist, mkNTcons
+        , anyNT, consNT, freeNT, freshNT, polyNT, strTVar
+        , sndNTvar, strNT, strictNT, transCtxs, useNT
+        , contextNT, ntContext2Pair, stripNT, anyVarNT
+        ) where
 
 
 import Id(Id)
 import Extra(mixComma,mixSpace,mix)
-import Char
+import Data.Char
 
 infixr 5 :->:
 data Kind = Star | Kind :->: Kind deriving (Eq,Ord)
@@ -20,22 +20,22 @@ data NewType = NoType
              | NewType [Id]       -- universally quantified type variables
                        [Id]       -- existentially quantified type variables
                        [(Id,Id)]  -- context (class, type variable)
-                       [NT]       -- simple types 
+                       [NT]       -- simple types
                                   -- ex.: [Int,Char,Bool] = Int->Char->Bool
              deriving (Eq)
 
 instance Show NewType where
   showsPrec _d (NoType) =  showString " -- no type --"
-  showsPrec _d (NewType free _exist ctxs nts) = 
+  showsPrec _d (NewType free _exist ctxs nts) =
     showString (strTVarsCtxsNTs free ctxs nts)
 
-data NT = NTany   Id       -- can be instantiated with unboxed 
+data NT = NTany   Id       -- can be instantiated with unboxed
                            -- (needed during type checking)
         | NTvar   Id Kind
         | NTexist Id Kind
         | NTstrict NT
-	| NTapp   NT NT
-        | NTcons  Id Kind [NT] 	-- combines constructor + application
+        | NTapp   NT NT
+        | NTcons  Id Kind [NT]  -- combines constructor + application
         | NTcontext Id Id  -- context (class, type variable)
                            -- purpose here completely unclear (used?)
          deriving (Eq,Ord)
@@ -57,8 +57,8 @@ stripNT :: NT -> Id
 transCtxs ::
   (t1 -> t3) -> (t -> t2) -> [(t, t1)] -> [(t2, t3)]
 
-mkNTvar v = NTvar v Star	-- simple tyvar
-mkNTexist v = NTexist v Star	-- simple tyvar
+mkNTvar v = NTvar v Star        -- simple tyvar
+mkNTexist v = NTexist v Star    -- simple tyvar
 
 mkNTcons i nts = NTcons i kind nts
     where kind = foldr (:->:) Star (map kindNT nts)
@@ -96,9 +96,9 @@ consNT nt0 =
   consNT' (NTcons c _ nts) r = c:foldr consNT' r nts
   consNT' _ r = r
 
-{- 
+{-
 Same as consNT except that constructor from NTcontext goes also into result.
-used only in module Export 
+used only in module Export
 -}
 useNT :: NT -> [Id]
 
@@ -122,8 +122,8 @@ freeNT (NTapp t1 t2) =  freeNT t1 ++ freeNT t2
 freeNT (NTcons _a _ tas) =  concat (map freeNT tas)
 
 
-{- 
-Exchange type variables according to given mapping in given type. 
+{-
+Exchange type variables according to given mapping in given type.
 (not existentially quantified vars.
 -}
 freshNT :: (Id -> Id) -> NT -> NT
@@ -150,11 +150,11 @@ polyNT fv (NTstrict t) = NTstrict (polyNT fv t)
 polyNT fv (NTapp t1 t2) = NTapp (polyNT fv t1) (polyNT fv t2)
 polyNT fv (NTcons a k tas) = NTcons a k (map (polyNT fv) tas)
 
-transCtxs tv tc ctxs = map (\(c,v) -> (tc c,tv v)) ctxs 
+transCtxs tv tc ctxs = map (\(c,v) -> (tc c,tv v)) ctxs
 
 
 
-{- Show function for NT, parameterised by show functions for 
+{- Show function for NT, parameterised by show functions for
 constructors/class names and for type variables.
 -}
 strNT :: (Int -> String) -> (Int -> String) -> NT -> String
@@ -173,9 +173,9 @@ instance Show NT where
 
 strTVar v = let cv =  toEnum (v + fromEnum 'a')
             in if 'a' <= cv && cv <= 'z'
-	       then [cv]
-	       else toEnum (v`mod`26 + fromEnum 'a'):'_':show (v`div`26)
-	--     else '_':show v
+               then [cv]
+               else toEnum (v`mod`26 + fromEnum 'a'):'_':show (v`div`26)
+        --     else '_':show v
 
 
 strCtxs ::  [(Int,Int)] -> String
@@ -186,11 +186,11 @@ strTVs [] = ""
 strTVs tvs =  "\\/ " ++ mixSpace (map strTVar tvs) ++ " . "
 
 strTVarsCtxsNTs tvs ctxs [] =  strTVs tvs ++ strCtxs ctxs ++ " -"
-strTVarsCtxsNTs tvs ctxs nts =  
+strTVarsCtxsNTs tvs ctxs nts =
   strTVs tvs ++ strCtxs ctxs ++ mix " -> " (map (strNT show strTVar) nts)
 
 
-sndNTvar (c,v) = (c,mkNTvar v) -- used for ctxs		*** KIND??
+sndNTvar (c,v) = (c,mkNTvar v) -- used for ctxs         *** KIND??
 
 
 anyVarNT :: NT -> Maybe Id

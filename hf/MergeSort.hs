@@ -1,6 +1,6 @@
 module MergeSort(group,unique) where
 
-import List(sort)
+import Data.List(sort)
 
 group :: (Ord t) => [t] -> [[t]]
 group l = groupSorted (sort l)

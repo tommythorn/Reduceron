@@ -1,6 +1,6 @@
 module LexStr(tab,lexStr,lexChr) where
 
-import Char
+import Data.Char
 
 import Error(errorLC)
 import LexLow
@@ -79,7 +79,7 @@ pS d  roco   r c a ('\\':'S':'P':xs)     = pS d roco r (c+3) ('\SP':a) xs
 pS d  roco   r c a ('\\':'D':'E':'L':xs) = pS d roco r (c+4) ('\DEL':a) xs
 pS d  roco   r c a ('\\':'^':x:xs) =
       if ox >= 64 && ox <96 then     -- Fusk ?
-          pS d roco r (c+3) (toEnum (ox-64):a) xs 
+          pS d roco r (c+3) (toEnum (ox-64):a) xs
       else
           errorLC r c ("Illegal control character '\\^" ++ [x]
                         ++ "' in string or character literal.")
@@ -97,7 +97,7 @@ pS d  roco   r _c a ('\\':'\n':xs) = pS d roco r' c' a xs'
 pS d  roco   r c a ('\\':x:xs) =
       if isDigit x then
           case lexInteger 10 (c+1) (x:xs) of
-		 (c',i,xs') -> pS d roco r c' (toEnum (fromInteger i):a) xs'
+                 (c',i,xs') -> pS d roco r c' (toEnum (fromInteger i):a) xs'
       else
           errorLC r c ("Illegal escape character '" ++ x: "'.")
 pS d  roco   r c a (x:xs) =
@@ -115,5 +115,3 @@ pW r _c ('\n':xs) = pW (r+1) 1 xs
 pW r _c ('\f':xs) = pW (r+1) 1 xs
 pW r _c ('\v':xs) = pW (r+1) 1 xs
 pW r c (x:_xs) = errorLC r c ("Illegal character in string gap '" ++ x:"'.")
-
-

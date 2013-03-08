@@ -9,13 +9,13 @@ import Lex
 import Lexical
 import LexPre
 import Syntax
-import MkSyntax	( mkAppExp, mkCase, mkDeclClass
-	, mkDeclFun, mkDeclPat, mkDeclPatFun
-	, mkIf, mkInfixList, mkExpList
+import MkSyntax ( mkAppExp, mkCase, mkDeclClass
+        , mkDeclFun, mkDeclPat, mkDeclPatFun
+        , mkIf, mkInfixList, mkExpList
         , mkLambda, mkLet, mkDo, mkFieldExp
-	, mkParExp, mkPatNplusK -- , mkParLhs
+        , mkParExp, mkPatNplusK -- , mkParLhs
   , mkSweetListEnum, mkSweetListComp
-	)
+        )
 import Parse2
 import ParseLib
 import ParseLex
@@ -52,39 +52,39 @@ parseTopDecl :: Parser (Decl TokenId) [PosToken] a
 parseTopDecl =
   cases [
   (L_type, \_pos -> DeclType `parseAp` parseSimple `chk` equal `ap` parseType),
-  (L_newtype, \_pos -> 
-    DeclData Nothing `parseAp` parseContexts `ap` parseSimple `chk` 
+  (L_newtype, \_pos ->
+    DeclData Nothing `parseAp` parseContexts `ap` parseSimple `chk`
       equal `apCut` ( (:[]) `parseAp` parseConstr) `apCut` parseDeriving),
-  (L_data, \_pos -> 
-      (\ (pos,conid) size -> DeclDataPrim pos conid size) `parseChk` 
+  (L_data, \_pos ->
+      (\ (pos,conid) size -> DeclDataPrim pos conid size) `parseChk`
         k_primitive `ap` conid `chk` equal `apCut` intPrim
     `orelse`
-      (DeclData . Just) `parseAp` unboxed `ap` parseContexts `ap` 
+      (DeclData . Just) `parseAp` unboxed `ap` parseContexts `ap`
         parseSimple `chk` equal `apCut`
         someSep pipe parseConstr `apCut` parseDeriving
     `orelse`
       (\ simpl -> DeclData (Just False) [] simpl [] []) `parseAp` parseSimple ),
-  (L_class, \_pos -> 
-    mkDeclClass `parseAp` parseContexts `ap` aconid `ap` some avarid `ap` 
+  (L_class, \_pos ->
+    mkDeclClass `parseAp` parseContexts `ap` aconid `ap` some avarid `ap`
       parseFunDeps `ap`
       (id `parseChk` lit L_where `chk` lcurl `ap` parseCDecls `chk` rcurl
-       `orelse` 
+       `orelse`
        parse (DeclsParse [])
-      )), 
-  (L_instance, \_pos->  
-    (\ctx (pos',cls) -> DeclInstance pos' ctx cls) `parseAp` 
-      parseContexts `ap` aconid `ap` some parseInst `ap` 
+      )),
+  (L_instance, \_pos->
+    (\ctx (pos',cls) -> DeclInstance pos' ctx cls) `parseAp`
+      parseContexts `ap` aconid `ap` some parseInst `ap`
       (lit L_where `revChk` lcurl `revChk` parseValdefs `chk` rcurl
        `orelse`
        parse (DeclsParse [])
       )),
-  (L_default, \_pos -> 
-    DeclDefault `parseChk` lpar `apCut` 
+  (L_default, \_pos ->
+    DeclDefault `parseChk` lpar `apCut`
       manySep comma parseType `chk` rpar
     `orelse`
     (\x->DeclDefault [x]) `parseAp` parseType)
   ]
-  (uncurry DeclPrimitive `parseAp` varid `chk` k_primitive `apCut` 
+  (uncurry DeclPrimitive `parseAp` varid `chk` k_primitive `apCut`
      intPrim `chk` coloncolon `ap` parseType
    `orelse`
    parseForeign
@@ -112,48 +112,48 @@ parseFunDep =
 parseForeign :: Parser (Decl TokenId) [PosToken] a
 parseForeign =
   k_foreign `revAp`
-    ((k_import `revChk` 
-        ((\(_,conv) (_,tf) (_,LitString _ str) (_,v) t p -> 
-            DeclForeignImp (mergePos p (getPos t)) conv str v 
+    ((k_import `revChk`
+        ((\(_,conv) (_,tf) (_,LitString _ str) (_,v) t p ->
+            DeclForeignImp (mergePos p (getPos t)) conv str v
               (calcArity t) tf t v)
-        `parseAp` callconv `ap` safety `ap` entity `ap` varid `chk` 
+        `parseAp` callconv `ap` safety `ap` entity `ap` varid `chk`
         coloncolon `apCut` parseType))
     `orelse`
     (k_export `revChk`
-      ((\(_,conv) (_,LitString _ str) (_,v) t p-> 
+      ((\(_,conv) (_,LitString _ str) (_,v) t p->
           DeclForeignExp (mergePos p (getPos t)) conv str v t)
-      `parseAp` callconv `ap` entity `apCut` varid `chk` coloncolon 
+      `parseAp` callconv `ap` entity `apCut` varid `chk` coloncolon
       `ap` parseType))
     `orelse`
-    (k_import `revChk`	-- old syntax, will be removed in the future
-        ((\(_,conv) (_,LitString _ str) (_,tf) (_,v) t p -> 
+    (k_import `revChk`  -- old syntax, will be removed in the future
+        ((\(_,conv) (_,LitString _ str) (_,tf) (_,v) t p ->
             let p' = mergePos p (getPos t) in
             strace ("Deprecated FFI syntax used at "++strPos p') $
             DeclForeignImp p' conv str v (calcArity t) tf t v)
         `parseAp` (callconv `orelse` is C) `ap` entity `ap`
         safety `apCut` varid `chk` coloncolon `ap` parseType))
  -- `orelse`
- --   (k_cast `revChk` 
+ --   (k_cast `revChk`
  --     ((\(p,v) t-> DeclForeignImp p Cast "" v (calcArity t) Safe t v)
  --     `parseAp` varid `chk` coloncolon `ap` parseType))
      )
   where
   callconv = (k_ccall `revChk` is C)
-               `orelse` 
+               `orelse`
              (k_cast `revChk` is Cast)
                `orelse`
              (k_noproto `revChk` is Noproto)
                `orelse`
              (k_haskellcall `revChk` is Haskell)
-               `orelse` 
+               `orelse`
              (k_stdcall `revChk` is (Other "stdcall"))
-               `orelse` 
+               `orelse`
              (k_cplusplus `revChk` is (Other "cplusplus"))
-               `orelse` 
+               `orelse`
              (k_dotnet `revChk` is (Other "dotnet"))
-               `orelse` 
+               `orelse`
              (k_jvm `revChk` is (Other "jvm"))
-          --   `orelse` 
+          --   `orelse`
           -- (is C)  -- previously the default, now the name is mandatory
   is v     = parse (noPos,v)
   entity   = string `orelse` is (LitString UnBoxed "")
@@ -168,7 +168,7 @@ parseForeign =
 
 parseVarsType :: Parser (Decl TokenId) [PosToken] a
 parseVarsType =
-  DeclVarsType `parseAp` someSep comma varid `chk` coloncolon `ap` 
+  DeclVarsType `parseAp` someSep comma varid `chk` coloncolon `ap`
     parseContexts `ap` parseType
 
 {-
@@ -180,12 +180,12 @@ parseNewConstr =
 -- parseCSigns = DeclsParse `parseAp` manySep semi parseCSign
 -- parseCSign = parseVarsType
 
-parseCDecls :: Parser (Decls TokenId) [PosToken] a 
-parseCDecls = DeclsParse `parseAp` (manysSep semi parseCDecl)	-- H98 added
+parseCDecls :: Parser (Decls TokenId) [PosToken] a
+parseCDecls = DeclsParse `parseAp` (manysSep semi parseCDecl)   -- H98 added
 
 parseCDecl :: Parser (Decl TokenId) [PosToken] a
 parseCDecl = parseVarsType `orelse` parseValdef
-		 `orelse` (DeclFixity `parseAp` parseFixDecl)
+                 `orelse` (DeclFixity `parseAp` parseFixDecl)
 
 
 parseValdefs :: Parser (Decls TokenId) [PosToken] a
@@ -197,12 +197,12 @@ parseValdefs =
 
 parseValdef :: Parser (Decl TokenId) [PosToken] a
 parseValdef =
- mkDeclPat `parseAp` varid `ap` anyop `ap` parsePat `ap` 
+ mkDeclPat `parseAp` varid `ap` anyop `ap` parsePat `ap`
    parseRhs equal `apCut` parseWhere
- `orelse` 
- mkDeclFun `parseAp` varid `ap` parsePats `ap` parseRhs equal `apCut` 
+ `orelse`
+ mkDeclFun `parseAp` varid `ap` parsePats `ap` parseRhs equal `apCut`
    parseWhere
- `orelse` 
+ `orelse`
  mkDeclPatFun `parseAp` parseAlt equal
 
 
@@ -215,90 +215,90 @@ parseWhere =
 
 manySafe :: Parser a i b -> Parser [a] i b
 manySepSafe ::
-		   Parser a i b
-		   -> Parser a1 i b
-		   -> ParseGood [a1] i b
-		   -> ParseBad b i
-		   -> i
-		   -> ParseError
-		   -> ParseResult b i
+                   Parser a i b
+                   -> Parser a1 i b
+                   -> ParseGood [a1] i b
+                   -> ParseBad b i
+                   -> i
+                   -> ParseError
+                   -> ParseResult b i
 manySepSafe' ::
-		    Parser a i b -> Parser a1 i b -> Parser [a1] i b
+                    Parser a i b -> Parser a1 i b -> Parser [a1] i b
 optSemi ::
-	       ParseGood () [PosToken] c
-	       -> ParseBad c [PosToken]
-	       -> [PosToken]
-	       -> ParseError
-	       -> ParseResult c [PosToken]
+               ParseGood () [PosToken] c
+               -> ParseBad c [PosToken]
+               -> [PosToken]
+               -> ParseError
+               -> ParseResult c [PosToken]
 parseAExp :: Parser (Exp TokenId) [PosToken] a
 parseAExpR ::
-		  Exp TokenId -> Parser (Exp TokenId) [PosToken] a
+                  Exp TokenId -> Parser (Exp TokenId) [PosToken] a
 parseAExpR1 :: Parser (Exp TokenId) [PosToken] a
 parseAPat ::
-		 Parser (Exp TokenId) [(Pos, Lex, Lexical.LexState, [LexPre.PosTokenPre])] h
+                 Parser (Exp TokenId) [(Pos, Lex, Lexical.LexState, [LexPre.PosTokenPre])] h
 parseAPat1 ::
-		  Exp TokenId
-		  -> Parser (Exp TokenId) [(Pos, Lex, Lexical.LexState, [LexPre.PosTokenPre])] h
+                  Exp TokenId
+                  -> Parser (Exp TokenId) [(Pos, Lex, Lexical.LexState, [LexPre.PosTokenPre])] h
 parseAPat2 ::
-		  Parser (Exp TokenId) [(Pos, Lex, Lexical.LexState, [LexPre.PosTokenPre])] h
+                  Parser (Exp TokenId) [(Pos, Lex, Lexical.LexState, [LexPre.PosTokenPre])] h
 parseAlt ::
-		(ParseGood Pos [PosToken] a
-		 -> ParseBad a [PosToken]
-		 -> [PosToken]
-		 -> ParseError
-		 -> ParseResult a [PosToken])
-		-> ParseGood (Alt TokenId) [PosToken] a
-		-> ParseBad a [PosToken]
-		-> [PosToken]
-		-> ParseError
-		-> ParseResult a [PosToken]
+                (ParseGood Pos [PosToken] a
+                 -> ParseBad a [PosToken]
+                 -> [PosToken]
+                 -> ParseError
+                 -> ParseResult a [PosToken])
+                -> ParseGood (Alt TokenId) [PosToken] a
+                -> ParseBad a [PosToken]
+                -> [PosToken]
+                -> ParseError
+                -> ParseResult a [PosToken]
 parseBrackExp0 ::
-		      Pos
-		      -> ParseGood (Exp TokenId) [PosToken] a
-		      -> ParseBad a [PosToken]
-		      -> [PosToken]
-		      -> ParseError
-		      -> ParseResult a [PosToken]
+                      Pos
+                      -> ParseGood (Exp TokenId) [PosToken] a
+                      -> ParseBad a [PosToken]
+                      -> [PosToken]
+                      -> ParseError
+                      -> ParseResult a [PosToken]
 parseBrackExp1 ::
-		      Pos -> Parser (Exp TokenId -> Exp TokenId) [PosToken] a
+                      Pos -> Parser (Exp TokenId -> Exp TokenId) [PosToken] a
 parseBrackExp2 ::
-		      Pos -> Parser (Exp TokenId -> Exp TokenId -> Exp TokenId) [PosToken] a
+                      Pos -> Parser (Exp TokenId -> Exp TokenId -> Exp TokenId) [PosToken] a
 parseDecl :: Parser (Decl TokenId) [PosToken] a
 parseDecls :: Parser (Decls TokenId) [PosToken] a
 parseExp10 :: Parser (Exp TokenId) [PosToken] a
 parseFExp :: Parser (Exp TokenId) [PosToken] a
 parseFPat ::
-		 Parser (Exp TokenId) [(Pos, Lex, Lexical.LexState, [LexPre.PosTokenPre])] h
+                 Parser (Exp TokenId) [(Pos, Lex, Lexical.LexState, [LexPre.PosTokenPre])] h
 parseFieldExp :: Parser (Field TokenId) [PosToken] a
 parseFieldPat :: Parser (Field TokenId) [PosToken] h
 parseOpPat ::
-		  ParseGood (Exp TokenId) [(Pos, Lex, Lexical.LexState, [LexPre.PosTokenPre])] h
-		  -> ParseBad h [(Pos, Lex, Lexical.LexState, [LexPre.PosTokenPre])]
-		  -> [(Pos, Lex, Lexical.LexState, [LexPre.PosTokenPre])]
-		  -> ParseError
-		  -> ParseResult h [(Pos, Lex, Lexical.LexState, [LexPre.PosTokenPre])]
+                  ParseGood (Exp TokenId) [(Pos, Lex, Lexical.LexState, [LexPre.PosTokenPre])] h
+                  -> ParseBad h [(Pos, Lex, Lexical.LexState, [LexPre.PosTokenPre])]
+                  -> [(Pos, Lex, Lexical.LexState, [LexPre.PosTokenPre])]
+                  -> ParseError
+                  -> ParseResult h [(Pos, Lex, Lexical.LexState, [LexPre.PosTokenPre])]
 parsePat ::
-		Parser (Exp TokenId) [(Pos, Lex, Lexical.LexState, [LexPre.PosTokenPre])] h
+                Parser (Exp TokenId) [(Pos, Lex, Lexical.LexState, [LexPre.PosTokenPre])] h
 parsePat0 ::
-		 Parser (Exp TokenId) [(Pos, Lex, Lexical.LexState, [LexPre.PosTokenPre])] h
+                 Parser (Exp TokenId) [(Pos, Lex, Lexical.LexState, [LexPre.PosTokenPre])] h
 parsePats ::
-		 ParseGood [Exp TokenId] [(Pos, Lex, Lexical.LexState, [LexPre.PosTokenPre])] h
-		 -> ParseBad h [(Pos, Lex, Lexical.LexState, [LexPre.PosTokenPre])]
-		 -> [(Pos, Lex, Lexical.LexState, [LexPre.PosTokenPre])]
-		 -> ParseError
-		 -> ParseResult h [(Pos, Lex, Lexical.LexState, [LexPre.PosTokenPre])]
+                 ParseGood [Exp TokenId] [(Pos, Lex, Lexical.LexState, [LexPre.PosTokenPre])] h
+                 -> ParseBad h [(Pos, Lex, Lexical.LexState, [LexPre.PosTokenPre])]
+                 -> [(Pos, Lex, Lexical.LexState, [LexPre.PosTokenPre])]
+                 -> ParseError
+                 -> ParseResult h [(Pos, Lex, Lexical.LexState, [LexPre.PosTokenPre])]
 parseQual ::
-		 ParseGood (Qual TokenId) [PosToken] a
-		 -> ParseBad a [PosToken]
-		 -> [PosToken]
-		 -> ParseError
-		 -> ParseResult a [PosToken]
+                 ParseGood (Qual TokenId) [PosToken] a
+                 -> ParseBad a [PosToken]
+                 -> [PosToken]
+                 -> ParseError
+                 -> ParseResult a [PosToken]
 parseStmt ::
-		 ParseGood (Stmt TokenId) [PosToken] a
-		 -> ParseBad a [PosToken]
-		 -> [PosToken]
-		 -> ParseError
-		 -> ParseResult a [PosToken]
+                 ParseGood (Stmt TokenId) [PosToken] a
+                 -> ParseBad a [PosToken]
+                 -> [PosToken]
+                 -> ParseError
+                 -> ParseResult a [PosToken]
 someSafe :: Parser a i b -> Parser [a] i b
 someSepSafe :: Parser a i b -> Parser a1 i b -> Parser [a1] i b
 
@@ -308,10 +308,10 @@ parseDecl =
     parseVarsType
         `orelse`
     parseValdef
-        `orelse`			-- added in H98
-    DeclFixity `parseAp` parseFixDecl	-- added in H98
- {-	`orelse`
-    parsePragma				-- added by MW, Sept 2000
+        `orelse`                        -- added in H98
+    DeclFixity `parseAp` parseFixDecl   -- added in H98
+ {-     `orelse`
+    parsePragma                         -- added by MW, Sept 2000
   -}
 
 
@@ -321,7 +321,7 @@ parseExp =
 
 parseExpType :: Parser (Exp TokenId -> Exp TokenId) [PosToken] a
 parseExpType =
-      (\pos ctx t e-> ExpType (mergePos pos (getPos t)) e ctx t) 
+      (\pos ctx t e-> ExpType (mergePos pos (getPos t)) e ctx t)
               `parseAp` coloncolon `apCut`
               parseContexts `ap` parseType
         `orelse`
@@ -333,34 +333,34 @@ parseExp0 = mkInfixList `parseAp` some (anyop `orelse` parseExp10)
 parseStmt =
    (lit L_let `into` \_-> lcurl `into` \_-> parseDecls `into`
                  \decls-> rcurl `into` \_->
-	((lit L_in `into` \_-> parseExp `into`
-              \exp-> parse (StmtExp (ExpLet 
+        ((lit L_in `into` \_-> parseExp `into`
+              \exp-> parse (StmtExp (ExpLet
                             (mergePos (getPos decls) (getPos exp)) decls exp)))
-	    `orelse`
-	  parse (StmtLet decls)))
-	`orelse`
+            `orelse`
+          parse (StmtLet decls)))
+        `orelse`
    StmtBind `parseAp` parsePat `chk` larrow `apCut` parseExp
-	`orelse`
+        `orelse`
    StmtExp `parseAp` parseExp
 
 parseExp10 =
-    cases 
-        [(L_Lambda,\pos -> (mkLambda pos) 
+    cases
+        [(L_Lambda,\pos -> (mkLambda pos)
            `parseAp` parsePats `chk` rarrow `apCut` parseExp),
          (L_let,   \pos -> (mkLet pos)
-           `parseChk` lcurl `ap` parseDecls 
+           `parseChk` lcurl `ap` parseDecls
            `chk` optSemi `chk` rcurl
            `chk` lit L_in `ap` parseExp),
          (L_do,    \pos -> (mkDo pos)
            `parseChk` lcurl `ap` somesSep semi parseStmt
            `chk` optSemi `chk` rcurl),
-         (L_if,    \pos -> (mkIf pos) 
-           `parseAp` parseExp 
+         (L_if,    \pos -> (mkIf pos)
+           `parseAp` parseExp
            `chk` lit L_then `ap` parseExp
            `chk` lit L_else `ap` parseExp),
-         (L_case,  \pos -> (mkCase pos) 
+         (L_case,  \pos -> (mkCase pos)
            `parseAp` parseExp `chk` lit L_of
-           `chk` lcurl `ap` (somesSep semi (parseAlt rarrow)) 
+           `chk` lcurl `ap` (somesSep semi (parseAlt rarrow))
            `chk` optSemi `chk` rcurl)]
          parseFExp
 
@@ -369,15 +369,15 @@ parseFExp  = mkAppExp `parseAp` some parseAExpR1
 parseAExpR1 =
   parseAExp `into` parseAExpR
 
-parseAExpR exp = 
+parseAExpR exp =
    (ExpRecord exp `parseChk` lcurl `ap` manySep comma parseFieldExp `chk` rcurl)            `into` parseAExpR
-	`orelse`
+        `orelse`
    parse exp
 
-parseAExp = 
+parseAExp =
     aanyid
         `orelse`
-    cases 
+    cases
          [(L_LBRACK, \pos -> parseBrackExp0 pos),
           (L_LPAR,   \pos -> (mkParExp pos) `parseAp` manySep comma parseExp
                                             `ap` rpar)]
@@ -388,8 +388,8 @@ parseAExp =
 parseFieldExp =
     varid `into` (\(pos,ident)-> (mkFieldExp pos ident `parseChk` equal
                                                        `ap` parseExp)
-					`orelse`		-- H98 removes
-				 parse (FieldPun pos ident)	-- H98 removes
+                                        `orelse`                -- H98 removes
+                                 parse (FieldPun pos ident)     -- H98 removes
                  )
 
 parseBrackExp0 pos =                -- found '['
@@ -407,7 +407,7 @@ parseBrackExp1 pos = -- found '[e'
         `orelse`
     (\qs posr e -> mkSweetListComp pos e qs posr)
                       `parseChk` pipe
-                      `ap` somesSep comma parseQual 
+                      `ap` somesSep comma parseQual
                       `ap` rbrack
         `orelse`
     (\eto posr ef -> mkSweetListEnum pos ef Nothing (Just eto) posr)
@@ -433,7 +433,7 @@ parseBrackExp2 pos =                -- found '[e,e'
                       `parseChk` comma
                       `ap` manySep comma parseExp
                       `ap` rbrack
- 
+
 {-
 -- de-sugaring list comprehensions and list enumerations
 
@@ -463,11 +463,11 @@ parseBrackExp2 pos =                -- found '[e,e'
 parseQual =
    (lit L_let `into` \_-> lcurl `into` \_-> parseDecls `into`
                  \decls-> rcurl `into` \ _ ->
-	((lit L_in `into` \_-> parseExp `into` \exp->
+        ((lit L_in `into` \_-> parseExp `into` \exp->
                         parse (QualExp (ExpLet (getPos decls) decls exp)))
-		`orelse`
-	 parse (QualLet decls)))
-	`orelse`
+                `orelse`
+         parse (QualLet decls)))
+        `orelse`
     QualPatExp `parseAp` parsePat `chk` larrow `apCut` parseExp
         `orelse`
     QualExp `parseAp` parseExp
@@ -483,7 +483,7 @@ parseRhs del =
     Guarded `parseAp` some (parseGdExp del)
 
 
-parseGdExp :: Parser Pos [PosToken] a  
+parseGdExp :: Parser Pos [PosToken] a
               -> Parser (Exp TokenId, Exp TokenId) [PosToken] a
 parseGdExp del =
     pair `parseChk` pipe `apCut` parseExp `chk` del `apCut` parseExp
@@ -523,20 +523,20 @@ parseAPat = parseAPat2 `into` parseAPat1
 parseFieldPat =
     varid `into` (\(pos,ident)-> mkFieldExp pos ident `parseChk` equal
                                                     `ap` parsePat
-					`orelse`		-- H98 removes
-				   parse (FieldPun pos ident)	-- H98 removes
+                                        `orelse`                -- H98 removes
+                                   parse (FieldPun pos ident)   -- H98 removes
                  )
 
 parseAPat1 exp =
    (ExpRecord exp `parseChk` lcurl `ap` manySepSafe comma parseFieldPat
                   `chk` rcurl) `into` parseAPat1
-	`orelse`
+        `orelse`
    parse exp
-  
+
 
 parseAPat2 =
-    varid `revAp` ((\e (pos,i) -> let p = mergePos pos (getPos e) 
-                                  in p `seq` PatAs pos i e) 
+    varid `revAp` ((\e (pos,i) -> let p = mergePos pos (getPos e)
+                                  in p `seq` PatAs pos i e)
                       `parseChk` lit L_At `ap` parseAPat
                         `orelse`
                     parse (\ (pos,e) -> ExpVar pos e)

@@ -2,21 +2,21 @@
 module Syntax(module Syntax, Pos, TokenId) where
 
 import Extra(Pos,strChr,strStr)
-import SysDeps(PackedString)
+import Data.ByteString.Char8(ByteString)
 import TokenId(TokenId)
 import Id(Id)
-import Ratio
-import Maybe(isNothing,fromJust)
+import Data.Ratio
+import Data.Maybe(isNothing,fromJust)
 
 {-
-Note that some syntactic constructs contain the syntactic construct 
+Note that some syntactic constructs contain the syntactic construct
 "Type". However, the rename pass replaces this representation by the internal
 type representation "NewType" and "NT". So the syntactic constructs that
 use "Type" are removed by the renaming pass or the type representation is only
 half translated (TokenId -> Id). Are the latter still used later?
 
 It probably would have been better if the whole syntax had been parameterised
-with respect to the type representation; but such an additional parameter 
+with respect to the type representation; but such an additional parameter
 would also be tiresome.
 -}
 
@@ -36,9 +36,9 @@ data ImpDecl id =
      | Importas  (Pos,id) (Pos,id) (ImpSpec id)
 
 importedModule :: ImpDecl a -> a
-importedModule (Import (_,impDecl) _) = impDecl 
+importedModule (Import (_,impDecl) _) = impDecl
 importedModule (ImportQ (_,impDecl) _) = impDecl
-importedModule (ImportQas (_,impDecl) _ _) = impDecl 
+importedModule (ImportQas (_,impDecl) _ _) = impDecl
 importedModule (Importas (_,impDecl) _ _) = impDecl
 
 
@@ -50,12 +50,12 @@ data Entity id =
        EntityVar        Pos id             -- varid
      | EntityConClsAll  Pos id             -- TyCon(..) | TyCls(..)
      | EntityConClsSome Pos id [(Pos,id)]
-	  -- TyCon | TyCls | TyCon(conid,..,conid) | TyCls(varid,..,varid) 
+          -- TyCon | TyCls | TyCon(conid,..,conid) | TyCls(varid,..,varid)
 
 data InfixClass a =
                   InfixDef
                 | InfixL
-                | InfixR 
+                | InfixR
                 | Infix
                 | InfixPre a
 
@@ -107,15 +107,15 @@ data Decl id =
      | DeclTypeRenamed Pos Id   -- intentionally not "id"
 
        -- | {Nothing = newtype, Just False = data, Just True = data unboxed}
-       --   context => simple = constrs 
+       --   context => simple = constrs
        --   deriving (tycls)
      | DeclData (Maybe Bool) [Context id] (Simple id) [Constr id] [(Pos,id)]
        -- | data primitive conid size
      | DeclDataPrim Pos id Int
-       -- | Introduced by Rename to mark that we might need 
+       -- | Introduced by Rename to mark that we might need
        --   to generate selector functions
        --       position data/dataprim [(field,selector)]
-     | DeclConstrs Pos id [(Pos,id,id)] 
+     | DeclConstrs Pos id [(Pos,id,id)]
        -- | class context => class where { signatures/valdefs; }
        --   position, context, class, type variables, fundeps, method decls
      | DeclClass Pos [Context id] id [id] [FunDep id] (Decls id)
@@ -135,7 +135,7 @@ data Decl id =
      | DeclVarsType [(Pos,id)] [Context id] (Type id)
      | DeclPat (Alt id)
      | DeclFun Pos id [Fun id] -- "var = ..." is a DeclFun, not a DeclPat
---   | DeclSelect id Int id  
+--   | DeclSelect id Int id
        -- ^ introduced with pattern elimination (id = select Int id)
 --     Used for unimplemented things
      | DeclIgnore String
@@ -163,7 +163,7 @@ instance Show CallConv where
 
 data ClassCode ctx id = -- introduced by RmClasses
    CodeClass Pos id  -- class id
- | CodeInstance Pos id id [id] [ctx] [id]  
+ | CodeInstance Pos id id [id] [ctx] [id]
    -- class id, typ id, args, ctxs, method ids
 
 -- | We parse MPTC with functional dependencies, only for hat-trans.
@@ -171,7 +171,7 @@ data FunDep id = [id] :->: [id]
 
 
 data Annot id = AnnotArity (Pos,id) Int
-              | AnnotPrimitive (Pos,id) PackedString
+              | AnnotPrimitive (Pos,id) ByteString
               | AnnotNeed [[id]]
               | AnnotUnknown
 
@@ -197,7 +197,7 @@ data Sig id = Sig [(Pos,id)] (Type id)  -- for interface file?
 data Simple id = Simple Pos id [(Pos,id)]
 
 simpleToType :: Simple id -> Type id
-simpleToType (Simple pos tcId pargs) = 
+simpleToType (Simple pos tcId pargs) =
   TypeCons pos tcId (map (TypeVar pos . snd) pargs)
 
 data Context id = Context Pos id [(Pos,id)]
@@ -208,9 +208,9 @@ Data constructor applied to type variables, possibly with field names.
 As appearing on right hand side of data or newtype definition.
 -}
 -- ConstrCtx is always used if forall is specified
--- the intention is to remove Constr completely when all of nhc13 
--- have been updated 
-data Constr id = Constr 
+-- the intention is to remove Constr completely when all of nhc13
+-- have been updated
+data Constr id = Constr
                    Pos       -- position of data constructor
                    id        -- data constructor
                    [(Maybe [(Pos,id)],Type id)]
@@ -218,11 +218,11 @@ data Constr id = Constr
                    -- (many field labels with same type possible)
                    -- the type admits impossible arguments:
                    -- either all arguments have field names or none
-               | ConstrCtx  
+               | ConstrCtx
                    [(Pos,id)]     -- type variabes from forall
                    [Context id]   -- context of data constructor
-                   Pos 
-                   id        
+                   Pos
+                   id
                    [(Maybe [(Pos,id)],Type id)]
 
 getConstrId :: Constr id -> id
@@ -235,19 +235,19 @@ getConstrArgumentList (ConstrCtx _ _ _ _ xs) = xs
 
 getConstrLabels :: Constr id -> [(Pos,id)]
 getConstrLabels constr =
-  if null args || (isNothing . fst . head) args 
+  if null args || (isNothing . fst . head) args
     then []
     else concatMap (fromJust . fst) args
   where
   args = getConstrArgumentList constr
 
 getConstrArgumentTypes :: Constr id -> [Type id]
-getConstrArgumentTypes constr = 
-  concat . map (\(l,t) -> replicate (times l) t) . getConstrArgumentList $ 
+getConstrArgumentTypes constr =
+  concat . map (\(l,t) -> replicate (times l) t) . getConstrArgumentList $
     constr
   where
   times Nothing = 1
-  times (Just labels) = length labels 
+  times (Just labels) = length labels
 
 constrArity :: Constr id -> Int
 constrArity = length . getConstrArgumentTypes
@@ -261,15 +261,15 @@ The following is ismorphic to the type constructor Qual.
 Possibly Stmt should be removed and its usage replaced everywhere by Qual.
 -}
 data Stmt id =
-    StmtExp  (Exp id)		-- exp
-  | StmtBind (Exp id) (Exp id)	-- pat <- exp
-  | StmtLet (Decls id)		-- let { decls ; }
+    StmtExp  (Exp id)           -- exp
+  | StmtBind (Exp id) (Exp id)  -- pat <- exp
+  | StmtLet (Decls id)          -- let { decls ; }
 
 
 type Pat id = Exp id
 
 data Exp id =  -- used both for expressions and patterns
-      ExpScc            String (Exp id) 
+      ExpScc            String (Exp id)
       -- ^ never used! should probably be removed
     | ExpDict           (Exp id)         -- hack to mark dictionary arguments
     | ExpLambda         Pos [(Pat id)] (Exp id)  -- \ pat ... pat -> exp
@@ -280,17 +280,17 @@ data Exp id =  -- used both for expressions and patterns
       -- ^ never used! should probably be removed
     | ExpFail
       -- ^ never used! should probably be removed
-    | ExpIf             Pos (Exp id) (Exp id) (Exp id) 	
+    | ExpIf             Pos (Exp id) (Exp id) (Exp id)
                         -- if exp then exp else exp
     | ExpType           Pos (Exp id) [Context id] (Type id)
                         -- exp :: context => type
 --- Above only in expressions, not in patterns
-    | ExpRecord	        (Exp id) [Field id]
+    | ExpRecord         (Exp id) [Field id]
     | ExpApplication    Pos [Exp id] -- always at least two elements?
     | ExpVar            Pos id
     | ExpCon            Pos id
     | ExpInfixList      Pos [Exp id] -- Temporary, introduced by parser because
-    | ExpVarOp          Pos id       -- it does not know precedence and 
+    | ExpVarOp          Pos id       -- it does not know precedence and
     | ExpConOp          Pos id       -- associativity; removed by rename
     | ExpLit            Pos (Lit Boxed)
     | ExpList           Pos [Exp id]
@@ -307,9 +307,9 @@ data Exp id =  -- used both for expressions and patterns
     | PatIrrefutable    Pos (Pat id)
 -- idea: f (n+k) = exp[n]
 --  =>   f n' | k <= n' = exp[n]
---         where n = n'-k 
+--         where n = n'-k
 -- (n+k) pattern - store:   n  n' k        (k<=n')  (n'-k)
-    | PatNplusK		Pos id id (Exp id) (Exp id) (Exp id)
+    | PatNplusK         Pos id id (Exp id) (Exp id) (Exp id)
 
 data Field id = FieldExp  Pos id (Exp id)
               | FieldPun  Pos id     -- H98 removes (retained for error msgs)
@@ -354,7 +354,7 @@ instance (Show b) => Show (Lit b) where
 
 litshowsPrec :: (Show t) => Int -> Lit t -> String -> String
 litshowsPrec d (LitInteger  b i) = showParen (i<0) (showsPrec d i) . shows b
-litshowsPrec d (LitRational b i) = 
+litshowsPrec d (LitRational b i) =
   -- this is a hack to show a rational in floating point representation
   -- precision might be lost
   -- therer is no library function to print a rational in full precision
@@ -371,17 +371,16 @@ data Qual id =
       QualPatExp (Pat id) (Exp id)
 --       pat
     | QualExp (Exp id)
---	 let decls
+--       let decls
     | QualLet (Decls id)
 
 
 --------------------
 
-data Interface id = 
+data Interface id =
 --      interface modid where {iimpdecl; fixdecl; itopdecl }
        Interface Pos id [IImpDecl id] [FixDecl id] (IDecls id)
 
 type IImpDecl id = ImpDecl id -- No Hiding in ImpSpec
 
 type IDecls id = Decls id -- No Valdef
-

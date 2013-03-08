@@ -4,7 +4,7 @@ module Unlit(unlit) where
 -- "Report on the Programming Language Haskell",
 --   version 1.2, appendix C.
 
-import Char
+import Data.Char
 
 data Classified = Program String | Blank | Comment
                 | Include Int String | Pre String
@@ -15,7 +15,7 @@ classify (('\\':x0):xs0) | x0 == "begin{code}" = Blank : allProg xs0
    where allProg [] = []  -- Should give an error message,
                           -- but I have no good position information.
          allProg (('\\':x):xs) |  x == "end{code}" = Blank : classify xs
-	 allProg (x:xs) = Program x:allProg xs
+         allProg (x:xs) = Program x:allProg xs
 classify (('>':x):xs)      = Program (' ':x) : classify xs
 classify (('#':x):xs)      = (case words x of
                                 (line:file:_) | all isDigit line
@@ -63,8 +63,7 @@ inlines :: String -> [String]
 inlines s0 = lines' s0 id
   where
   lines' []             acc = [acc []]
-  lines' ('\^M':'\n':s) acc = acc [] : lines' s id	-- DOS
-  lines' ('\^M':s)      acc = acc [] : lines' s id	-- MacOS
-  lines' ('\n':s)       acc = acc [] : lines' s id	-- Unix
+  lines' ('\^M':'\n':s) acc = acc [] : lines' s id      -- DOS
+  lines' ('\^M':s)      acc = acc [] : lines' s id      -- MacOS
+  lines' ('\n':s)       acc = acc [] : lines' s id      -- Unix
   lines' (c:s)          acc = lines' s (acc . (c:))
-

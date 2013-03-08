@@ -5,9 +5,9 @@
 
 module Main where
 
-import IO hiding (try)
-import System
-import Directory(getCurrentDirectory)
+import System.Directory(getCurrentDirectory)
+import System.Environment
+import System.Exit
 import Error
 import Control.Exception
 import Syntax
@@ -23,15 +23,15 @@ import Unlit (unlit)
 import Lexical (lexical)
 import Parse (parseProg)
 import ParseCore(parseit)
-import List (intersperse)
+import Data.List (intersperse)
 import Translate(declTrans,mergeDeclFuns,infixPatsToFuns)
 
 -- some miscellaneous settings
 primFlags :: (Bool, Bool, Bool)
 primFlags = (False   -- bool is not the same as Word
-	    ,False   -- && || not is not primitive
-	    ,False   -- translate into prim only when strict
-	    )
+            ,False   -- && || not is not primitive
+            ,False   -- translate into prim only when strict
+            )
 
 -- some nicer error handling
 catchError :: Either b a -> String -> (b->String) -> IO a
@@ -55,29 +55,29 @@ main' :: [String] -> IO t
 main' args = do
   let flags = processArgs args
   source <- getContents
-  lexdata	-- :: [PosToken]
+  lexdata       -- :: [PosToken]
            <- return (lexical (sUnderscore flags) "stdin" source)
 {-
-                              (if sUnlit flags 
-                                then unlit (sSourceFile flags) source 
+                              (if sUnlit flags
+                                then unlit (sSourceFile flags) source
                                 else source))
 -}
   {-
-  pF (sLex flags) "Lexical" 
+  pF (sLex flags) "Lexical"
        (mixSpace (map (\ (p,l,_,_) -> strPos p ++ ':':show l) lexdata))
   -}
 
 
   {- parse source code -}
-  parsedPrg	-- :: Module TokenId
+  parsedPrg     -- :: Module TokenId
             <- catchError (parseit parseProg lexdata)
                           ("") showErr
   {-
   pF (sParse flags) "Parse" (prettyPrintTokenId flags ppModule parsedPrg)
-  -} 
+  -}
 
   transModIO flags parsedPrg
-          
+
   exitWith (ExitSuccess)
 
   {-
@@ -97,7 +97,7 @@ transModIO flags (Module pos modid exps imps fixs (DeclsParse decls)) =
   Module pos modid exps imps fixs decls'
   where
   decls' = declsTrans True decls
- 
+
 
 declsTrans :: Bool -> Trans (Decls TokenId)
 declsTrans top (DeclsParse ds) =
@@ -121,4 +121,3 @@ transDeclIO flags (Just d) =
   nameOf (DeclFun _ id _) = show id
 transDeclIO _ Nothing =
   putStrLn ""
-

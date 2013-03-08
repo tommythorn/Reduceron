@@ -66,7 +66,7 @@ posStarting s (x:xs) i  =  if x==i then s:p else p
 duplicates :: Eq a => [a] -> [a]
 duplicates []      =  []
 duplicates (x:xs)  =
-  if not (contains d x) && contains xs x then x:d else d 
+  if not (contains d x) && contains xs x then x:d else d
   where
   d  =  duplicates xs
 
@@ -174,12 +174,12 @@ frorInto t (r:rs)  =  frorInto (zipWith (:) r ([]:t)) rs
 hamming = h 2 `merge` h 3 `merge` h 5
 
 h n = map (n*) (1 : hamming)
-  
+
 merge (x:xs) (y:ys) =
   if      x < y then x : merge xs (y:ys)
   else if y < x then y : merge (x:xs) ys
   else x : merge xs ys
-  
+
 -- PRIMES
 -- A common definition based on the "Sieve of Eratosthenes" method
 -- introduces for each prime a new filter to eliminate its products.

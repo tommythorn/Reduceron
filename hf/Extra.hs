@@ -1,13 +1,16 @@
 {-# OPTIONS -fno-warn-incomplete-patterns #-}
-module Extra(module Extra, {-module HbcOnly,-} module Maybe, trace) where
+module Extra(module Extra, trace) where
 
 -- import HbcOnly
-import Char
-import List
-import Maybe
-import IO (hPutStr,stderr)
+import Data.Char
+import Data.List
+import Data.Maybe
+import System.IO (hPutStr,stderr)
 import Error (exit)
 import SysDeps (trace)
+-- XXX I'm not sure what's going on with catch. Will fix later
+-- import Prelude hiding (catch)
+-- import Control.Exception(catch)
 
 dropEither :: Either t t -> t
 dropJust :: Maybe t -> t
@@ -31,7 +34,7 @@ mixSpace :: [String] -> String
 pair :: t -> t1 -> (t, t1)
 partitions :: (Eq a1) => (a -> a1) -> [a] -> [[a]]
 removeSet :: (Eq a) => [a] -> [a] -> [a]
-rep :: (Num t) => t -> a -> [a]
+rep :: (Num t, Eq t) => t -> a -> [a]
 singletonSet :: t -> [t]
 sndOf :: t -> t1 -> t1
 snub :: (Eq a) => [a] -> [a]
@@ -51,8 +54,8 @@ foldls f z (x:xs) =
   in seq z' (foldl f z' xs)
 
 strace msg c = if length msg == 0
-	       then  c
-	       else trace msg c
+               then  c
+               else trace msg c
 
 warning s v = trace ("Warning: "++s) v
 --warning s v = v
@@ -90,7 +93,7 @@ mapPair f g (x,y) = (f x,g y)
 mapFst  f   (x,y) = (f x,  y)
 mapSnd    g (x,y) = (  x,g y)
 
-findLeft l = 
+findLeft l =
         f [] l
     where
         f a [] = Right (reverse a)
@@ -103,7 +106,7 @@ eitherMap f (x:xs) =
           Left err -> Left err
           Right x' -> case eitherMap f xs of
                         Left err -> Left err
-                        Right xs' -> Right (x':xs') 
+                        Right xs' -> Right (x':xs')
 
 space :: Int -> String
 space n = take n (repeat ' ')
@@ -181,11 +184,11 @@ type Column = Int
 
 -- used in STGcode to get encoded start position
 -- STGcode should be changed so that this function can disappear
-pos2Int :: Pos -> Int 
+pos2Int :: Pos -> Int
 pos2Int (P s _) = s
 
 toPos :: Line -> Column -> Line -> Column -> Pos
-toPos l1 c1 l2 c2 =  P (l1*10000 + c1) (l2*10000 + c2) 
+toPos l1 c1 l2 c2 =  P (l1*10000 + c1) (l2*10000 + c2)
 
 -- create a virtual position out of a real one
 insertPos :: Pos -> Pos
@@ -197,7 +200,7 @@ noPos = P 0 0
 mergePos :: Pos -> Pos -> Pos
 -- combines positions by determining minimal one that covers both
 -- positions may or may not overlap
--- does not assume that first pos really earlier 
+-- does not assume that first pos really earlier
 -- nonexisting positions are ignored
 mergePos (P s1 e1) (P s2 e2) =
   if e1 == 0 then P s2 e2
@@ -217,7 +220,7 @@ fromPos (P s e) =
  in (l1,c1,l2,c2)
 
 strPos :: Pos -> String
-strPos p = 
+strPos p =
   case fromPos p of
     (0,0,0,0) -> "nopos"
     (l1,c1,0,0)   -> show l1 ++ ':' : show c1
@@ -231,22 +234,22 @@ instance Show Pos where
 instance Eq Pos where
   P s1 e1 == P s2 e2 = (s1 == s2) && (e1 == e2)
 
-instance Ord Pos where  
+instance Ord Pos where
   -- for ordering error messages of parser
   -- and determining minimum of two positions
   -- nonexisting positions are avoided
-  P s1 e1 > P s2 e2 = 
+  P s1 e1 > P s2 e2 =
     s1 > s2 || (s1 == s2 && e1 > e2)
   min (P s1 e1) (P s2 e2) =
-    if e1 == 0 
-      then if e2 == 0 
+    if e1 == 0
+      then if e2 == 0
              then if s1 <= s2 then P s1 e1 else P s2 e2
              else P s2 e2
       else if e2 == 0
              then P s1 e1
              else if (s1 < s2) || (s1 == s2 && e1 <= e2)
                     then P s1 e1
-                    else P s2 e2 
+                    else P s2 e2
 
 --------------------
 
@@ -281,22 +284,22 @@ unionSet xs0 ys0 = unionSet' xs0 ys0
 
 removeSet xs ys = filter (`notElem` ys) xs
 ---------------------
-strChr' :: Char -> Char -> String 
+strChr' :: Char -> Char -> String
 strChr' _del '\\' = "\\\\"
 strChr' _del '\n' = "\\n"
 strChr' _del '\t' = "\\t"
-strChr' del c0 = if isPrint c0 
-                 then if c0 == del 
+strChr' del c0 = if isPrint c0
+                 then if c0 == del
                       then "\\" ++ [c0]
                       else [c0]
                  else "\\o" ++ map (toEnum . (+(fromEnum '0')))
                                   (ctoo (fromEnum c0))
                     where ctoo c = [(c `div` 64),(c `div` 8) `mod` 8,c `mod` 8]
-                          
-strChr :: Char -> String 
+
+strChr :: Char -> String
 strChr c = "'" ++ strChr' '\'' c ++ "'"
 
-strStr :: String -> String 
+strStr :: String -> String
 strStr s = "\"" ++ concatMap (strChr' '"') s ++ "\""
 
 -----------------------
@@ -306,7 +309,7 @@ showErr (pos,token,strs) =
     case nub strs of
            [] -> " but no token can be accepted here."
            [x] -> " but expected a " ++ x
-	   xs  -> " but expected one of " ++ mix " " xs)
+           xs  -> " but expected one of " ++ mix " " xs)
 
 ------------------------
 isNhcOp :: Char -> Bool
@@ -327,14 +330,15 @@ isNhcOp _ = False
 readFirst :: [String] -> IO (String,String)
 
 readFirst []     = do
-  hPutStr stderr "Fail no filenames, probably no -I or -P" 
+  hPutStr stderr "Fail no filenames, probably no -I or -P"
   exit
-readFirst [x]    = do 
+readFirst [x]    = do
   finput <- readFile x
   return (x,finput)
 readFirst (x:xs) =
   catch (do finput <- readFile x
             return (x,finput))
         (\ _ -> readFirst xs)
+  where catch a b = a -- XXX I'm not sure what's going on with catch. Will fix later
 
 ------------------------

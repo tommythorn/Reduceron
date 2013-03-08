@@ -8,12 +8,12 @@ Indentation of lines reflects the tree form of the data structure.
 However, to produce only a minimal number of lines substructures are put
 on a single line as far as possible.
 
-The combinators provided here enable simple definition of a pretty printer 
+The combinators provided here enable simple definition of a pretty printer
 for any tree structure.
 The pretty printer requires time linear in the size of the data structure
 and space linear in the desired maximal width of the output.
 The interface of the library is based on:
-  Philip Wadler: A prettier printer, 
+  Philip Wadler: A prettier printer,
   http://cm.bell-labs.com/cm/cs/who/wadler/topics/recent.html
 The implementation uses some ideas from
   Derek C Oppen: Prettyprinting, TOPLAS volume 2 number 4, ACM, 1980, 465-483.
@@ -43,8 +43,8 @@ text = TEXT
 delimiter :: String -> Doc
 delimiter = DELIMITER
 
-{- 
-Fill line, that is, 
+{-
+Fill line, that is,
 only make newline if part up to next possible newline does not fit on line.
 -}
 fdelimiter :: String -> Doc
@@ -84,7 +84,7 @@ string s = text ('\"' : s ++ "\"")
 
 {- Optimally pretty print the document within the given line width. -}
 pretty :: Int -> Doc -> String
-pretty width = layout width . normalise . removeFDelimiter . flatten 
+pretty width = layout width . normalise . removeFDelimiter . flatten
 
 {- Never turn a delimiter into a newline. -}
 
@@ -94,19 +94,19 @@ simple = token2String . flatten
 
 {- Implementation ========================================================= -}
 
-data Doc = NIL | Doc :<> Doc 
-         | TEXT String | DELIMITER String | FDELIMITER String | LINE 
+data Doc = NIL | Doc :<> Doc
+         | TEXT String | DELIMITER String | FDELIMITER String | LINE
          | GROUP Doc | NEST Int Doc
          deriving Show
 
 
-data Token = Text String Int 
-           | Delimiter String Int Int | FDelimiter String Int Int | Line Int 
+data Token = Text String Int
+           | Delimiter String Int Int | FDelimiter String Int Int | Line Int
            | Open | Close
            deriving Show
 
 
-{- 
+{-
 Staightforward conversion of tokens into a string,
 ignoring brackets and possiblity of turning delimiters into newlines.
 -}
@@ -119,7 +119,7 @@ token2String (FDelimiter s _ _ : tokens) = s ++ token2String tokens
 token2String (Line i : tokens) = '\n' : replicate i ' ' ++ token2String tokens
 token2String (Open : tokens) = token2String tokens
 token2String (Close : tokens) = token2String tokens
- 
+
 
 {-
 Convert the tree structure of a document into a stream of tokens.
@@ -148,7 +148,7 @@ same group or the next Close or the end.
 -}
 removeFDelimiter :: [Token] -> [Token]
 
-removeFDelimiter = go 0 [] 
+removeFDelimiter = go 0 []
   where
   {-
   Invariants: elements of stack are strictly sorted, largest on top
@@ -161,7 +161,7 @@ removeFDelimiter = go 0 []
   go _ [] [] = [] -- first argument should be 0
   go _ _  [] = [Close] -- the stack can at most contain one entry
   go d toClose (Open : tokens) = Open : go (d+1) toClose tokens
-  go d toClose (Close : tokens) = 
+  go d toClose (Close : tokens) =
     possiblyClose (Close :) (subtract 1) id d toClose tokens
   go d toClose (FDelimiter s l i : tokens) =
     possiblyClose (\x -> Open : Delimiter s l i : x) id (d:) d toClose tokens
@@ -179,10 +179,10 @@ removeFDelimiter = go 0 []
                 -> [Token]
                 -> [Token]
   possiblyClose modOut modDepth modStack d (close : toClose) tokens
-    | close == d = Close : modOut (go (modDepth d) (modStack toClose) tokens) 
+    | close == d = Close : modOut (go (modDepth d) (modStack toClose) tokens)
   possiblyClose modOut modDepth modStack d toClose tokens =
     modOut (go (modDepth d) (modStack toClose) tokens)
-  
+
 
 {-
 Normalise a stream of tokens wrt the following rewriting rules
@@ -194,8 +194,8 @@ normalise :: [Token] -> [Token]
 
 normalise tokens0 = go 0 0 tokens0
   where
-  go :: Int {- number of deferred closing brackets -} 
-     -> Int {- number of deferred opening brackets -} 
+  go :: Int {- number of deferred closing brackets -}
+     -> Int {- number of deferred opening brackets -}
      -> [Token] {- stream of tokens to normalise -}
      -> [Token] {- normalised stream of tokens -}
   go i _ [] = replicate i Close -- there should be no deferred opening brackets
@@ -208,7 +208,7 @@ normalise tokens0 = go 0 0 tokens0
   go i j (line0@(Line _) : tokens) =
     replicate i Close ++ replicate j Open ++ line0 : go 0 0 tokens
   go i j (text0 : tokens) = text0 : go i j tokens
- 
+
 
 {-
 The list of tokens is optimally pretty printed within the given width.
@@ -217,7 +217,7 @@ For efficiency also better if no `Open' is directly followed by `Text s l'.
 A normalised token list has this property.
 -}
 layout :: Int {- width of layout -}
-       -> [Token] 
+       -> [Token]
        -> String
 
 layout width tokens0 = snd $ go width 1 empty1 0 tokens0
@@ -235,20 +235,20 @@ layout width tokens0 = snd $ go width 1 empty1 0 tokens0
     (groupsMaxEnd', fits', groupFits') = cons (r+p) groupsMaxEnd groupsFits
     (groupsFits, string0) = go r p groupsMaxEnd' fitDepth' tokens
     fitDepth' = if fitDepth > 0 then succ fitDepth else if fits' then 1 else 0
-  go r p groupsMaxEnd fitDepth (Close : tokens) 
+  go r p groupsMaxEnd fitDepth (Close : tokens)
     | isEmpty1 groupsMaxEnd = go r p groupsMaxEnd (pred fitDepth) tokens
     | otherwise = (groupFits', string0)
     where
     (_, groupsMaxEnd', groupFits') = lview groupsMaxEnd True groupFits
     (groupFits, string0) = go r p groupsMaxEnd' (pred fitDepth) tokens
-  go r p groupsMaxEnd fitDepth (Delimiter s l i : tokens)  = 
+  go r p groupsMaxEnd fitDepth (Delimiter s l i : tokens)  =
     (groupFits', output ++ string0)
     where
-    (output, newRemainingSpace) 
+    (output, newRemainingSpace)
       | fitDepth > 0 = (s, r-l)
       | otherwise    = ('\n' : replicate i ' ', width-i)
-    (groupFits', string0) = 
-      checkGroupsMaxEnd newRemainingSpace (p+l) groupsMaxEnd fitDepth tokens 
+    (groupFits', string0) =
+      checkGroupsMaxEnd newRemainingSpace (p+l) groupsMaxEnd fitDepth tokens
   go _r p groupsMaxEnd fitDepth (Line i : tokens) =
     -- a compulsary newline makes all surrounding blocks not to fit
     (map1To2 (\_ -> False) groupsMaxEnd, '\n' : replicate i ' ' ++ string0)
@@ -256,14 +256,14 @@ layout width tokens0 = snd $ go width 1 empty1 0 tokens0
     (_, string0) = go (width-i) p empty1 fitDepth tokens
   go r p groupsMaxEnd fitDepth (Text s l : tokens) = (groupFits', s ++ string0)
     where
-    (groupFits', string0) = 
-      checkGroupsMaxEnd (r-l) (p+l) groupsMaxEnd fitDepth tokens 
+    (groupFits', string0) =
+      checkGroupsMaxEnd (r-l) (p+l) groupsMaxEnd fitDepth tokens
 
 
-  checkGroupsMaxEnd :: Int -> Int -> Q1 Int -> Int -> [Token] 
+  checkGroupsMaxEnd :: Int -> Int -> Q1 Int -> Int -> [Token]
                     -> (Q2 Bool, String)
-  checkGroupsMaxEnd r p groupsMaxEnd fitDepth tokens 
-    | isEmpty1 groupsMaxEnd || p <= maxEnd = 
+  checkGroupsMaxEnd r p groupsMaxEnd fitDepth tokens
+    | isEmpty1 groupsMaxEnd || p <= maxEnd =
       go r p groupsMaxEnd fitDepth tokens
     | otherwise = (groupsFits', string0)
     where
@@ -271,7 +271,7 @@ layout width tokens0 = snd $ go width 1 empty1 0 tokens0
     (groupsFits, string0) = checkGroupsMaxEnd r p groupsMaxEnd' fitDepth tokens
 
 
-{- Special double ended queues -------------------------------------------- 
+{- Special double ended queues --------------------------------------------
 
 Two related kinds of double ended queue types are defined.
 A queue operation always operates on two queues, one of each kind.
@@ -282,15 +282,15 @@ the remaining queue, also puts an element in front of the other queue to obtain
 a longer queue.
 
 The inverse operations are very lazy.
-Let there be a sequence of queue operations such that the first queue 
-resulting from an operation is always the input first queue to the 
-*next* operation and the second queue resulting from an operation is always 
+Let there be a sequence of queue operations such that the first queue
+resulting from an operation is always the input first queue to the
+*next* operation and the second queue resulting from an operation is always
 the input second queue to the *preceding* operation.
-Let the first operation `cons' an element to the front of the first queue 
-and the last operation remove exactly this element from the first queue 
-(either front or rear). Then the last operation adds another element to 
+Let the first operation `cons' an element to the front of the first queue
+and the last operation remove exactly this element from the first queue
+(either front or rear). Then the last operation adds another element to
 the second queue and the first operation removes exactly this element.
-The operations on the second queue are so lazy that for obtaining this 
+The operations on the second queue are so lazy that for obtaining this
 element the second queue which is input to the last operation is not
 demanded, that is, does not need to be evaluated.
 
@@ -299,7 +299,7 @@ are passed in such a sequence. The implementation does not only assume
 that the two queues handled by an operation have the same number of elements,
 but also that they have the same internal structure.
 
-Using a monad to ascertain correct passing of queues is possible but 
+Using a monad to ascertain correct passing of queues is possible but
 seems rather restrictive and hides the idea. However, maybe another
 kind of sequencing interface would be good to ensure safe usage.
 
@@ -311,9 +311,9 @@ kind of sequencing interface would be good to ensure safe usage.
                v                                  ^
             element'                           element'
 
-Except for the additional lazy inverse operations the implementation agrees 
+Except for the additional lazy inverse operations the implementation agrees
 with the Banker's queue given in:
-  Chris Okasaki: Purely Functional Data Structures, CUP, 1998, Section 8.4.2 
+  Chris Okasaki: Purely Functional Data Structures, CUP, 1998, Section 8.4.2
 -}
 
 {-
@@ -341,7 +341,7 @@ empty2 = Q2 [] []
 
 
 isEmpty1 :: Q1 t -> Bool
-isEmpty1 (Q1 lenf _ lenr _) = lenf + lenr == 0 
+isEmpty1 (Q1 lenf _ lenr _) = lenf + lenr == 0
 
 
 map1To2 :: (a -> b) -> Q1 a -> Q2 b
@@ -409,10 +409,10 @@ lview q1 y q2 = (x, reverse1 q1', reverse2 q2')
 
 {-
 Some very lazy variants of standard list functions.
-They get the length of the result or a list argument as first argument and 
+They get the length of the result or a list argument as first argument and
 thus are able to construct the list structure of the result without demanding
 evaluation of any of its other arguments.
-Demanding some list element of the result will naturally lead to 
+Demanding some list element of the result will naturally lead to
 more demand of the arguments.
 -}
 
@@ -445,10 +445,10 @@ The first argument gives the position at which the input list shall be split.
 The list must be at least that long.
 -}
 lsplitAt :: Int -> [a] -> ([a], [a])
- 
+
 lsplitAt 0 xs = ([],xs)
-lsplitAt n ys = (x:xs',xs'') 
-  where 
+lsplitAt n ys = (x:xs',xs'')
+  where
   x:xs = ys
   (xs',xs'') = lsplitAt (n-1) xs
 

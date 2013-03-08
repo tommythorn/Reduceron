@@ -1,13 +1,5 @@
 {-# OPTIONS -fno-warn-deprecations #-}
-module SysDeps (
-   module PackedString, trace, isAlphaNum
-) where
-
-#if __GLASGOW_HASKELL__ >= 502
-import Data.PackedString as PackedString
-#else
-import PackedString
-#endif
+module SysDeps (trace, isAlphaNum) where
 
 #if defined(__NHC__) || defined(__HBC__)
 import NonStdTrace (trace)
@@ -20,8 +12,5 @@ import IOExts      (trace)
 #if defined(__HASKELL98__)
 import Char        (isAlphaNum)
 #else
-import Char        (isAlphanum)
-
-isAlphaNum :: Char -> Bool
-isAlphaNum = isAlphanum
+import Data.Char   (isAlphaNum)
 #endif

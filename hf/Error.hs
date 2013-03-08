@@ -1,8 +1,8 @@
 module Error where
 
-import List
-import IO
-import System
+import Data.List
+import System.IO
+import System.Exit
 
 exit :: IO a
 exit = exitWith (ExitFailure 1)
@@ -38,4 +38,3 @@ can'tOpenAnyOf name filename ioError0 =
 errorLC :: Int -> Int -> String -> a
 errorLC  l c msg =
   error ("Error at line "++show l ++", column " ++ show c ++ ": " ++ msg++"\n")
-

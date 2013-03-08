@@ -32,7 +32,7 @@ infixPatsToFuns (d:ds) =
            where
            argPats = [argFrom pos leftExps, argFrom pos rightExps]
            (leftExps, ExpVarOp pos id0 : rightExps) =
-             break isVarOp es        
+             break isVarOp es
        _other -> d
   isVarOp (ExpVarOp _ _) = True
   isVarOp _              = False
@@ -65,7 +65,7 @@ translate flags (Module pos modid exps imps fixs decls) =
   Module pos modid exps imps fixs decls'
   where
   decls' = declsTrans True decls
- 
+
 declsTrans :: Bool -> Trans (Decls TokenId)
 declsTrans top (DeclsParse ds) =
   DeclsParse ds'
@@ -134,7 +134,7 @@ sameCons _ _ = False
 args :: Exp TokenId -> [Exp TokenId]
 args (ExpCon _ _) = []
 args (ExpApplication _ (_:ps))= ps
-                             
+
 funTrans :: Bool -> Trans (Fun TokenId)
 funTrans oneOfMany (Fun ps rhs decls) =
   case decls of
@@ -212,7 +212,7 @@ expTrans (ExpVarOp pos tid) =
 expTrans (ExpConOp pos tid) =
   ExpConOp pos tid
 expTrans (ExpLit pos lit) =
-  case lit of 
+  case lit of
   LitInteger  _ _ -> yes
   LitRational _ _ -> no "rational"
   LitString   _ _ -> yes
@@ -235,8 +235,8 @@ expTrans (ExpListComp pos e qs) =
   QualExp b : qs'      -> condTrans (expTrans b) (ExpListComp noPos e qs') nil
   QualPatExp p e : qs' -> -- STUCK WITHOUT LAMBDA OR LOCAL FUN DEFN!
                           -- [e | p<-l, qs ] = let ok p = [e | qs]
-                          -- 		                   ok _ = []
-                          -- 		               in concatMap ok l
+                          --                               ok _ = []
+                          --                           in concatMap ok l
   QualLet decls : qs'  -> expTrans (ExpLet noPos decls (ExpListComp noPos e qs'))
   -}
   cannotTranslate pos "list comprehension"
@@ -317,7 +317,7 @@ expInfixListTrans :: Pos -> [Exp TokenId] -> Exp TokenId
 expInfixListTrans pos es =
   if isAnOp (head es) || isAnOp (last es) then
     cannotTranslate pos "operator section"
-  else  
+  else
     let (_,ds) = chopBy (isOp "||") es
     in  foldr1 orOp (map disjTrans ds)
   where
@@ -405,4 +405,3 @@ patTrans e =
 cannotTranslate :: Pos -> String -> a
 cannotTranslate pos msg =
   error (show pos++" Cannot translate "++msg++". Sorry!")
-

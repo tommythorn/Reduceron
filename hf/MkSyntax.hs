@@ -3,15 +3,15 @@
 Make parts of Haskell syntax tree
 -}
 module MkSyntax
-	( mkAppExp, mkAppInst, mkCase, mkDeclClass
-	, mkDeclFun, mkDeclPat, mkDeclPatFun, mkEnumFrom
-	, mkEnumThenFrom, mkEnumToFrom, mkEnumToThenFrom
+        ( mkAppExp, mkAppInst, mkCase, mkDeclClass
+        , mkDeclFun, mkDeclPat, mkDeclPatFun, mkEnumFrom
+        , mkEnumThenFrom, mkEnumToFrom, mkEnumToThenFrom
         , mkLambda, mkLet, mkDo, mkFieldExp,mkExpList
-	, mkExpListComp, mkIf, mkInfixList
-	, mkInstList, mkInt, mkParExp, mkParInst, mkParType
-	, mkTypeList, mkPatNplusK, mkParLhs
+        , mkExpListComp, mkIf, mkInfixList
+        , mkInstList, mkInt, mkParExp, mkParInst, mkParType
+        , mkTypeList, mkPatNplusK, mkParLhs
   , mkSweetListEnum, mkSweetListComp
-	) where
+        ) where
 
 import Extra(Pos,noPos,mergePos,mergePoss)
 import TokenId
@@ -26,10 +26,10 @@ mkEnumFrom :: Pos -> Exp TokenId -> Exp TokenId
 mkEnumThenFrom :: Pos -> Exp TokenId -> Exp TokenId -> Exp TokenId
 mkEnumToFrom :: Pos -> Exp TokenId -> Exp TokenId -> Exp TokenId
 mkEnumToThenFrom :: Pos
-			-> Exp TokenId
-			-> Exp TokenId
-			-> Exp TokenId
-			-> Exp TokenId
+                        -> Exp TokenId
+                        -> Exp TokenId
+                        -> Exp TokenId
+                        -> Exp TokenId
 mkExpList :: Pos -> [Exp id] -> Pos -> Exp id
 mkExpListComp :: Pos -> [Qual TokenId] -> Exp TokenId -> Exp TokenId
 mkFieldExp :: Pos -> id -> Exp id -> Field id
@@ -68,16 +68,16 @@ mkInstList p id = TypeCons p t_List [TypeVar p id]
 
 mkDeclPat :: (Pos,a) -> Exp a -> Exp a -> Rhs a -> Decls a -> Decl a
 mkDeclPat (pv,var) op e@(ExpInfixList pos _es) gdexps w =
-	DeclPat (Alt (ExpInfixList pos [ExpVar pv var,op,e]) gdexps w)
+        DeclPat (Alt (ExpInfixList pos [ExpVar pv var,op,e]) gdexps w)
 mkDeclPat (pv,var) op e gdexps w =
-	DeclPat (Alt (ExpInfixList pv [ExpVar pv var,op,e]) gdexps w)
+        DeclPat (Alt (ExpInfixList pv [ExpVar pv var,op,e]) gdexps w)
 
 
 mkDeclFun :: (Pos,a) -> [Pat a] -> Rhs a -> Decls a -> Decl a
 --mkDeclFun (pv,var) [] gdexps w =
---	DeclPat (Alt (ExpVar pv var) gdexps w)
+--      DeclPat (Alt (ExpVar pv var) gdexps w)
 mkDeclFun (pv,var) pats gdexps w =
-  DeclFun (mergePoss [pv `min` getPos pats,getPos gdexps,getPos w]) 
+  DeclFun (mergePoss [pv `min` getPos pats,getPos gdexps,getPos w])
     var [Fun pats gdexps w]
 
 
@@ -87,8 +87,8 @@ mkDeclPatFun  (Alt (ExpVar pos fun) gdexps w) =
 --        DeclPat (Alt (ExpVar pos fun) gdexps w)
 mkDeclPatFun  (Alt (ExpInfixList _ [ExpVar pos fun]) gdexps w) =
   DeclFun (mergePoss [pos,getPos gdexps,getPos w]) fun [Fun [] gdexps w]
-mkDeclPatFun  (Alt (ExpInfixList _ (ExpVar pos fun:qop:args)) gdexps w) 
-  | notOp qop = DeclFun (mergePoss [pos,getPos gdexps,getPos w]) fun 
+mkDeclPatFun  (Alt (ExpInfixList _ (ExpVar pos fun:qop:args)) gdexps w)
+  | notOp qop = DeclFun (mergePoss [pos,getPos gdexps,getPos w]) fun
                   [Fun (qop:args) gdexps w]
 mkDeclPatFun alt = DeclPat alt
 
@@ -100,7 +100,7 @@ notOp _ = True
 mkTypeList p t = TypeCons p t_List [t]
 
 -- passes position of lambda
-mkLambda pos pats e = 
+mkLambda pos pats e =
   let p = mergePos pos (getPos e) in p `seq` ExpLambda p pats e
 
 -- passes position of let
@@ -139,10 +139,10 @@ mkEnumToThenFrom pos eTo eThen eFrom =
 
 mkAppExp [] = error "mkAppExp"
 mkAppExp [e] = e
-mkAppExp es@[e1,e2] = 
+mkAppExp es@[e1,e2] =
   ExpApplication (mergePos (getPos e1) (getPos e2)) es
 mkAppExp es@(e1:e2:es') =
-  ExpApplication (mergePos (min (getPos e1) (getPos e2)) (getPos (last es'))) 
+  ExpApplication (mergePos (min (getPos e1) (getPos e2)) (getPos (last es')))
     es
   -- operator of infix expression is in front and first argument next
 
@@ -162,8 +162,8 @@ mkParExp posl es posr = p `seq` e
 mkParExp posl [ExpConOp pos' id] posr = ExpCon pos' id
 mkParExp posl [ExpVarOp pos' id] posr = ExpVar pos' id
 mkParExp posl [e] posr = e
-mkParExp posl es  posr = 
-  let p = mergePos posl posr 
+mkParExp posl es  posr =
+  let p = mergePos posl posr
   in p `seq` ExpApplication p (ExpCon p (t_Tuple (length es)):es)
 -}
 
@@ -177,7 +177,7 @@ mkExpList posl exps posr =
 mkParLhs pos app args = ExpApplication pos (app:args)
 
 -- combineGroups (DeclsParse d1) (DeclsParse d2) = DeclsParse (d1++d2)
--- 
+--
 -- mkDeclClass ctx (pos,cls) (_,arg) (csigns,valdefs) =
 --             DeclClass pos ctx cls arg (combineGroups csigns valdefs)
 
@@ -245,7 +245,7 @@ mkExpListComp pos qs e = ExpApplication noPos [trans pos qs e,ExpList noPos []]
 mkInt pos i = ExpLit pos (LitInt Boxed i)
 
 mkPatNplusK (pos,tid) (posi,integer) =
-  let p = mergePos pos posi in p `seq` 
+  let p = mergePos pos posi in p `seq`
     PatNplusK p tid undefined (ExpLit posi integer) undefined undefined
 -- While parsing (n+k), can't choose a unique replacement identifier n',
 -- so leave some fields to be filled in later.

@@ -1,6 +1,6 @@
 module ParseCore(Pos,ParseError,ParseResult,ParseBad,ParseGood,Parser
                ,initError,initBad,initGood      -- Start values for parseError,parseBad, parseGood
-	       ,parseit				-- entry for parsing
+               ,parseit                         -- entry for parsing
                ,parse,ap,chk,orelse,into        -- The core
                ,token                           -- parse terminal
                ,parseFail                       -- Failing parser
@@ -13,22 +13,16 @@ infixl 5 `ap`
 infixl 5 `chk`
 infixr 4 `orelse`
 
-#if defined(__HASKELL98__)
-#define EVAL(b)
-#else
-#define EVAL(b) (Eval b) =>
-#endif
-
 --- Define types
 -- parameters:
 -- i = input to be parsed
 -- a = resulting syntax tree
 -- c = other return value
 type ParseError = (Pos,String,[String])
-type ParseResult a i   = Either ParseError (a,i,ParseError) 
-type ParseBad    a i   =           ParseError -> ParseResult a i 
+type ParseResult a i   = Either ParseError (a,i,ParseError)
+type ParseBad    a i   =           ParseError -> ParseResult a i
 type ParseGood   a i c = a -> i -> ParseError -> ParseResult c i
-type Parser      a i c = ParseGood a i c -> ParseBad c i -> i -> ParseError ->  ParseResult c i 
+type Parser      a i c = ParseGood a i c -> ParseBad c i -> i -> ParseError ->  ParseResult c i
 
 --- start values
 initError :: ParseError
@@ -52,7 +46,7 @@ parseit' (Right (a,_,_)) = Right a
 parse :: a -> Parser a i b
 parse x = \good _bad -> good x
 
-ap :: EVAL(b)  Parser (a->b) i c -> Parser a i c -> Parser b i c
+ap :: Parser (a->b) i c -> Parser a i c -> Parser b i c
 ap     x y = \good bad ->
                 x       (\u -> y (\v -> let uv = u v in seq uv (good uv) ) bad)
                         bad
