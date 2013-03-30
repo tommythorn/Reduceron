@@ -1,4 +1,4 @@
-> module Reduceron where
+> module Main where
 > import Data.List
 
 [[This is based on text extracted from
@@ -80,6 +80,8 @@ Example: The template code for the program
 is as follows.
 
 > tri5 :: Prog
+
+#if VERSION == 1
 > tri5 = [ (0, [FUN 1 1, INT 5], [])
 >        , (1, [INT 1, PTR 0, TAB 2, ARG 0],
 >              [[ARG 0, PRI "(<=)"]])
@@ -88,7 +90,6 @@ is as follows.
 >               [INT 1, PTR 2],
 >               [ARG 1, PRI "(-)"]])
 >        , (2, [INT 1], []) ]
-
 
 
 Figure 2. Syntax of atoms in template code.
@@ -102,6 +103,7 @@ Figure 2. Syntax of atoms in template code.
 >   | PRI String
 >   | TAB Int
 >   deriving Show
+#endif
 
 
 
@@ -220,6 +222,7 @@ is complete, the location x on the heap can be updated with the
 result. So we push onto the update stack the heap address x and the
 current size of the reduction stack.
 
+#if VERSION == 1
 > step (p, h, PTR x:s, u) = (p, h, h!!x ++ s, upd:u)
 >   where upd = (1+length s, x)
 
@@ -263,6 +266,7 @@ remaining applications are instantiated and appended to the heap.
 >     (pop, spine, apps) = p !! f
 >     h' = h ++ map (instApp s h) apps
 >     s' = instApp s h spine ++ drop pop s
+#endif
 
 Instantiating a function body involves replacing the formal parameters
 with arguments from the reduction stack and turning relative pointers
@@ -272,11 +276,142 @@ into absolute ones.
 > instApp s h = map (inst s (length h))
 
 > inst :: Stack -> HeapAddr -> Atom -> Atom
+#if VERSION == 1
 > inst s base (PTR p) = PTR (base + p)
 > inst s base (ARG i) = s !! i
 > inst s base a = a
+#endif
 
 
+5. Optimisations
+
+This section presents several optimisations, defined by a series of
+progressive modifications to the semantics defined in Section 3. A
+theme of this section is the use of cheap dynamic analyses to improve
+performance.
+
+5.1 Update Avoidance
+
+Recall that when evaluation of an application on the heap is complete,
+the heap is updated with the result to prevent repeated evaluation.
+There are two cases in which such an update is unnecessary: (1) the
+application is already evaluated, and (2) the application is not
+shared so its result will never be needed again.
+
+We identify non-shared applications at run-time, by dynamic analysis.
+Argument and pointer atoms are extended to contain an extra boolean
+field.
+
+#if VERSION > 1
+> data Atom
+>   = FUN Arity Int
+>   | ARG Bool Int   -- changed
+>   | PTR Bool Int   -- changed
+>   | CON Arity Int
+>   | INT Int
+>   | PRI String
+>   | TAB Int
+>   deriving Show
+#endif
+
+#if VERSION == 2
+
+An argument is tagged with True exactly if it is referenced more than
+once in the body of a function. A pointer is tagged with False exactly
+if it is a unique pointer; that is, it points to an application that
+is not pointed to directly by any other atom on the heap or reduction
+stack. There may be multiple pointers to an application containing a
+unique pointer, so the fact that a pointer is unique is, on its own,
+not enough to infer that it points to a non-shared application. To
+identify non-shared applications, we maintain the invariant:
+
+  Invariant 3: A unique pointer occurring on the reduction stack
+  points to a non-shared application.
+
+A pointer that is not unique is referred to as possibly-shared.
+
+Unwinding: The reduction rule for unwinding becomes
+
+> step (p, h, PTR sh x:s, u) = (p, h, app++s, upd++u)
+>   where
+>     app = map (dashIf sh) (h !! x)
+>     upd = [(1 + length s, x) | sh && red (h !! x)]
+
+Updating: When an update occurs, the normal-form on the stack is
+written to the heap. The normal-form may contain a unique pointer, but
+the process of writing it to the heap will duplicate it. Hence the
+normal-form on the stack is dashed.
+
+> step (p, h, top:s, (sa,ha):u)
+>   | arity top > n = (p, h', top:dashN n s, u)
+>   where
+>     n = 1 + length s - sa
+>     h' = update ha (top:take n s) h
+
+The rest is the same
+
+> step (p, h, INT n:x:s, u) = (p, h, x:INT n:s, u)
+> step (p, h, PRI f:x:y:s, u) = (p, h, prim f x y:s, u)
+> step (p, h, CON n j:s, u) = (p, h, FUN 0 (i + j):s,u)
+>   where TAB i = s !! n
+> step (p, h, FUN n f:s, u) = (p, h', s', u)
+>   where
+>     (pop, spine, apps) = p !! f
+>     h' = h ++ map (instApp s h) apps
+>     s' = instApp s h spine ++ drop pop s
+
+If the pointer on top of the stack is possibly-shared, then the
+application is dashed before being copied onto the stack by marking
+each atom it contains as possibly-shared. This has the effect of
+propagating sharing information through an application.
+
+> dashIf sh a = if sh then dash a else a
+
+> dash (PTR sh s) = PTR True s
+> dash a = a
+
+If the pointer on top of the stack is unique, the application it
+points to must be non-shared according to Invariant 3. An update is
+only pushed onto the update stack if the pointer is possibly-shared
+and the application is reducible. An application is reducible if it is
+saturated or its first atom is a pointer.
+
+> red :: App -> Bool
+> red (PTR sh i:xs) = True
+> red (x:xs) = arity x <= length xs
+
+> dashN n s = map dash (take n s) ++ drop n s
+
+It is unnecessary to dash the normal-form that is written to the heap,
+but there is no harm in doing so: the application being updated is
+possibly-shared, and a possibly-shared application will anyway be
+dashed when it is unwound onto the stack.
+
+Function Application: When instantiating a function body, shared
+arguments must be dashed as they are fetched from the stack.
+
+> inst s base (ARG sh i) = dashIf sh (s !! i)
+> inst s base (PTR sh p) = PTR sh (base + p)
+> inst s base a = a
+
+Performance: Table 3 shows that, overall, update avoidance offers a
+significant run-time improvement. On average, 88% of all updates are
+avoided across the 16 benchmark programs. Just over half of these are
+avoided due to non-reducible applications, and just under half of them
+are avoided due to non-shared reducible applications. The average
+maximum update-stack usage drops from 406 to 11.
+
+
+> tri5 = [ (0, [FUN 1 1, INT 5], [])
+>        , (1, [INT 1, PTR False 0, TAB 2, ARG True 0],
+>              [[ARG True 0, PRI "(<=)"]])
+>        , (2, [ARG True 1, PTR False 0],
+>              [[FUN 1 1, PTR False 1, PRI "(+)"],
+>               [INT 1, PTR False 2],
+>               [ARG True 1, PRI "(-)"]])
+>        , (2, [INT 1], []) ]
+
+#endif
 
 
 
@@ -309,8 +444,15 @@ into absolute ones.
 >   showAtom a = case a of
 >      FUN a 0 -> "Fmain"
 >      FUN a i -> "F" ++ show i
+#if VERSION == 1
 >      ARG i   -> "a" ++ show i
 >      PTR i   -> "#" ++ show i
+#else
+>      ARG True  i -> "*a" ++ show i
+>      ARG False i -> "a" ++ show i
+>      PTR True  i -> "*#" ++ show i
+>      PTR False i -> "#" ++ show i
+#endif
 >      CON  a i-> "CON " ++ show a ++ " " ++ show i
 >      INT i   -> show i
 >      PRI p   -> p
