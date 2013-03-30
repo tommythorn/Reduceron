@@ -170,10 +170,12 @@ sections, the central step function is defined.
 The prim function applies a primitive function to two arguments
 supplied as fully-evaluated integers.
 
+#if VERSION < 3
 > prim :: String -> Atom -> Atom -> Atom
 > prim "(+)" (INT n) (INT m) = INT (n+m)
 > prim "(-)" (INT n) (INT m) = INT (n-m)
 > prim "(<=)" (INT n) (INT m) = bool (n<=m)
+#endif
 
 The comparison primitive returns a boolean value. Both boolean
 constructors have arity 0; False has index 0 and True has index 1.
@@ -314,7 +316,6 @@ field.
 >   deriving Show
 #endif
 
-#if VERSION == 2
 
 An argument is tagged with True exactly if it is referenced more than
 once in the body of a function. A pointer is tagged with False exactly
@@ -332,6 +333,7 @@ A pointer that is not unique is referred to as possibly-shared.
 
 Unwinding: The reduction rule for unwinding becomes
 
+#if VERSION == 2
 > step (p, h, PTR sh x:s, u) = (p, h, app++s, upd++u)
 >   where
 >     app = map (dashIf sh) (h !! x)
@@ -359,7 +361,9 @@ The rest is the same
 >     (pop, spine, apps) = p !! f
 >     h' = h ++ map (instApp s h) apps
 >     s' = instApp s h spine ++ drop pop s
+#endif
 
+#if VERSION >= 2
 If the pointer on top of the stack is possibly-shared, then the
 application is dashed before being copied onto the stack by marking
 each atom it contains as possibly-shared. This has the effect of
@@ -393,6 +397,7 @@ arguments must be dashed as they are fetched from the stack.
 > inst s base (ARG sh i) = dashIf sh (s !! i)
 > inst s base (PTR sh p) = PTR sh (base + p)
 > inst s base a = a
+#endif
 
 Performance: Table 3 shows that, overall, update avoidance offers a
 significant run-time improvement. On average, 88% of all updates are
@@ -402,6 +407,7 @@ are avoided due to non-shared reducible applications. The average
 maximum update-stack usage drops from 406 to 11.
 
 
+#if VERSION == 2
 > tri5 = [ (0, [FUN 1 1, INT 5], [])
 >        , (1, [INT 1, PTR False 0, TAB 2, ARG True 0],
 >              [[ARG True 0, PRI "(<=)"]])
@@ -410,8 +416,77 @@ maximum update-stack usage drops from 406 to 11.
 >               [INT 1, PTR False 2],
 >               [ARG True 1, PRI "(-)"]])
 >        , (2, [INT 1], []) ]
-
 #endif
+
+
+5.2 Infix Primitive Applications
+
+[[Silently changing prim to take primitive integers]]
+
+#if VERSION == 3
+> prim :: String -> Int -> Int -> Atom
+
+For every binary primitive function p, we introduce a new primitive
+*p, a version of p that expects its arguments flipped.
+
+> prim ('*':p) n m = prim p m n
+> prim "(+)" n m = INT (n+m)
+> prim "(-)" n m = INT (n-m)
+> prim "(<=)" n m = bool (n<=m)
+
+Any primitive function p can be flipped.
+
+> flipPrim ('*':p) = p
+> flipPrim p = '*':p
+
+Now we translate binary primitive applications by the rule
+
+                            p m n -> m p n             (4)
+
+> step (p, h, PTR sh x:s, u) = (p, h, app++s, upd++u)
+>   where
+>     app = map (dashIf sh) (h !! x)
+>     upd = [(1 + length s, x) | sh && red (h !! x)]
+> step (p, h, top:s, (sa,ha):u)
+>   | arity top > n = (p, h', top:dashN n s, u)
+>   where
+>     n = 1 + length s - sa
+>     h' = update ha (top:take n s) h
+> step (p, h, CON n j:s, u) = (p, h, FUN 0 (i + j):s,u)
+>   where TAB i = s !! n
+> step (p, h, FUN n f:s, u) = (p, h', s', u)
+>   where
+>     (pop, spine, apps) = p !! f
+>     h' = h ++ map (instApp s h) apps
+>     s' = instApp s h spine ++ drop pop s
+
+In place of the existing reduction rules for primitives and integers,
+we define:
+
+> step (p, h, INT m:PRI f:INT n:s, u) =
+>   (p, h, prim f m n:s, u)
+> step (p, h, INT m:PRI f:x:s, u) =
+>   (p, h, x:PRI (flipPrim f):INT m:s, u)
+
+
+
+[[We'll have to recompile tri5]]
+
+Underlying source
+
+  main = tri 5
+  tri n = case n <= 1 of
+            False -> n + tri (n - 1)
+            True -> 1
+
+> tri5 = [ (0, [FUN 1 1, INT 5], [])
+>        , (1, [ARG sh 0, PRI "(<=)", INT 1, TAB 2, ARG sh 0], [])
+>        , (2, [FUN 1 1, PTR False 0, PRI "(+)", ARG sh 1],
+>              [[ARG sh 1, PRI "(-)", INT 1]])
+>        , (2, [INT 1], []) ]
+>   where sh = True
+#endif
+
 
 
 
