@@ -27,7 +27,9 @@ In template code, a program is defined to be a list of templates.
 A template represents a function definition. It contains an arity, a
 spine application and a list of nested applications.
 
+#if VERSION < 4
 > type Template = (Arity, App, [App])
+#endif
 > type Arity = Int
 
 The spine application holds the let-body of a definition's expression
@@ -274,10 +276,12 @@ Instantiating a function body involves replacing the formal parameters
 with arguments from the reduction stack and turning relative pointers
 into absolute ones.
 
+#if VERSION < 4
 > instApp :: Stack -> Heap -> App -> App
 > instApp s h = map (inst s (length h))
 
 > inst :: Stack -> HeapAddr -> Atom -> Atom
+#endif
 #if VERSION == 1
 > inst s base (PTR p) = PTR (base + p)
 > inst s base (ARG i) = s !! i
@@ -304,7 +308,7 @@ We identify non-shared applications at run-time, by dynamic analysis.
 Argument and pointer atoms are extended to contain an extra boolean
 field.
 
-#if VERSION > 1
+#if 1 < VERSION && VERSION < 4
 > data Atom
 >   = FUN Arity Int
 >   | ARG Bool Int   -- changed
@@ -385,6 +389,7 @@ saturated or its first atom is a pointer.
 > red (x:xs) = arity x <= length xs
 
 > dashN n s = map dash (take n s) ++ drop n s
+#endif
 
 It is unnecessary to dash the normal-form that is written to the heap,
 but there is no harm in doing so: the application being updated is
@@ -394,6 +399,7 @@ dashed when it is unwound onto the stack.
 Function Application: When instantiating a function body, shared
 arguments must be dashed as they are fetched from the stack.
 
+#if 2 <= VERSION && VERSION < 4
 > inst s base (ARG sh i) = dashIf sh (s !! i)
 > inst s base (PTR sh p) = PTR sh (base + p)
 > inst s base a = a
@@ -423,7 +429,7 @@ maximum update-stack usage drops from 406 to 11.
 
 [[Silently changing prim to take primitive integers]]
 
-#if VERSION == 3
+#if 3 <= VERSION
 > prim :: String -> Int -> Int -> Atom
 
 For every binary primitive function p, we introduce a new primitive
@@ -438,11 +444,13 @@ Any primitive function p can be flipped.
 
 > flipPrim ('*':p) = p
 > flipPrim p = '*':p
+#endif
 
 Now we translate binary primitive applications by the rule
 
                             p m n -> m p n             (4)
 
+#if VERSION == 3
 > step (p, h, PTR sh x:s, u) = (p, h, app++s, upd++u)
 >   where
 >     app = map (dashIf sh) (h !! x)
@@ -487,6 +495,169 @@ Underlying source
 >   where sh = True
 #endif
 
+
+#if VERSION == 4
+5.3 Speculative Evaluation of Primitive Redexes
+
+Consider evaluation of the expression tri 5. Application of tri yields
+the expression
+
+  case (<=) 5 1 of
+    { False -> (+) (tri ((-) 5 1)) 5 ; True -> 1 }
+
+which contains two primitive redexes: (<=) 5 1 and (-) 5 1. This
+section introduces a technique called primitive-redex speculation
+(PRS) in which such redexes are evaluated during function body
+instantiation. For example, application of tri instead yields
+
+  case False of { False -> (+) (tri 4) 5 ; True -> 1 }
+
+The benefit is that primitive redexes need not be constructed in
+memory, nor fetched again when needed.  Even if the result of a
+primitive redex is not needed, reducing it is no more costly than
+constructing it. We identify primitive redexes at run-time, by dynamic
+analysis.
+
+Register File: To support PRS, we introduce a register file to the
+reduction machine, for storing the results of speculative reductions.
+
+> type RegFile = [Atom]
+
+The body of a function may refer to these results as required.
+
+> data Atom
+>   = FUN Arity Int
+>   | ARG Bool Int
+>   | PTR Bool Int
+>   | CON Arity Int
+>   | INT Int
+>   | PRI String
+>   | TAB Int
+>   | REG Bool Int   -- new
+>   deriving Show
+
+An atom of the form REG b i contains a reference i to a register, and
+a boolean field b that is true exactly if there is more than one
+reference to the register in the body of the function.
+
+The instantiation functions inst and instApp are modified to take the
+register file r as an argument, and the following equation is added to
+the definition of inst.
+
+> inst :: Stack -> RegFile -> HeapAddr -> Atom -> Atom
+> inst s r base (REG sh i) = dashIf sh (r !! i)
+> inst s r base (PTR sh p) = PTR sh (base + p)
+> inst s r base (ARG sh i) = dashIf sh (s !! i)
+> inst s r base a = a
+
+> instApp :: Stack -> RegFile -> Heap -> App -> App
+> instApp s r h = map (inst s r (length h))
+
+
+Waves: The primitive redexes in a function body are evaluated in a
+series of waves. To illustrate, consider (+) 1 ((+) 2 3). In the first
+wave of speculative evaluation, (+) 2 3 would be reduced to 5; in the
+second wave, (+) 1 5 would be reduced to 6.
+
+More specifically, a wave is a list of independent primitive redex
+candidates. A primitive redex candidate is an application which may
+turn out at run-time to be a primitive redex. Specifically, it is an
+application of the form [a0 , PRI p, a1 ] where a0 and a1 are INT, ARG
+or REG atoms.
+
+> type Wave = [App]
+
+Templates are extended to contain a list of waves in which no
+application in a wave depends on the result of an application in the
+same or a later wave.
+
+> type Template = (Arity, App, [App], [Wave])
+
+Given the reduction stack, the heap, and a series of waves, PRS
+produces a possibly-modified heap, and one result for each application
+in each wave.
+
+> prs :: Stack -> Heap -> [Wave] -> (Heap, RegFile)
+> prs s h = foldl (wave s) (h, [])
+
+> wave s (h,r) = foldl spec (h,r) . map (instApp s r h)
+
+If a primitive redex candidate turns out to be a primitive redex at
+run-time, it is reduced, and its result is appended to the register
+file. Otherwise, the candidate application is constructed on the heap,
+and a pointer to this application is appended to the register file.
+
+> spec (h,r) [INT m,PRI p,INT n] = (h, r ++ [prim p m n])
+> spec (h,r) app = (h ++ [app], r ++ [PTR False (length h)])
+
+Function Application: Since applications in a function body may refer
+to the results in the PRS register file, PRS is performed before
+instantiation of the body.
+
+> step (p, h, PTR sh x:s, u) = (p, h, app++s, upd++u)
+>   where
+>     app = map (dashIf sh) (h !! x)
+>     upd = [(1 + length s, x) | sh && red (h !! x)]
+> step (p, h, top:s, (sa,ha):u)
+>   | arity top > n = (p, h', top:dashN n s, u)
+>   where
+>     n = 1 + length s - sa
+>     h' = update ha (top:take n s) h
+> step (p, h, CON n j:s, u) = (p, h, FUN 0 (i + j):s,u)
+>   where TAB i = s !! n
+> step (p, h, INT m:PRI f:INT n:s, u) =
+>   (p, h, prim f m n:s, u)
+> step (p, h, INT m:PRI f:x:s, u) =
+>   (p, h, x:PRI (flipPrim f):INT m:s, u)
+
+The new rule is:
+
+> step (p, h, FUN n f:s, u) = (p, h'', s', u)
+>   where
+>     (pop, spine, apps, waves) = p !! f
+>     (h', r) = prs s h waves
+>     s' = instApp s r h' spine ++ drop pop s
+>     h'' = h' ++ map (instApp s r h') apps
+
+The template splitting technique outlined in Section 4.2 is modified
+to deal with waves of primitive redex candidates. Each wave is split
+into a separate template. If a wave contains more than MaxAppsPerBody
+applications, it is further split in order to satisfy the constraint.
+
+Strictness Analysis: PRS works well when recursive call sites sustain
+unboxed arguments^2.  For example, if a call to tri is passed an
+unboxed integer then, thanks to PRS, so too is the recursive call.
+However, if the initial call is passed a boxed expression, primitive
+redexes never arise, e.g. the outer call in tri (tri 5) is passed a
+pointer to an application, inhibiting PRS.
+
+A basic strictness analyser in combination with the workerwrapper
+transformation [Gill and Hutton 2009] alleviates this problem.  Each
+initial call to a recursive function is replaced with a call to a
+wrapper function.  The wrapper applies a special primitive to force
+evaluation of any strict integer arguments before passing them on to
+the recursive worker.
+
+Performance: Table 3 shows how PRS cuts run-time and heapusage over
+the range of benchmark programs.  On average, the maximum stack usage
+drops from 811 to 104, and 85% of primitive redex candidates turn out
+to be primitive redexes.
+
+
+We retranslate tri5 again:
+
+  main = tri 5
+  tri n = case n <= 1 of
+            False -> tri (n - 1) + n
+            True -> 1
+
+> tri5 = [ (0, [FUN 1 1, INT 5], [], [])
+>        , (1, [ARG sh 0, PRI "(<=)", INT 1, TAB 2, ARG sh 0], [], [])
+>        , (2, [FUN 1 1, REG unsh 0, PRI "(+)", ARG sh 1],
+>              [], [[[ARG sh 1, PRI "(-)", INT 1]]])
+>        , (2, [INT 1], [], []) ]
+>   where sh = True; unsh = False
+#endif
 
 
 
