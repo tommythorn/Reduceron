@@ -1,17 +1,20 @@
-all: Red1 Red2 Red3 Red4
-	./Red1|tail
-	./Red2|tail
-	./Red3|tail
-	./Red4|tail
+all: Reduceron1 Reduceron2 Reduceron3 Reduceron4
+	./Reduceron1|tail -6
+	./Reduceron2|tail -6
+	./Reduceron3|tail -6
+	./Reduceron4|tail -6
 
-Red1: Reduceron.lhs
-	ghc -O -cpp -DVERSION=1 Reduceron.lhs -o $@
+Reduceron%: Reduceron%.hs
+	ghc -O -cpp $^ -o $@
 
-Red2: Reduceron.lhs
-	ghc -O -cpp -DVERSION=2 Reduceron.lhs -o $@
+Reduceron1.hs: Reduceron.lhs version.lhs
+	runhaskell version.lhs 1 Reduceron.lhs > $@
 
-Red3: Reduceron.lhs
-	ghc -O -cpp -DVERSION=3 Reduceron.lhs -o $@
+Reduceron2.hs: Reduceron.lhs version.lhs
+	runhaskell version.lhs 2 Reduceron.lhs > $@
 
-Red4: Reduceron.lhs
-	ghc -O -cpp -DVERSION=4 Reduceron.lhs -o $@
+Reduceron3.hs: Reduceron.lhs version.lhs
+	runhaskell version.lhs 3 Reduceron.lhs > $@
+
+Reduceron4.hs: Reduceron.lhs version.lhs
+	runhaskell version.lhs 4 Reduceron.lhs > $@

@@ -8,7 +8,19 @@
   Matthew Naylor Colin Runciman
   University of York, UK {mfn,colin}@cs.york.ac.uk
 
-This defines the basic Reduceron machine.]]
+This defines the basic Reduceron machine.
+
+The source uses a style inspired by
+
+	Implementing functional languages
+	~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	Simon Peyton Jones and David Lester
+	Prentice Hall 1992
+
+to include multiple versions in a single source.  The Bird marks (> )
+can be prefixed with the versions in which it should be included
+(options being N, N-, -M, or N-M).  Currently only single digit
+version are supported.]]
 
 
 
@@ -22,14 +34,12 @@ prefixed with a '>' symbol.
 
 In template code, a program is defined to be a list of templates.
 
-> type Prog = [Template]
+-5> type Prog = [Template]
 
 A template represents a function definition. It contains an arity, a
 spine application and a list of nested applications.
 
-#if VERSION < 4
-> type Template = (Arity, App, [App])
-#endif
+-3> type Template = (Arity, App, [App])
 > type Arity = Int
 
 The spine application holds the let-body of a definition's expression
@@ -82,30 +92,27 @@ Example: The template code for the program
 is as follows.
 
 > tri5 :: Prog
-
-#if VERSION == 1
-> tri5 = [ (0, [FUN 1 1, INT 5], [])
->        , (1, [INT 1, PTR 0, TAB 2, ARG 0],
->              [[ARG 0, PRI "(<=)"]])
->        , (2, [ARG 1, PTR 0],
->              [[FUN 1 1, PTR 1, PRI "(+)"],
->               [INT 1, PTR 2],
->               [ARG 1, PRI "(-)"]])
->        , (2, [INT 1], []) ]
+1> tri5 = [ (0, [FUN 1 1, INT 5], [])
+1>        , (1, [INT 1, PTR 0, TAB 2, ARG 0],
+1>              [[ARG 0, PRI "(<=)"]])
+1>        , (2, [ARG 1, PTR 0],
+1>              [[FUN 1 1, PTR 1, PRI "(+)"],
+1>               [INT 1, PTR 2],
+1>               [ARG 1, PRI "(-)"]])
+1>        , (2, [INT 1], []) ]
 
 
 Figure 2. Syntax of atoms in template code.
 
-> data Atom
->   = FUN Arity Int
->   | ARG Int
->   | PTR Int
->   | CON Arity Int
->   | INT Int
->   | PRI String
->   | TAB Int
->   deriving Show
-#endif
+1> data Atom
+1>   = FUN Arity Int
+1>   | ARG Int
+1>   | PTR Int
+1>   | CON Arity Int
+1>   | INT Int
+1>   | PRI String
+1>   | TAB Int
+1>   deriving Show
 
 
 
@@ -172,12 +179,10 @@ sections, the central step function is defined.
 The prim function applies a primitive function to two arguments
 supplied as fully-evaluated integers.
 
-#if VERSION < 3
-> prim :: String -> Atom -> Atom -> Atom
-> prim "(+)" (INT n) (INT m) = INT (n+m)
-> prim "(-)" (INT n) (INT m) = INT (n-m)
-> prim "(<=)" (INT n) (INT m) = bool (n<=m)
-#endif
+-2> prim :: String -> Atom -> Atom -> Atom
+-2> prim "(+)" (INT n) (INT m) = INT (n+m)
+-2> prim "(-)" (INT n) (INT m) = INT (n-m)
+-2> prim "(<=)" (INT n) (INT m) = bool (n<=m)
 
 The comparison primitive returns a boolean value. Both boolean
 constructors have arity 0; False has index 0 and True has index 1.
@@ -226,9 +231,8 @@ is complete, the location x on the heap can be updated with the
 result. So we push onto the update stack the heap address x and the
 current size of the reduction stack.
 
-#if VERSION == 1
-> step (p, h, PTR x:s, u) = (p, h, h!!x ++ s, upd:u)
->   where upd = (1+length s, x)
+1> step (p, h, PTR x:s, u) = (p, h, h!!x ++ s, upd:u)
+1>   where upd = (1+length s, x)
 
 Updating: Evaluation of an application is known to be complete when an
 argument is demanded whose index is larger than n, the difference
@@ -237,23 +241,23 @@ of the top update. If this condition is met, then a normal form of
 arity n is on top of the reduction stack and must be written to the
 heap.
 
-> step (p, h, top:s, (sa,ha):u)
->   | arity top > n = (p, h', top:s, u)
->   where
->     n = 1+length s - sa
->     h' = update ha (top:take n s) h
+1> step (p, h, top:s, (sa,ha):u)
+1>   | arity top > n = (p, h', top:s, u)
+1>   where
+1>     n = 1+length s - sa
+1>     h' = update ha (top:take n s) h
 
 Integers and Primitives: Integer literals and primitive functions are
 reduced as described in Section 2.3.
 
-> step (p, h, INT n:x:s, u) = (p, h, x:INT n:s, u)
-> step (p, h, PRI f:x:y:s, u) = (p, h, prim f x y:s, u)
+1> step (p, h, INT n:x:s, u) = (p, h, x:INT n:s, u)
+1> step (p, h, PRI f:x:y:s, u) = (p, h, prim f x y:s, u)
 
 Constructors: Constructors are reduced by indexing a case table, as
 described in Section 2.4.
 
-> step (p, h, CON n j:s, u) = (p, h, FUN 0 (i + j):s,u)
->   where TAB i = s !! n
+1> step (p, h, CON n j:s, u) = (p, h, FUN 0 (i + j):s,u)
+1>   where TAB i = s !! n
 
 There is insufficient information available to compute the arity of the
 case-alternative function at address i+j. However, an arity of zero
@@ -265,28 +269,23 @@ are popped off the reduction stack, the spine application of the body
 of f is instantiated and pushed onto the reduction stack, and the
 remaining applications are instantiated and appended to the heap.
 
-> step (p, h, FUN n f:s, u) = (p, h', s', u)
->   where
->     (pop, spine, apps) = p !! f
->     h' = h ++ map (instApp s h) apps
->     s' = instApp s h spine ++ drop pop s
-#endif
+1> step (p, h, FUN n f:s, u) = (p, h', s', u)
+1>   where
+1>     (pop, spine, apps) = p !! f
+1>     h' = h ++ map (instApp s h) apps
+1>     s' = instApp s h spine ++ drop pop s
 
 Instantiating a function body involves replacing the formal parameters
 with arguments from the reduction stack and turning relative pointers
 into absolute ones.
 
-#if VERSION < 4
-> instApp :: Stack -> Heap -> App -> App
-> instApp s h = map (inst s (length h))
+-3> instApp :: Stack -> Heap -> App -> App
+-3> instApp s h = map (inst s (length h))
 
-> inst :: Stack -> HeapAddr -> Atom -> Atom
-#endif
-#if VERSION == 1
-> inst s base (PTR p) = PTR (base + p)
-> inst s base (ARG i) = s !! i
-> inst s base a = a
-#endif
+-3> inst :: Stack -> HeapAddr -> Atom -> Atom
+1> inst s base (PTR p) = PTR (base + p)
+1> inst s base (ARG i) = s !! i
+1> inst s base a = a
 
 
 5. Optimisations
@@ -308,18 +307,15 @@ We identify non-shared applications at run-time, by dynamic analysis.
 Argument and pointer atoms are extended to contain an extra boolean
 field.
 
-#if 1 < VERSION && VERSION < 4
-> data Atom
->   = FUN Arity Int
->   | ARG Bool Int   -- changed
->   | PTR Bool Int   -- changed
->   | CON Arity Int
->   | INT Int
->   | PRI String
->   | TAB Int
->   deriving Show
-#endif
-
+2-3> data Atom
+2-3>   = FUN Arity Int
+2-3>   | ARG Bool Int   -- changed
+2-3>   | PTR Bool Int   -- changed
+2-3>   | CON Arity Int
+2-3>   | INT Int
+2-3>   | PRI String
+2-3>   | TAB Int
+2-3>   deriving Show
 
 An argument is tagged with True exactly if it is referenced more than
 once in the body of a function. A pointer is tagged with False exactly
@@ -337,46 +333,43 @@ A pointer that is not unique is referred to as possibly-shared.
 
 Unwinding: The reduction rule for unwinding becomes
 
-#if VERSION == 2
-> step (p, h, PTR sh x:s, u) = (p, h, app++s, upd++u)
->   where
->     app = map (dashIf sh) (h !! x)
->     upd = [(1 + length s, x) | sh && red (h !! x)]
+2> step (p, h, PTR sh x:s, u) = (p, h, app++s, upd++u)
+2>   where
+2>     app = map (dashIf sh) (h !! x)
+2>     upd = [(1 + length s, x) | sh && red (h !! x)]
 
 Updating: When an update occurs, the normal-form on the stack is
 written to the heap. The normal-form may contain a unique pointer, but
 the process of writing it to the heap will duplicate it. Hence the
 normal-form on the stack is dashed.
 
-> step (p, h, top:s, (sa,ha):u)
->   | arity top > n = (p, h', top:dashN n s, u)
->   where
->     n = 1 + length s - sa
->     h' = update ha (top:take n s) h
+2> step (p, h, top:s, (sa,ha):u)
+2>   | arity top > n = (p, h', top:dashN n s, u)
+2>   where
+2>     n = 1 + length s - sa
+2>     h' = update ha (top:take n s) h
 
-The rest is the same
+The rest is the same but has to be repeated as function definitions
+have to be continous.
 
-> step (p, h, INT n:x:s, u) = (p, h, x:INT n:s, u)
-> step (p, h, PRI f:x:y:s, u) = (p, h, prim f x y:s, u)
-> step (p, h, CON n j:s, u) = (p, h, FUN 0 (i + j):s,u)
->   where TAB i = s !! n
-> step (p, h, FUN n f:s, u) = (p, h', s', u)
->   where
->     (pop, spine, apps) = p !! f
->     h' = h ++ map (instApp s h) apps
->     s' = instApp s h spine ++ drop pop s
-#endif
+2> step (p, h, INT n:x:s, u) = (p, h, x:INT n:s, u)
+2> step (p, h, PRI f:x:y:s, u) = (p, h, prim f x y:s, u)
+2> step (p, h, CON n j:s, u) = (p, h, FUN 0 (i + j):s,u)
+2>   where TAB i = s !! n
+2> step (p, h, FUN n f:s, u) = (p, h', s', u)
+2>   where
+2>     (pop, spine, apps) = p !! f
+2>     h' = h ++ map (instApp s h) apps
+2>     s' = instApp s h spine ++ drop pop s
 
-#if VERSION >= 2
 If the pointer on top of the stack is possibly-shared, then the
 application is dashed before being copied onto the stack by marking
 each atom it contains as possibly-shared. This has the effect of
 propagating sharing information through an application.
 
-> dashIf sh a = if sh then dash a else a
-
-> dash (PTR sh s) = PTR True s
-> dash a = a
+2-> dashIf sh a = if sh then dash a else a
+2-> dash (PTR sh s) = PTR True s
+2-> dash a = a
 
 If the pointer on top of the stack is unique, the application it
 points to must be non-shared according to Invariant 3. An update is
@@ -384,12 +377,11 @@ only pushed onto the update stack if the pointer is possibly-shared
 and the application is reducible. An application is reducible if it is
 saturated or its first atom is a pointer.
 
-> red :: App -> Bool
-> red (PTR sh i:xs) = True
-> red (x:xs) = arity x <= length xs
+2-> red :: App -> Bool
+2-> red (PTR sh i:xs) = True
+2-> red (x:xs) = arity x <= length xs
 
-> dashN n s = map dash (take n s) ++ drop n s
-#endif
+2-> dashN n s = map dash (take n s) ++ drop n s
 
 It is unnecessary to dash the normal-form that is written to the heap,
 but there is no harm in doing so: the application being updated is
@@ -399,11 +391,9 @@ dashed when it is unwound onto the stack.
 Function Application: When instantiating a function body, shared
 arguments must be dashed as they are fetched from the stack.
 
-#if 2 <= VERSION && VERSION < 4
-> inst s base (ARG sh i) = dashIf sh (s !! i)
-> inst s base (PTR sh p) = PTR sh (base + p)
-> inst s base a = a
-#endif
+2-3> inst s base (ARG sh i) = dashIf sh (s !! i)
+2-3> inst s base (PTR sh p) = PTR sh (base + p)
+2-3> inst s base a = a
 
 Performance: Table 3 shows that, overall, update avoidance offers a
 significant run-time improvement. On average, 88% of all updates are
@@ -412,69 +402,63 @@ avoided due to non-reducible applications, and just under half of them
 are avoided due to non-shared reducible applications. The average
 maximum update-stack usage drops from 406 to 11.
 
-
-#if VERSION == 2
-> tri5 = [ (0, [FUN 1 1, INT 5], [])
->        , (1, [INT 1, PTR False 0, TAB 2, ARG True 0],
->              [[ARG True 0, PRI "(<=)"]])
->        , (2, [ARG True 1, PTR False 0],
->              [[FUN 1 1, PTR False 1, PRI "(+)"],
->               [INT 1, PTR False 2],
->               [ARG True 1, PRI "(-)"]])
->        , (2, [INT 1], []) ]
-#endif
+2> tri5 = [ (0, [FUN 1 1, INT 5], [])
+2>        , (1, [INT 1, PTR False 0, TAB 2, ARG True 0],
+2>              [[ARG True 0, PRI "(<=)"]])
+2>        , (2, [ARG True 1, PTR False 0],
+2>              [[FUN 1 1, PTR False 1, PRI "(+)"],
+2>               [INT 1, PTR False 2],
+2>               [ARG True 1, PRI "(-)"]])
+2>        , (2, [INT 1], []) ]
 
 
 5.2 Infix Primitive Applications
 
 [[Silently changing prim to take primitive integers]]
 
-#if 3 <= VERSION
-> prim :: String -> Int -> Int -> Atom
+3-> prim :: String -> Int -> Int -> Atom
 
 For every binary primitive function p, we introduce a new primitive
 *p, a version of p that expects its arguments flipped.
 
-> prim ('*':p) n m = prim p m n
-> prim "(+)" n m = INT (n+m)
-> prim "(-)" n m = INT (n-m)
-> prim "(<=)" n m = bool (n<=m)
+3-> prim ('*':p) n m = prim p m n
+3-> prim "(+)" n m = INT (n+m)
+3-> prim "(-)" n m = INT (n-m)
+3-> prim "(<=)" n m = bool (n<=m)
 
 Any primitive function p can be flipped.
 
-> flipPrim ('*':p) = p
-> flipPrim p = '*':p
-#endif
+3-> flipPrim ('*':p) = p
+3-> flipPrim p = '*':p
 
 Now we translate binary primitive applications by the rule
 
                             p m n -> m p n             (4)
 
-#if VERSION == 3
-> step (p, h, PTR sh x:s, u) = (p, h, app++s, upd++u)
->   where
->     app = map (dashIf sh) (h !! x)
->     upd = [(1 + length s, x) | sh && red (h !! x)]
-> step (p, h, top:s, (sa,ha):u)
->   | arity top > n = (p, h', top:dashN n s, u)
->   where
->     n = 1 + length s - sa
->     h' = update ha (top:take n s) h
-> step (p, h, CON n j:s, u) = (p, h, FUN 0 (i + j):s,u)
->   where TAB i = s !! n
-> step (p, h, FUN n f:s, u) = (p, h', s', u)
->   where
->     (pop, spine, apps) = p !! f
->     h' = h ++ map (instApp s h) apps
->     s' = instApp s h spine ++ drop pop s
+3> step (p, h, PTR sh x:s, u) = (p, h, app++s, upd++u)
+3>   where
+3>     app = map (dashIf sh) (h !! x)
+3>     upd = [(1 + length s, x) | sh && red (h !! x)]
+3> step (p, h, top:s, (sa,ha):u)
+3>   | arity top > n = (p, h', top:dashN n s, u)
+3>   where
+3>     n = 1 + length s - sa
+3>     h' = update ha (top:take n s) h
+3> step (p, h, CON n j:s, u) = (p, h, FUN 0 (i + j):s,u)
+3>   where TAB i = s !! n
+3> step (p, h, FUN n f:s, u) = (p, h', s', u)
+3>   where
+3>     (pop, spine, apps) = p !! f
+3>     h' = h ++ map (instApp s h) apps
+3>     s' = instApp s h spine ++ drop pop s
 
 In place of the existing reduction rules for primitives and integers,
 we define:
 
-> step (p, h, INT m:PRI f:INT n:s, u) =
->   (p, h, prim f m n:s, u)
-> step (p, h, INT m:PRI f:x:s, u) =
->   (p, h, x:PRI (flipPrim f):INT m:s, u)
+3> step (p, h, INT m:PRI f:INT n:s, u) =
+3>   (p, h, prim f m n:s, u)
+3> step (p, h, INT m:PRI f:x:s, u) =
+3>   (p, h, x:PRI (flipPrim f):INT m:s, u)
 
 
 
@@ -487,16 +471,14 @@ Underlying source
             False -> n + tri (n - 1)
             True -> 1
 
-> tri5 = [ (0, [FUN 1 1, INT 5], [])
->        , (1, [ARG sh 0, PRI "(<=)", INT 1, TAB 2, ARG sh 0], [])
->        , (2, [FUN 1 1, PTR False 0, PRI "(+)", ARG sh 1],
->              [[ARG sh 1, PRI "(-)", INT 1]])
->        , (2, [INT 1], []) ]
->   where sh = True
-#endif
+3> tri5 = [ (0, [FUN 1 1, INT 5], [])
+3>        , (1, [ARG sh 0, PRI "(<=)", INT 1, TAB 2, ARG sh 0], [])
+3>        , (2, [FUN 1 1, PTR False 0, PRI "(+)", ARG sh 1],
+3>              [[ARG sh 1, PRI "(-)", INT 1]])
+3>        , (2, [INT 1], []) ]
+3>   where sh = True
 
 
-#if VERSION == 4
 5.3 Speculative Evaluation of Primitive Redexes
 
 Consider evaluation of the expression tri 5. Application of tri yields
@@ -521,20 +503,20 @@ analysis.
 Register File: To support PRS, we introduce a register file to the
 reduction machine, for storing the results of speculative reductions.
 
-> type RegFile = [Atom]
+4-> type RegFile = [Atom]
 
 The body of a function may refer to these results as required.
 
-> data Atom
->   = FUN Arity Int
->   | ARG Bool Int
->   | PTR Bool Int
->   | CON Arity Int
->   | INT Int
->   | PRI String
->   | TAB Int
->   | REG Bool Int   -- new
->   deriving Show
+4-> data Atom
+4->   = FUN Arity Int
+4->   | ARG Bool Int
+4->   | PTR Bool Int
+4->   | CON Arity Int
+4->   | INT Int
+4->   | PRI String
+4->   | TAB Int
+4->   | REG Bool Int   -- new
+4->   deriving Show
 
 An atom of the form REG b i contains a reference i to a register, and
 a boolean field b that is true exactly if there is more than one
@@ -544,14 +526,14 @@ The instantiation functions inst and instApp are modified to take the
 register file r as an argument, and the following equation is added to
 the definition of inst.
 
-> inst :: Stack -> RegFile -> HeapAddr -> Atom -> Atom
-> inst s r base (REG sh i) = dashIf sh (r !! i)
-> inst s r base (PTR sh p) = PTR sh (base + p)
-> inst s r base (ARG sh i) = dashIf sh (s !! i)
-> inst s r base a = a
+4-> inst :: Stack -> RegFile -> HeapAddr -> Atom -> Atom
+4-> inst s r base (REG sh i) = dashIf sh (r !! i)
+4-> inst s r base (PTR sh p) = PTR sh (base + p)
+4-> inst s r base (ARG sh i) = dashIf sh (s !! i)
+4-> inst s r base a = a
 
-> instApp :: Stack -> RegFile -> Heap -> App -> App
-> instApp s r h = map (inst s r (length h))
+4-> instApp :: Stack -> RegFile -> Heap -> App -> App
+4-> instApp s r h = map (inst s r (length h))
 
 
 Waves: The primitive redexes in a function body are evaluated in a
@@ -565,59 +547,59 @@ turn out at run-time to be a primitive redex. Specifically, it is an
 application of the form [a0 , PRI p, a1 ] where a0 and a1 are INT, ARG
 or REG atoms.
 
-> type Wave = [App]
+4-> type Wave = [App]
 
 Templates are extended to contain a list of waves in which no
 application in a wave depends on the result of an application in the
 same or a later wave.
 
-> type Template = (Arity, App, [App], [Wave])
+4-> type Template = (Arity, App, [App], [Wave])
 
 Given the reduction stack, the heap, and a series of waves, PRS
 produces a possibly-modified heap, and one result for each application
 in each wave.
 
-> prs :: Stack -> Heap -> [Wave] -> (Heap, RegFile)
-> prs s h = foldl (wave s) (h, [])
+4-> prs :: Stack -> Heap -> [Wave] -> (Heap, RegFile)
+4-> prs s h = foldl (wave s) (h, [])
 
-> wave s (h,r) = foldl spec (h,r) . map (instApp s r h)
+4-> wave s (h,r) = foldl spec (h,r) . map (instApp s r h)
 
 If a primitive redex candidate turns out to be a primitive redex at
 run-time, it is reduced, and its result is appended to the register
 file. Otherwise, the candidate application is constructed on the heap,
 and a pointer to this application is appended to the register file.
 
-> spec (h,r) [INT m,PRI p,INT n] = (h, r ++ [prim p m n])
-> spec (h,r) app = (h ++ [app], r ++ [PTR False (length h)])
+4-> spec (h,r) [INT m,PRI p,INT n] = (h, r ++ [prim p m n])
+4-> spec (h,r) app = (h ++ [app], r ++ [PTR False (length h)])
 
 Function Application: Since applications in a function body may refer
 to the results in the PRS register file, PRS is performed before
 instantiation of the body.
 
-> step (p, h, PTR sh x:s, u) = (p, h, app++s, upd++u)
->   where
->     app = map (dashIf sh) (h !! x)
->     upd = [(1 + length s, x) | sh && red (h !! x)]
-> step (p, h, top:s, (sa,ha):u)
->   | arity top > n = (p, h', top:dashN n s, u)
->   where
->     n = 1 + length s - sa
->     h' = update ha (top:take n s) h
-> step (p, h, CON n j:s, u) = (p, h, FUN 0 (i + j):s,u)
->   where TAB i = s !! n
-> step (p, h, INT m:PRI f:INT n:s, u) =
->   (p, h, prim f m n:s, u)
-> step (p, h, INT m:PRI f:x:s, u) =
->   (p, h, x:PRI (flipPrim f):INT m:s, u)
+4-> step (p, h, PTR sh x:s, u) = (p, h, app++s, upd++u)
+4->   where
+4->     app = map (dashIf sh) (h !! x)
+4->     upd = [(1 + length s, x) | sh && red (h !! x)]
+4-> step (p, h, top:s, (sa,ha):u)
+4->   | arity top > n = (p, h', top:dashN n s, u)
+4->   where
+4->     n = 1 + length s - sa
+4->     h' = update ha (top:take n s) h
+4-> step (p, h, CON n j:s, u) = (p, h, FUN 0 (i + j):s,u)
+4->   where TAB i = s !! n
+4-> step (p, h, INT m:PRI f:INT n:s, u) =
+4->   (p, h, prim f m n:s, u)
+4-> step (p, h, INT m:PRI f:x:s, u) =
+4->   (p, h, x:PRI (flipPrim f):INT m:s, u)
 
 The new rule is:
 
-> step (p, h, FUN n f:s, u) = (p, h'', s', u)
->   where
->     (pop, spine, apps, waves) = p !! f
->     (h', r) = prs s h waves
->     s' = instApp s r h' spine ++ drop pop s
->     h'' = h' ++ map (instApp s r h') apps
+4-> step (p, h, FUN n f:s, u) = (p, h'', s', u)
+4->   where
+4->     (pop, spine, apps, waves) = p !! f
+4->     (h', r) = prs s h waves
+4->     s' = instApp s r h' spine ++ drop pop s
+4->     h'' = h' ++ map (instApp s r h') apps
 
 The template splitting technique outlined in Section 4.2 is modified
 to deal with waves of primitive redex candidates. Each wave is split
@@ -651,13 +633,12 @@ We retranslate tri5 again:
             False -> tri (n - 1) + n
             True -> 1
 
-> tri5 = [ (0, [FUN 1 1, INT 5], [], [])
->        , (1, [ARG sh 0, PRI "(<=)", INT 1, TAB 2, ARG sh 0], [], [])
->        , (2, [FUN 1 1, REG unsh 0, PRI "(+)", ARG sh 1],
->              [], [[[ARG sh 1, PRI "(-)", INT 1]]])
->        , (2, [INT 1], [], []) ]
->   where sh = True; unsh = False
-#endif
+4> tri5 = [ (0, [FUN 1 1, INT 5], [], [])
+4>        , (1, [ARG sh 0, PRI "(<=)", INT 1, TAB 2, ARG sh 0], [], [])
+4>        , (2, [FUN 1 1, REG unsh 0, PRI "(+)", ARG sh 1],
+4>              [], [[[ARG sh 1, PRI "(-)", INT 1]]])
+4>        , (2, [INT 1], [], []) ]
+4>   where sh = True; unsh = False
 
 
 
@@ -671,7 +652,7 @@ We retranslate tri5 again:
 
 > evalT :: Int -> State -> IO ()
 > evalT n (p, h, [INT i], u) =
->   putStrLn ("Evaluation Terminated with result "++show i)
+>   putStrLn ("Result: "++show i)
 >
 > evalT n s = do
 >   putStrLn (show n ++ ":")
@@ -690,15 +671,12 @@ We retranslate tri5 again:
 >   showAtom a = case a of
 >      FUN a 0 -> "Fmain"
 >      FUN a i -> "F" ++ show i
-#if VERSION == 1
->      ARG i   -> "a" ++ show i
->      PTR i   -> "#" ++ show i
-#else
->      ARG True  i -> "*a" ++ show i
->      ARG False i -> "a" ++ show i
->      PTR True  i -> "*#" ++ show i
->      PTR False i -> "#" ++ show i
-#endif
+1>      ARG i   -> "a" ++ show i
+1>      PTR i   -> "#" ++ show i
+2->      ARG True  i -> "*a" ++ show i
+2->      ARG False i -> "a" ++ show i
+2->      PTR True  i -> "*#" ++ show i
+2->      PTR False i -> "#" ++ show i
 >      CON  a i-> "CON " ++ show a ++ " " ++ show i
 >      INT i   -> show i
 >      PRI p   -> p
