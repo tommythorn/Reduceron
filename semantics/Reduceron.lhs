@@ -20,7 +20,12 @@ The source uses a style inspired by
 to include multiple versions in a single source.  The Bird marks (> )
 can be prefixed with the versions in which it should be included
 (options being N, N-, -M, or N-M).  Currently only single digit
-version are supported.]]
+version numbers are supported.
+
+I tried to make as few as possible changes to the text, but to
+ultimately enable the use of flite compiled sources, I did conceed the
+change of "PTR" to "VAR" to match the Reduceron implementation (I
+liked PTR better though).]]
 
 
 
@@ -67,7 +72,7 @@ Let-Bound Variables: In each expression graph
   let { x0 = e0 ; . . . ; xn = en } in e
 
 each xi occurring in e, e0 . . . en is translated to an atom
-PTR i.
+VAR i.
 
 Integers, Primitives, and Constructors:  An integer literal n, a
 primitive p, and a constructor Ci are translated to atoms INT n, PRI
@@ -93,11 +98,11 @@ is as follows.
 
 > tri5 :: Prog
 1> tri5 = [ (0, [FUN 1 1, INT 5], [])
-1>        , (1, [INT 1, PTR 0, TAB 2, ARG 0],
+1>        , (1, [INT 1, VAR 0, TAB 2, ARG 0],
 1>              [[ARG 0, PRI "(<=)"]])
-1>        , (2, [ARG 1, PTR 0],
-1>              [[FUN 1 1, PTR 1, PRI "(+)"],
-1>               [INT 1, PTR 2],
+1>        , (2, [ARG 1, VAR 0],
+1>              [[FUN 1 1, VAR 1, PRI "(+)"],
+1>               [INT 1, VAR 2],
 1>               [ARG 1, PRI "(-)"]])
 1>        , (2, [INT 1], []) ]
 
@@ -107,7 +112,7 @@ Figure 2. Syntax of atoms in template code.
 1> data Atom
 1>   = FUN Arity Int
 1>   | ARG Int
-1>   | PTR Int
+1>   | VAR Int
 1>   | CON Arity Int
 1>   | INT Int
 1>   | PRI String
@@ -231,7 +236,7 @@ is complete, the location x on the heap can be updated with the
 result. So we push onto the update stack the heap address x and the
 current size of the reduction stack.
 
-1> step (p, h, PTR x:s, u) = (p, h, h!!x ++ s, upd:u)
+1> step (p, h, VAR x:s, u) = (p, h, h!!x ++ s, upd:u)
 1>   where upd = (1+length s, x)
 
 Updating: Evaluation of an application is known to be complete when an
@@ -283,7 +288,7 @@ into absolute ones.
 -3> instApp s h = map (inst s (length h))
 
 -3> inst :: Stack -> HeapAddr -> Atom -> Atom
-1> inst s base (PTR p) = PTR (base + p)
+1> inst s base (VAR p) = VAR (base + p)
 1> inst s base (ARG i) = s !! i
 1> inst s base a = a
 
@@ -310,7 +315,7 @@ field.
 2-3> data Atom
 2-3>   = FUN Arity Int
 2-3>   | ARG Bool Int   -- changed
-2-3>   | PTR Bool Int   -- changed
+2-3>   | VAR Bool Int   -- changed
 2-3>   | CON Arity Int
 2-3>   | INT Int
 2-3>   | PRI String
@@ -333,7 +338,7 @@ A pointer that is not unique is referred to as possibly-shared.
 
 Unwinding: The reduction rule for unwinding becomes
 
-2> step (p, h, PTR sh x:s, u) = (p, h, app++s, upd++u)
+2> step (p, h, VAR sh x:s, u) = (p, h, app++s, upd++u)
 2>   where
 2>     app = map (dashIf sh) (h !! x)
 2>     upd = [(1 + length s, x) | sh && red (h !! x)]
@@ -368,7 +373,7 @@ each atom it contains as possibly-shared. This has the effect of
 propagating sharing information through an application.
 
 2-> dashIf sh a = if sh then dash a else a
-2-> dash (PTR sh s) = PTR True s
+2-> dash (VAR sh s) = VAR True s
 2-> dash a = a
 
 If the pointer on top of the stack is unique, the application it
@@ -378,7 +383,7 @@ and the application is reducible. An application is reducible if it is
 saturated or its first atom is a pointer.
 
 2-> red :: App -> Bool
-2-> red (PTR sh i:xs) = True
+2-> red (VAR sh i:xs) = True
 2-> red (x:xs) = arity x <= length xs
 
 2-> dashN n s = map dash (take n s) ++ drop n s
@@ -392,7 +397,7 @@ Function Application: When instantiating a function body, shared
 arguments must be dashed as they are fetched from the stack.
 
 2-3> inst s base (ARG sh i) = dashIf sh (s !! i)
-2-3> inst s base (PTR sh p) = PTR sh (base + p)
+2-3> inst s base (VAR sh p) = VAR sh (base + p)
 2-3> inst s base a = a
 
 Performance: Table 3 shows that, overall, update avoidance offers a
@@ -403,11 +408,11 @@ are avoided due to non-shared reducible applications. The average
 maximum update-stack usage drops from 406 to 11.
 
 2> tri5 = [ (0, [FUN 1 1, INT 5], [])
-2>        , (1, [INT 1, PTR False 0, TAB 2, ARG True 0],
+2>        , (1, [INT 1, VAR False 0, TAB 2, ARG True 0],
 2>              [[ARG True 0, PRI "(<=)"]])
-2>        , (2, [ARG True 1, PTR False 0],
-2>              [[FUN 1 1, PTR False 1, PRI "(+)"],
-2>               [INT 1, PTR False 2],
+2>        , (2, [ARG True 1, VAR False 0],
+2>              [[FUN 1 1, VAR False 1, PRI "(+)"],
+2>               [INT 1, VAR False 2],
 2>               [ARG True 1, PRI "(-)"]])
 2>        , (2, [INT 1], []) ]
 
@@ -435,7 +440,7 @@ Now we translate binary primitive applications by the rule
 
                             p m n -> m p n             (4)
 
-3> step (p, h, PTR sh x:s, u) = (p, h, app++s, upd++u)
+3> step (p, h, VAR sh x:s, u) = (p, h, app++s, upd++u)
 3>   where
 3>     app = map (dashIf sh) (h !! x)
 3>     upd = [(1 + length s, x) | sh && red (h !! x)]
@@ -473,7 +478,7 @@ Underlying source
 
 3> tri5 = [ (0, [FUN 1 1, INT 5], [])
 3>        , (1, [ARG sh 0, PRI "(<=)", INT 1, TAB 2, ARG sh 0], [])
-3>        , (2, [FUN 1 1, PTR False 0, PRI "(+)", ARG sh 1],
+3>        , (2, [FUN 1 1, VAR False 0, PRI "(+)", ARG sh 1],
 3>              [[ARG sh 1, PRI "(-)", INT 1]])
 3>        , (2, [INT 1], []) ]
 3>   where sh = True
@@ -510,7 +515,7 @@ The body of a function may refer to these results as required.
 4-> data Atom
 4->   = FUN Arity Int
 4->   | ARG Bool Int
-4->   | PTR Bool Int
+4->   | VAR Bool Int
 4->   | CON Arity Int
 4->   | INT Int
 4->   | PRI String
@@ -528,7 +533,7 @@ the definition of inst.
 
 4-> inst :: Stack -> RegFile -> HeapAddr -> Atom -> Atom
 4-> inst s r base (REG sh i) = dashIf sh (r !! i)
-4-> inst s r base (PTR sh p) = PTR sh (base + p)
+4-> inst s r base (VAR sh p) = VAR sh (base + p)
 4-> inst s r base (ARG sh i) = dashIf sh (s !! i)
 4-> inst s r base a = a
 
@@ -570,13 +575,13 @@ file. Otherwise, the candidate application is constructed on the heap,
 and a pointer to this application is appended to the register file.
 
 4-> spec (h,r) [INT m,PRI p,INT n] = (h, r ++ [prim p m n])
-4-> spec (h,r) app = (h ++ [app], r ++ [PTR False (length h)])
+4-> spec (h,r) app = (h ++ [app], r ++ [VAR False (length h)])
 
 Function Application: Since applications in a function body may refer
 to the results in the PRS register file, PRS is performed before
 instantiation of the body.
 
-4-> step (p, h, PTR sh x:s, u) = (p, h, app++s, upd++u)
+4-> step (p, h, VAR sh x:s, u) = (p, h, app++s, upd++u)
 4->   where
 4->     app = map (dashIf sh) (h !! x)
 4->     upd = [(1 + length s, x) | sh && red (h !! x)]
@@ -672,11 +677,11 @@ We retranslate tri5 again:
 >      FUN a 0 -> "Fmain"
 >      FUN a i -> "F" ++ show i
 1>      ARG i   -> "a" ++ show i
-1>      PTR i   -> "#" ++ show i
+1>      VAR i   -> "#" ++ show i
 2->      ARG True  i -> "*a" ++ show i
 2->      ARG False i -> "a" ++ show i
-2->      PTR True  i -> "*#" ++ show i
-2->      PTR False i -> "#" ++ show i
+2->      VAR True  i -> "*#" ++ show i
+2->      VAR False i -> "#" ++ show i
 >      CON  a i-> "CON " ++ show a ++ " " ++ show i
 >      INT i   -> show i
 >      PRI p   -> p
