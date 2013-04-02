@@ -17,10 +17,10 @@ The source uses a style inspired by
 	Simon Peyton Jones and David Lester
 	Prentice Hall 1992
 
-to include multiple versions in a single source.  The Bird marks (> )
-can be prefixed with the versions in which it should be included
+to include multiple variants in a single source.  The Bird marks (> )
+can be prefixed with the variant(s) in which it should be included
 (options being N, N-, -M, or N-M).  Currently only single digit
-version numbers are supported.
+variant numbers are supported.
 
 I tried to make as few as possible changes to the text, but to
 ultimately enable the use of flite compiled sources, I did conceed the
@@ -166,8 +166,8 @@ There is also an update stack.
 The meaning of a program p is defined by run p where
 
 > run :: Prog -> Int
-> run p = eval initialState
->   where initialState = (p, [], [FUN 0 0], [])
+-4> run p = eval initialState
+-4>   where initialState = (p, [], [FUN 0 0], [])
 
 > eval (p, h, [INT i], u) = i
 > eval s = eval (step s)
@@ -203,10 +203,10 @@ The number of arguments demanded by an atom on top of the reduction
 stack is defined by the arity function.
 
 > arity :: Atom -> Arity
-> arity (FUN n i) = n
-> arity (INT i) = 1
-> arity (CON n i) = n+1
-> arity (PRI p) = 2
+-4> arity (FUN n i) = n
+-4> arity (INT i) = 1
+-4> arity (CON n i) = n+1
+-4> arity (PRI p) = 2
 
 To reduce an integer, the evaluator demands one argument as shown in
 rewrite rule (2). And to reduce a constructor of arity n, the
@@ -512,16 +512,16 @@ reduction machine, for storing the results of speculative reductions.
 
 The body of a function may refer to these results as required.
 
-4-> data Atom
-4->   = FUN Arity Int
-4->   | ARG Bool Int
-4->   | VAR Bool Int
-4->   | CON Arity Int
-4->   | INT Int
-4->   | PRI String
-4->   | TAB Int
-4->   | REG Bool Int   -- new
-4->   deriving Show
+4> data Atom
+4>   = FUN Arity Int
+4>   | ARG Bool Int
+4>   | VAR Bool Int
+4>   | CON Arity Int
+4>   | INT Int
+4>   | PRI String
+4>   | TAB Int
+4>   | REG Bool Int   -- new
+4>   deriving Show
 
 An atom of the form REG b i contains a reference i to a register, and
 a boolean field b that is true exactly if there is more than one
@@ -537,7 +537,7 @@ the definition of inst.
 4-> inst s r base (ARG sh i) = dashIf sh (s !! i)
 4-> inst s r base a = a
 
-4-> instApp :: Stack -> RegFile -> Heap -> App -> App
+4-> instApp :: Stack -> RegFile -> Heap -> [Atom] -> [Atom]
 4-> instApp s r h = map (inst s r (length h))
 
 
@@ -574,37 +574,37 @@ run-time, it is reduced, and its result is appended to the register
 file. Otherwise, the candidate application is constructed on the heap,
 and a pointer to this application is appended to the register file.
 
-4-> spec (h,r) [INT m,PRI p,INT n] = (h, r ++ [prim p m n])
-4-> spec (h,r) app = (h ++ [app], r ++ [VAR False (length h)])
+4> spec (h,r) [INT m,PRI p,INT n] = (h, r ++ [prim p m n])
+4> spec (h,r) app = (h ++ [app], r ++ [VAR False (length h)])
 
 Function Application: Since applications in a function body may refer
 to the results in the PRS register file, PRS is performed before
 instantiation of the body.
 
-4-> step (p, h, VAR sh x:s, u) = (p, h, app++s, upd++u)
-4->   where
-4->     app = map (dashIf sh) (h !! x)
-4->     upd = [(1 + length s, x) | sh && red (h !! x)]
-4-> step (p, h, top:s, (sa,ha):u)
-4->   | arity top > n = (p, h', top:dashN n s, u)
-4->   where
-4->     n = 1 + length s - sa
-4->     h' = update ha (top:take n s) h
-4-> step (p, h, CON n j:s, u) = (p, h, FUN 0 (i + j):s,u)
-4->   where TAB i = s !! n
-4-> step (p, h, INT m:PRI f:INT n:s, u) =
-4->   (p, h, prim f m n:s, u)
-4-> step (p, h, INT m:PRI f:x:s, u) =
-4->   (p, h, x:PRI (flipPrim f):INT m:s, u)
+4> step (p, h, VAR sh x:s, u) = (p, h, app++s, upd++u)
+4>   where
+4>     app = map (dashIf sh) (h !! x)
+4>     upd = [(1 + length s, x) | sh && red (h !! x)]
+4> step (p, h, top:s, (sa,ha):u)
+4>   | arity top > n = (p, h', top:dashN n s, u)
+4>   where
+4>     n = 1 + length s - sa
+4>     h' = update ha (top:take n s) h
+4> step (p, h, CON n j:s, u) = (p, h, FUN 0 (i + j):s,u)
+4>   where TAB i = s !! n
+4> step (p, h, INT m:PRI f:INT n:s, u) =
+4>   (p, h, prim f m n:s, u)
+4> step (p, h, INT m:PRI f:x:s, u) =
+4>   (p, h, x:PRI (flipPrim f):INT m:s, u)
 
 The new rule is:
 
-4-> step (p, h, FUN n f:s, u) = (p, h'', s', u)
-4->   where
-4->     (pop, spine, apps, waves) = p !! f
-4->     (h', r) = prs s h waves
-4->     s' = instApp s r h' spine ++ drop pop s
-4->     h'' = h' ++ map (instApp s r h') apps
+4> step (p, h, FUN n f:s, u) = (p, h'', s', u)
+4>   where
+4>     (pop, spine, apps, waves) = p !! f
+4>     (h', r) = prs s h waves
+4>     s' = instApp s r h' spine ++ drop pop s
+4>     h'' = h' ++ map (instApp s r h') apps
 
 The template splitting technique outlined in Section 4.2 is modified
 to deal with waves of primitive redex candidates. Each wave is split
@@ -645,6 +645,158 @@ We retranslate tri5 again:
 4>        , (2, [INT 1], [], []) ]
 4>   where sh = True; unsh = False
 
+[[End of Reduceron Reconfigured]]
+
+While the variant 4 Reduceron is conceptually what has built, it's
+different enough that we cannot execute the output of Flite.
+
+Using the Tri.hs example again
+
+{main = tri 5;
+ tri n = case  (<=) n 1 of {
+          False -> (+) tri ((-) n 1) n;
+          True -> 1;};}
+
+the default output from Flite is
+
+$ ../fl -r Tri.hs
+("main",0,[],[FUN True 1 1,INT 5],[])
+("tri",1,[2],[ARG True 0,PRI 2 "(<=)",INT 1,ARG True 0],[])
+
+("tri#1",1,[],[FUN True 1 1,PRI 2 "(+)",VAR False 0,ARG True 0],
+              [APP False [ARG True 0,PRI 2 "(-)",INT 1]])
+("tri#2",1,[],[INT 1],[])
+
+With maxed out parameters
+
+$ ../fl -r99:99:99:99:99 Tri.hs
+("main",0,[],[FUN True 1 1,INT 5],[])
+("tri",1,[2],[ARG True 0,PRI 2 "(<=)",INT 1,ARG True 0],[])
+
+("tri#1",0,[],[FUN False 0 4],[PRIM 0 [ARG True 0,PRI 2 "(-)",INT 1]])
+("tri#2",1,[],[INT 1],[])
+("tri#1",1,[],[FUN True 1 1,PRI 2 "(+)",REG False 0,ARG True 0],[])
+
+The data type differences from the trivial to the significant are:
+
+-1. PTR got renamed to VAR (but we already took care of that).
+
+0. Templates include the function name
+
+1. PRI are redundantly annotated with arity (although currently the
+   implementation only supports binary primitives).
+
+2. FUN Atoms are annotated with whether they are 'original' flag on
+   funtions; if true, function was originally defined, and if false,
+   function was introduced in Reduceron compilation process.
+
+   Long application are broken into parts, only the last of which is
+   considered original.  Note, what *actually* matters here is that
+   non-"original" functions may refer back to allocations performed by
+   the preceeding functions in the chain, thus constraining the
+   garbage collection.  For this reason, the FUN introduced by the CON
+   step will be marked "original".
+
+3. Template Apps now take a normal-form boolean - while redundant,
+   avoid calculating this, helps cycle-time (presumedly).
+
+4. The TAB Atom is gone - this is now part of the LUT list and the
+   CASE App.
+
+5. The Template is quite changed - the waves aren't separated, but now
+   appears as PRIM apps intermingled with applications and the case
+   table is given as a separate lookup-table list.
+
+NB: There is both a CASE LUT and a LUT list in the template.  The LUT
+list is for the spine and the CASE is for suspended applications.
+
+Rather than making all these changes in one big step, we'll proceed in
+incremental steps (preliminary plan):
+
+- Variant 5 with changes -1, 0, 1, 2, and 3.
+
+
+Variant 5:
+
+New Atom definition:
+
+5-> type Orig = Bool
+5-> data Atom
+5->   = FUN Orig Arity Int        -- Original = no back referencing VARs
+5->   | ARG Bool Int
+5->   | VAR Bool Int              -- Renamed from VAR
+5->   | CON Arity Int
+5->   | INT Int
+5->   | PRI Arity String          -- The arity is now included
+5->   | TAB Int
+5->   | REG Bool Int
+5->   deriving Show
+
+The App gained a WHNF summary boolean, we'll use App5 for this
+
+5-> data App5 = APP { whnf :: Bool, appSpine :: App } deriving Show
+
+The program template added a name
+
+5-> type Wave5 = [App5]
+5-> type Template5 = (String, Arity, App, [App5], [Wave5])
+5-> type Prog5 = [Template5]
+5-> fromProg5 :: Prog5 -> Prog
+5-> fromProg5 = map fromTemplate5 where
+5->    fromTemplate5 (name, arity, app, spine, wave) =
+5->       (arity, app, map appSpine spine, map (map appSpine) wave)
+
+5-> arity (FUN o n i) = n
+5-> arity (INT i)     = 1
+5-> arity (CON n i)   = n+1
+5-> arity (PRI n p)   = 2
+
+5-> spec (h,r) [INT m,PRI _ p,INT n] = (h, r ++ [prim p m n])
+5-> spec (h,r) app = (h ++ [app], r ++ [VAR False (length h)]) -- unchanged
+
+The first two step cases as before.
+
+5-> step (p, h, VAR sh x:s, u) = (p, h, app++s, upd++u)
+5->   where
+5->     app = map (dashIf sh) (h !! x)
+5->     upd = [(1 + length s, x) | sh && red (h !! x)]
+5-> step (p, h, top:s, (sa,ha):u)
+5->   | arity top > n = (p, h', top:dashN n s, u)
+5->   where
+5->     n = 1 + length s - sa
+5->     h' = update ha (top:take n s) h
+
+The constructor step changed
+
+5-> step (p, h, CON n j:s, u) = (p, h, FUN True 0 (i + j):s,u) -- See discussion above
+5->   where TAB i = s !! n
+
+Primitives gained an arity
+
+5-> step (p, h, INT m:PRI _ f:INT n:s, u) =
+5->   (p, h, prim f m n:s, u)
+5-> step (p, h, INT m:PRI n f:x:s, u) =
+5->   (p, h, x:PRI n (flipPrim f):INT m:s, u)
+
+And functions gained a boolean
+
+5-> step (p, h, FUN o n f:s, u) = (p, h'', s', u)
+5->   where
+5->     (pop, spine, apps, waves) = p !! f
+5->     (h', r) = prs s h waves
+5->     s' = instApp s r h' spine ++ drop pop s
+5->     h'' = h' ++ map (instApp s r h') apps
+
+5-> run p = eval initialState
+5->   where initialState = (p, [], [FUN True 0 0], [])
+
+5-> tri5 = fromProg5
+5->        [ ("main",  0, [FUN True 1 1, INT 5], [], [])
+5->        , ("tri",   1, [ARG sh 0, PRI 2 "(<=)", INT 1, TAB 2, ARG sh 0], [], [])
+5->        , ("tri#1", 2, [FUN True 1 1, REG unsh 0, PRI 2 "(+)", ARG sh 1],
+5->                       [], [[APP False [ARG sh 1, PRI 2 "(-)", INT 1]]])
+5->        , ("tri#2", 2, [INT 1], [], []) ]
+5->   where sh = True; unsh = False
 
 
 
@@ -653,7 +805,8 @@ We retranslate tri5 again:
 
 > runT :: Prog -> IO ()
 > runT p = evalT 0 initialState
->   where initialState = (p, [], [FUN 0 0], [])
+-4>   where initialState = (p, [], [FUN 0 0], [])
+5->   where initialState = (p, [], [FUN True 0 0], [])
 
 > evalT :: Int -> State -> IO ()
 > evalT n (p, h, [INT i], u) =
@@ -674,17 +827,20 @@ We retranslate tri5 again:
 >   stack = concat (intersperse " " (map showAtom  s))
 >   showAtom :: Atom -> String
 >   showAtom a = case a of
->      FUN a 0 -> "Fmain"
->      FUN a i -> "F" ++ show i
-1>      ARG i   -> "a" ++ show i
-1>      VAR i   -> "#" ++ show i
+-4>      FUN a 0 -> "Fmain"
+-4>      FUN a i -> "F" ++ show i
+5->      FUN _ a 0 -> "Fmain"
+5->      FUN _ a i -> "F" ++ show i
+-1>      ARG i   -> "a" ++ show i
+-1>      VAR i   -> "#" ++ show i
 2->      ARG True  i -> "*a" ++ show i
 2->      ARG False i -> "a" ++ show i
 2->      VAR True  i -> "*#" ++ show i
 2->      VAR False i -> "#" ++ show i
->      CON  a i-> "CON " ++ show a ++ " " ++ show i
+>      CON  a i-> "CON-" ++ show a ++ "-" ++ show i
 >      INT i   -> show i
->      PRI p   -> p
+-4>      PRI p   -> p
+5->      PRI _ p   -> p
 >      TAB i   -> "T" ++ show i
 
 > main2 = putStrLn (show (run tri5))
