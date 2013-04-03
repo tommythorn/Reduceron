@@ -39,7 +39,7 @@ prefixed with a '>' symbol.
 
 In template code, a program is defined to be a list of templates.
 
--5> type Prog = [Template]
+> type Prog = [Template]
 
 A template represents a function definition. It contains an arity, a
 spine application and a list of nested applications.
@@ -51,7 +51,7 @@ The spine application holds the let-body of a definition's expression
 graph and the nested applications hold the let-bindings. Applications
 are flat and are represented as a list of atoms.
 
-> type App = [Atom]
+-5> type App = [Atom]
 
 An atom is a small, tagged piece of non-recursive data, defined in
 Figure 2. The following paragraphs define how programs are translated
@@ -140,7 +140,7 @@ transition function
 where the state is a 4-tuple comprising a program, a heap, a reduction
 stack, and an update stack.
 
-> type State = (Prog, Heap, Stack, UStack)
+-5> type State = (Prog, Heap, Stack, UStack)
 
 The heap is modelled as a list of applications, and can be indexed by a heap-address.
 
@@ -169,8 +169,8 @@ The meaning of a program p is defined by run p where
 -4> run p = eval initialState
 -4>   where initialState = (p, [], [FUN 0 0], [])
 
-> eval (p, h, [INT i], u) = i
-> eval s = eval (step s)
+-5> eval (p, h, [INT i], u) = i
+-5> eval s = eval (step s)
 
 The initial state of the evaluator comprises a program, an empty heap,
 a singleton stack containing a call to main, and an empty update
@@ -382,9 +382,9 @@ only pushed onto the update stack if the pointer is possibly-shared
 and the application is reducible. An application is reducible if it is
 saturated or its first atom is a pointer.
 
-2-> red :: App -> Bool
-2-> red (VAR sh i:xs) = True
-2-> red (x:xs) = arity x <= length xs
+2-5> red :: App -> Bool
+2-5> red (VAR sh i:xs) = True
+2-5> red (x:xs) = arity x <= length xs
 
 2-> dashN n s = map dash (take n s) ++ drop n s
 
@@ -537,8 +537,8 @@ the definition of inst.
 4-> inst s r base (ARG sh i) = dashIf sh (s !! i)
 4-> inst s r base a = a
 
-4-> instApp :: Stack -> RegFile -> Heap -> [Atom] -> [Atom]
-4-> instApp s r h = map (inst s r (length h))
+4-5> instApp :: Stack -> RegFile -> Heap -> [Atom] -> [Atom]
+4-5> instApp s r h = map (inst s r (length h))
 
 
 Waves: The primitive redexes in a function body are evaluated in a
@@ -558,16 +558,16 @@ Templates are extended to contain a list of waves in which no
 application in a wave depends on the result of an application in the
 same or a later wave.
 
-4-> type Template = (Arity, App, [App], [Wave])
+4-5> type Template = (Arity, App, [App], [Wave])
 
 Given the reduction stack, the heap, and a series of waves, PRS
 produces a possibly-modified heap, and one result for each application
 in each wave.
 
-4-> prs :: Stack -> Heap -> [Wave] -> (Heap, RegFile)
-4-> prs s h = foldl (wave s) (h, [])
+4-5> prs :: Stack -> Heap -> [Wave] -> (Heap, RegFile)
+4-5> prs s h = foldl (wave s) (h, [])
 
-4-> wave s (h,r) = foldl spec (h,r) . map (instApp s r h)
+4-5> wave s (h,r) = foldl spec (h,r) . map (instApp s r h)
 
 If a primitive redex candidate turns out to be a primitive redex at
 run-time, it is reduced, and its result is appended to the register
@@ -698,12 +698,12 @@ The data type differences from the trivial to the significant are:
    step will be marked "original".
 
 3. Template Apps now take a normal-form boolean - while redundant,
-   avoid calculating this, helps cycle-time (presumedly).
+   having this immediately available can improve cycle-time.
 
 4. The TAB Atom is gone - this is now part of the LUT list and the
    CASE App.
 
-5. The Template is quite changed - the waves aren't separated, but now
+5. The Template is quite changed - the waves aren't separated but now
    appears as PRIM apps intermingled with applications and the case
    table is given as a separate lookup-table list.
 
@@ -728,75 +728,192 @@ New Atom definition:
 5->   | CON Arity Int
 5->   | INT Int
 5->   | PRI Arity String          -- The arity is now included
-5->   | TAB Int
+5>   | TAB Int
 5->   | REG Bool Int
-5->   deriving Show
+5->   deriving (Show, Read)
 
 The App gained a WHNF summary boolean, we'll use App5 for this
 
-5-> data App5 = APP { whnf :: Bool, appSpine :: App } deriving Show
+5> data App5 = APP { whnf :: Bool, appSpine :: App } deriving Show
 
 The program template added a name
 
-5-> type Wave5 = [App5]
-5-> type Template5 = (String, Arity, App, [App5], [Wave5])
-5-> type Prog5 = [Template5]
-5-> fromProg5 :: Prog5 -> Prog
-5-> fromProg5 = map fromTemplate5 where
-5->    fromTemplate5 (name, arity, app, spine, wave) =
-5->       (arity, app, map appSpine spine, map (map appSpine) wave)
+5> type Wave5 = [App5]
+5> type Template5 = (String, Arity, App, [App5], [Wave5])
+5> type Prog5 = [Template5]
+5> fromProg5 :: Prog5 -> Prog
+5> fromProg5 = map fromTemplate5 where
+5>    fromTemplate5 (name, arity, app, spine, wave) =
+5>       (arity, app, map appSpine spine, map (map appSpine) wave)
 
 5-> arity (FUN o n i) = n
 5-> arity (INT i)     = 1
 5-> arity (CON n i)   = n+1
 5-> arity (PRI n p)   = 2
 
-5-> spec (h,r) [INT m,PRI _ p,INT n] = (h, r ++ [prim p m n])
-5-> spec (h,r) app = (h ++ [app], r ++ [VAR False (length h)]) -- unchanged
+5> spec (h,r) [INT m,PRI _ p,INT n] = (h, r ++ [prim p m n])
+5> spec (h,r) app = (h ++ [app], r ++ [VAR False (length h)]) -- unchanged
 
 The first two step cases as before.
 
-5-> step (p, h, VAR sh x:s, u) = (p, h, app++s, upd++u)
-5->   where
-5->     app = map (dashIf sh) (h !! x)
-5->     upd = [(1 + length s, x) | sh && red (h !! x)]
-5-> step (p, h, top:s, (sa,ha):u)
-5->   | arity top > n = (p, h', top:dashN n s, u)
-5->   where
-5->     n = 1 + length s - sa
-5->     h' = update ha (top:take n s) h
+5> step (p, h, VAR sh x:s, u) = (p, h, app++s, upd++u)
+5>   where
+5>     app = map (dashIf sh) (h !! x)
+5>     upd = [(1 + length s, x) | sh && red (h !! x)]
+5> step (p, h, top:s, (sa,ha):u)
+5>   | arity top > n = (p, h', top:dashN n s, u)
+5>   where
+5>     n = 1 + length s - sa
+5>     h' = update ha (top:take n s) h
 
 The constructor step changed
 
-5-> step (p, h, CON n j:s, u) = (p, h, FUN True 0 (i + j):s,u) -- See discussion above
-5->   where TAB i = s !! n
+5> step (p, h, CON n j:s, u) = (p, h, FUN True 0 (i + j):s,u) -- See discussion above
+5>   where TAB i = s !! n
 
 Primitives gained an arity
 
-5-> step (p, h, INT m:PRI _ f:INT n:s, u) =
-5->   (p, h, prim f m n:s, u)
-5-> step (p, h, INT m:PRI n f:x:s, u) =
-5->   (p, h, x:PRI n (flipPrim f):INT m:s, u)
+5> step (p, h, INT m:PRI _ f:INT n:s, u) =
+5>   (p, h, prim f m n:s, u)
+5> step (p, h, INT m:PRI n f:x:s, u) =
+5>   (p, h, x:PRI n (flipPrim f):INT m:s, u)
 
 And functions gained a boolean
 
-5-> step (p, h, FUN o n f:s, u) = (p, h'', s', u)
-5->   where
-5->     (pop, spine, apps, waves) = p !! f
-5->     (h', r) = prs s h waves
-5->     s' = instApp s r h' spine ++ drop pop s
-5->     h'' = h' ++ map (instApp s r h') apps
+5> step (p, h, FUN o n f:s, u) = (p, h'', s', u)
+5>   where
+5>     (pop, spine, apps, waves) = p !! f
+5>     (h', r) = prs s h waves
+5>     s' = instApp s r h' spine ++ drop pop s
+5>     h'' = h' ++ map (instApp s r h') apps
 
-5-> run p = eval initialState
-5->   where initialState = (p, [], [FUN True 0 0], [])
+5> run p = eval initialState
+5>   where initialState = (p, [], [FUN True 0 0], [])
 
-5-> tri5 = fromProg5
-5->        [ ("main",  0, [FUN True 1 1, INT 5], [], [])
-5->        , ("tri",   1, [ARG sh 0, PRI 2 "(<=)", INT 1, TAB 2, ARG sh 0], [], [])
-5->        , ("tri#1", 2, [FUN True 1 1, REG unsh 0, PRI 2 "(+)", ARG sh 1],
-5->                       [], [[APP False [ARG sh 1, PRI 2 "(-)", INT 1]]])
-5->        , ("tri#2", 2, [INT 1], [], []) ]
-5->   where sh = True; unsh = False
+5> tri5 = fromProg5
+5>        [ ("main",  0, [FUN True 1 1, INT 5], [], [])
+5>        , ("tri",   1, [ARG sh 0, PRI 2 "(<=)", INT 1, TAB 2, ARG sh 0], [], [])
+5>        , ("tri#1", 2, [FUN True 1 1, REG unsh 0, PRI 2 "(+)", ARG sh 1],
+5>                       [], [[APP False [ARG sh 1, PRI 2 "(-)", INT 1]]])
+5>        , ("tri#2", 2, [INT 1], [], []) ]
+5>   where sh = True; unsh = False
+
+
+
+Variant 6: we can finally accept full Flite programs.
+
+Alas, much of the elegance of Variant 4 will go, but conceptually it's
+still the same.
+
+The Template is quite changed - the waves aren't separated, but now
+appears as PRIM apps intermingled with applications.
+
+6-> type RegId = Int
+6-> type Normal = Bool
+6-> type Spine = [Atom]
+6-> data App
+6->  = APP Normal Spine
+6->  | CASE CaseTable Spine
+6->  | PRIM RegId Spine
+6->  deriving (Show, Read)
+
+and dropping the waves.
+
+6-> type Template = (String, Arity, [CaseTable], Spine, [App])
+
+The case table stack in the state as is the Register file.  This is
+necessary to fully handle split functions which can refer back to
+results calculated earlier.
+
+6-> type CaseTable = Int
+6-> type State = (Prog, Heap, Stack, RegFile, UStack, [CaseTable])
+
+The TAB Atom is no longer part of the Atom but the case table is
+exacted as part of applying a function, in parallel.
+
+Most function have to be trivially adjusted to account for the new
+types:
+
+6-> step (p, h, VAR sh x:s, r, u, c) = (p, h, app++s, r, upd++u, t++c)
+6->   where
+6->     (app,t) = dashAppIf sh (h !! x)
+6->     upd = [(1 + length s, x) | sh && red (h !! x)]
+6-> step (p, h, top:s, r, (sa,ha):u, c)
+6->   | arity top > n = (p, h', top:dashN n s, r, u, c)
+6->   where
+6->     n = 1 + length s - sa
+6->     app = top : take n s
+6->     h' = update ha (mkAPP app) h
+6-> step (p, h, CON n j:s, r, u, i:c) = (p, h, FUN False 0 (i + j):s, r, u, c)
+6-> step (p, h, INT m:PRI 2 f:INT n:s, r, u, c) =
+6->   (p, h, prim f m n:s, r, u, c)
+6-> step (p, h, INT m:PRI 2 f:x:s, r, u, c) =
+6->   (p, h, x:PRI 2 (flipPrim f):INT m:s, r, u, c)
+6-> step (p, h, FUN orig n f:s, r, u, c) = (p, h'', s', r, u, lut ++ c)
+6->   where
+6->     (name, pop, lut, spine, appsWaves) = p !! f
+6->     (apps, prsApps) = partition isApp appsWaves
+6->     (h', r') = prs s r h prsApps -- XXX Fun True should start with empty RF
+6->     s' = instSpine s r' h' spine ++ drop pop s
+6->     h'' = h' ++ map (instApp s r h') apps
+
+6-> prs :: Stack -> RegFile -> Heap -> Wave -> (Heap, RegFile)
+6-> prs s r h [] = (h,r)
+6-> prs s r h (PRIM regid spine : rest) = (h'', r'')
+6->   where
+6->     (h', r') = spec h r regid (instSpine s r h spine)
+6->     (h'', r'') = prs s r' h' rest
+
+6-> spec h r regid [INT m,PRI a p,INT n] = (h, updateRF regid (prim p m n) r)
+6-> spec h r regid app = (h ++ [APP False app], updateRF regid (VAR False (length h)) r)
+
+6-> instApp s r h (APP nf app) = APP nf (map (inst s r (length h)) app)
+6-> instApp s r h (CASE lut app) = CASE lut (map (inst s r (length h)) app)
+
+6-> instSpine :: Stack -> RegFile -> Heap -> Spine -> Spine
+6-> instSpine s r h = map (inst s r (length h))
+
+6-> dashAppIf :: Bool -> App -> (Spine, [CaseTable])
+6-> dashAppIf False (APP nf app) = (app, [])
+6-> dashAppIf True  (APP nf app) = (map dash app, [])
+6-> dashAppIf False (CASE lut app) = (app, [lut])
+6-> dashAppIf True  (CASE lut app) = (map dash app, [lut])
+
+6-> mkAPP spine = APP (isNormal spine) spine
+
+6-> isNormal (CON n c:rest) = length rest <= n
+6-> isNormal (FUN b n f:rest) = length rest < n
+6-> isNormal _ = False
+
+6-> isApp (PRIM regid app) = False
+6-> isApp _                = True
+
+6-> red :: App -> Bool
+6-> red (APP nf as) = not nf
+
+6-> updateRF :: Int -> a -> [a] -> [a]
+6-> updateRF i a as = take i as ++ [a] ++ drop (i+1) as
+
+
+6-> eval (p, h, [INT i], u, _, _) = i
+6-> eval s = eval (step s)
+
+6-> run p = eval initialState
+6->   where initialState = (p, [], [FUN True 0 0], [], [], [])
+
+6-> tri5 = [ ("main",  0, [],  [FUN True 1 1, INT 5], [])
+6->        , ("tri",   1, [2], [ARG True 0, PRI 2 "(<=)", INT 1, ARG True 0], [])
+6->        , ("tri#1", 1, [],  [FUN True 1 1, REG False 0, PRI 2 "(+)", ARG True 0],
+6->                            [PRIM 0 [ARG True 0, PRI 2 "(-)", INT 1]])
+6->        , ("tri#2", 1, [],  [INT 1], []) ]
+
+The Atom definition is as before except the TAB is not included and is
+instead now in the template:
+
+
+
+
+
 
 
 
@@ -806,10 +923,12 @@ And functions gained a boolean
 > runT :: Prog -> IO ()
 > runT p = evalT 0 initialState
 -4>   where initialState = (p, [], [FUN 0 0], [])
-5->   where initialState = (p, [], [FUN True 0 0], [])
+5>    where initialState = (p, [], [FUN True 0 0], [])
+6->   where initialState = (p, [], [FUN True 0 0], [], [], [])
 
 > evalT :: Int -> State -> IO ()
-> evalT n (p, h, [INT i], u) =
+-5> evalT n (p, h, [INT i], u) =
+6-> evalT n (p, h, [INT i], u, _, _) =
 >   putStrLn ("Result: "++show i)
 >
 > evalT n s = do
@@ -818,10 +937,13 @@ And functions gained a boolean
 >   evalT (n+1) (step s)
 
 > showState :: State -> IO ()
-> showState (p, h, s, u) = do
+-5> showState (p, h, s, u) = do
+6-> showState (p, h, s, u, r, c) = do
 >   putStrLn ("Heap  :" ++ show h)
 >   putStrLn ("Stack :" ++ stack)
 >   putStrLn ("UStack:" ++ show u)
+6->   putStrLn ("RegFil:" ++ show r)
+6->   putStrLn ("CaseTa:" ++ show c)
 >   putStrLn ""
 >   where
 >   stack = concat (intersperse " " (map showAtom  s))
@@ -831,17 +953,17 @@ And functions gained a boolean
 -4>      FUN a i -> "F" ++ show i
 5->      FUN _ a 0 -> "Fmain"
 5->      FUN _ a i -> "F" ++ show i
--1>      ARG i   -> "a" ++ show i
--1>      VAR i   -> "#" ++ show i
+-1>      ARG i -> "a" ++ show i
+-1>      VAR i -> "#" ++ show i
 2->      ARG True  i -> "*a" ++ show i
 2->      ARG False i -> "a" ++ show i
 2->      VAR True  i -> "*#" ++ show i
 2->      VAR False i -> "#" ++ show i
->      CON  a i-> "CON-" ++ show a ++ "-" ++ show i
->      INT i   -> show i
--4>      PRI p   -> p
-5->      PRI _ p   -> p
->      TAB i   -> "T" ++ show i
+>      CON a i-> "CON-" ++ show a ++ "-" ++ show i
+>      INT i -> show i
+-4>      PRI p -> p
+5->      PRI _ p -> p
+-5>      TAB i -> "T" ++ show i
 
 > main2 = putStrLn (show (run tri5))
 > main = runT tri5
