@@ -7,6 +7,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <stdbool.h>
 
 /* Compile-time options */
@@ -111,7 +112,7 @@ Atom dash(Bool sh, Atom a)
         return a;
 }
 
-App dashApp(App* app)
+void dashApp(App* app)
 {
   Int i;
   for (i = 0; i < getAppSize(*app); i++)
@@ -188,8 +189,6 @@ void update(Atom top, Int saddr, Int haddr)
   Int len = sp - saddr;
   Int p = sp-2;
 
-  Int i, j;
-
   for (;;) {
     if (len < APSIZE) {
         if (len <= 0) {
@@ -235,8 +234,8 @@ Atom prim(Prim p, Atom a, Atom b)
     case EQ: result = n == m ? trueAtom : falseAtom; break;
     case NEQ: result = n != m ? trueAtom : falseAtom; break;
     case LEQ: result = n <= m ? trueAtom : falseAtom; break;
-    case EMIT: printf("%c", n); result = b; break;
-    case EMITINT: printf("%i", n); result = b; break;
+    case EMIT: printf("%c", n); fflush(stdout); result = b; break;
+    case EMITINT: printf("%i", n); fflush(stdout); result = b; break;
     default: assert(0); return mkINT(0);
   }
   return result;
@@ -630,7 +629,6 @@ makeListParser(parseAtoms, parseAtom, Atom)
 
 Bool parseApp(App *app)
 {
-  Int i;
   Char str[16];
   Bool success;
   Atom atoms[APSIZE];

@@ -1,4 +1,4 @@
-CFLAGS=-O2 -g
+CFLAGS=-O2 -g -Wall
 #TEST=Parts.red
 #TEST=Cichelli.red
 #TEST=KnuthBendix.red

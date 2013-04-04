@@ -20,8 +20,8 @@
 
 #define MAXHEAPAPPS    8192
 #define MAXSTACKELEMS  1024
-#define MAXUSTACKELEMS   64
-#define MAXLSTACKELEMS  512
+#define MAXUSTACKELEMS 1024
+#define MAXLSTACKELEMS 1024
 #define MAXTEMPLATES   1024
 
 #define NAMELEN 128
@@ -292,10 +292,10 @@ Atom prim(Prim p, Atom a, Atom b, Atom c)
     case EQ: result = n == m ? trueAtom : falseAtom; break;
     case NEQ: result = n != m ? trueAtom : falseAtom; break;
     case LEQ: result = n <= m ? trueAtom : falseAtom; break;
-    case EMIT: printf("%c", n); result = b; break;
-    case EMITINT: printf("%i", n); result = b; break;
+    case EMIT: printf("%c", n); fflush(stdout); result = b; break;
+    case EMITINT: printf("%i", n); fflush(stdout); result = b; break;
     case AND: result.tag = NUM; result.contents.num = TRUNCATE(n&m); break;
-    case IOW: printf("[[%d <- %d]]", n, m); result = c; break;
+    case IOW: printf("[[%d <- %d]]", n, m); fflush(stdout); result = c; break;
     case SEQ: assert(0);
   }
   return result;

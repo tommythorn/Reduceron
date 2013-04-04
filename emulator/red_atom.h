@@ -241,12 +241,6 @@ static inline Atom   getAppAtom(App app, int i) {
     return a;}
 
 
-static Bool atomEq(Atom a, Atom b) {
-    if (isINT(a) && isINT(b))
-        return a == b;
-    else
-        return setHT(a, 0) == setHT(b, 0);}
-
 static inline App    mkApp(AppTag tag, Int size, bool nf, Int info, Atom *atom) {
     App app;
     int i;
