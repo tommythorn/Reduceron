@@ -1,0 +1,34 @@
+{
+main = sum (take 10 (primes (enumFrom 2)));
+
+take n [] = [];
+take n (Cons x xs) = if (==) n 0 then [] else Cons x (take (n-1) xs);
+
+sum l = sumAccum l 0;
+sumAccum [] acc = acc;
+sumAccum (Cons x xs) acc = sumAccum xs (x + acc);
+
+sieve d l = mergeDiff l (myEnumFromThen d d) ;
+
+primes (Cons x xs) = Cons x (sieve x (primes xs)) ;
+
+mergeDiff xl yl =
+  case xl of {
+    Nil -> Nil ;
+    Cons x xs ->
+      case yl of {
+        Nil -> Nil ;
+        Cons y ys ->
+          if (<=) x y then
+            if (==) x y then
+               mergeDiff xs ys
+             else
+               Cons x (mergeDiff xs yl)
+          else
+            mergeDiff xl ys;
+        };
+    };
+
+enumFrom n = Cons n (enumFrom ((+) n 1));
+myEnumFromThen x y = Cons x (myEnumFromThen ((+) x y) y);
+};
