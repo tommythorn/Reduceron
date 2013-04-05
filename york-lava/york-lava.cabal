@@ -10,7 +10,7 @@ Description:
   can be simulated in Hugs or GHC, and converted to VHDL compatible with
   XST, the Xilinx Synthesis Tool.  It is similar to Chalmers
   Lava, but omits some features and offers a few new ones.
-  See the top-level module "Lava" for pointers to futher information.
+  See the top-level module "Lava" for pointers to further information.
 Category:            Hardware
 Build-Depends:       base < 5, haskell98, containers
 Build-Type:          Simple
