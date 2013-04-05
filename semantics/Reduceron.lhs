@@ -817,11 +817,9 @@ appears as PRIM apps intermingled with applications.
 6->  | PRIM RegId Spine
 6->  deriving (Show, Read)
 
-and dropping the waves.
-
 6-> type Template = (String, Arity, [CaseTable], Spine, [App])
 
-The case table stack in the state as is the Register file.  This is
+The case table stack is in the state as is the Register file.  This is
 necessary to fully handle split functions which can refer back to
 results calculated earlier.
 
@@ -838,31 +836,32 @@ types:
 6->   where
 6->     (app,t) = dashAppIf sh (h !! x)
 6->     upd = [(1 + length s, x) | sh && red (h !! x)]
+
 6-> step (p, h, top:s, r, (sa,ha):u, c)
 6->   | arity top > n = (p, h', top:dashN n s, r, u, c)
 6->   where
 6->     n = 1 + length s - sa
 6->     app = top : take n s
 6->     h' = update ha (mkAPP app) h
+
 6-> step (p, h, CON n j:s, r, u, i:c) = (p, h, FUN False 0 (i + j):s, r, u, c)
+
 6-> step (p, h, INT m:PRI 2 f:INT n:s, r, u, c) =
 6->   (p, h, prim f m n:s, r, u, c)
+
 6-> step (p, h, INT m:PRI 2 f:x:s, r, u, c) =
 6->   (p, h, x:PRI 2 (flipPrim f):INT m:s, r, u, c)
-6-> step (p, h, FUN orig n f:s, r, u, c) = (p, h'', s', r, u, lut ++ c)
-6->   where
-6->     (name, pop, lut, spine, appsWaves) = p !! f
-6->     (apps, prsApps) = partition isApp appsWaves
-6->     (h', r') = prs s r h prsApps -- XXX Fun True should start with empty RF
-6->     s' = instSpine s r' h' spine ++ drop pop s
-6->     h'' = h' ++ map (instApp s r h') apps
 
-6-> prs :: Stack -> RegFile -> Heap -> Wave -> (Heap, RegFile)
-6-> prs s r h [] = (h,r)
-6-> prs s r h (PRIM regid spine : rest) = (h'', r'')
-6->   where
-6->     (h', r') = spec h r regid (instSpine s r h spine)
-6->     (h'', r'') = prs s r' h' rest
+6-> step (p, h, FUN orig n f:s, r, u, c) = (p, h'', s', r, u, lut ++ c) where
+6->   (name, pop, lut, spine, appsWaves) = p !! f
+6->   (apps, prsApps) = partition isApp appsWaves
+6->   (h', r') = prs s (h, r) prsApps -- XXX Fun True should start with empty RF
+6->   s' = instSpine s r' h' spine ++ drop pop s
+6->   h'' = h' ++ map (instApp s r h') apps
+
+6-> prs :: Stack -> (Heap, RegFile) -> Wave -> (Heap, RegFile)
+6-> prs s = foldr prs1 where
+6->   prs1 (PRIM regid spine) (h,r) = spec h r regid (instSpine s r h spine)
 
 6-> spec h r regid [INT m,PRI a p,INT n] = (h, updateRF regid (prim p m n) r)
 6-> spec h r regid app = (h ++ [APP False app], updateRF regid (VAR False (length h)) r)
@@ -907,8 +906,6 @@ types:
 6->                            [PRIM 0 [ARG True 0, PRI 2 "(-)", INT 1]])
 6->        , ("tri#2", 1, [],  [INT 1], []) ]
 
-The Atom definition is as before except the TAB is not included and is
-instead now in the template:
 
 
 
@@ -951,8 +948,9 @@ instead now in the template:
 >   showAtom a = case a of
 -4>      FUN a 0 -> "Fmain"
 -4>      FUN a i -> "F" ++ show i
-5->      FUN _ a 0 -> "Fmain"
-5->      FUN _ a i -> "F" ++ show i
+5>      FUN _ a 0 -> "Fmain"
+5>      FUN _ a i -> "F" ++ show i
+6->      FUN _ a i -> case p !! i of (name, _, _, _, _) -> name
 -1>      ARG i -> "a" ++ show i
 -1>      VAR i -> "#" ++ show i
 2->      ARG True  i -> "*a" ++ show i
