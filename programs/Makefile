@@ -9,6 +9,7 @@ WORKLOADS=And Example SmallFib Fib Parts KnuthBendix CountDown Adjoxo \
 
 EMU=../emulator/emu
 FLITE=../flite/dist/build/flite/flite
+FLITE_OPTS=-r6:4:2:1:8 -i1 -s
 RED=../fpga/Red
 
 regress: regress-emu \
@@ -41,7 +42,7 @@ regress-flite-sim: $(patsubst %,%.flite-sim-checked,$(WORKLOADS))
 regress-flite-comp: $(patsubst %,%.flite-comp-checked,$(WORKLOADS))
 
 %.flite-comp-checked: %.hs $(EMU) $(FLITE)
-	$(FLITE) -r6:4:2:1:8 -i1 $< | $(EMU) | diff -u $(patsubst %.hs,gold/run/%.out,$<) - && touch $@
+	$(FLITE) $(FLITE_OPTS) $< | $(EMU) | diff -u $(patsubst %.hs,gold/run/%.out,$<) - && touch $@
 
 regress-red-sim:
 	echo Not implemented, as simulation in York Lava very quickly runs out of memory.
