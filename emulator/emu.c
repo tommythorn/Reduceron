@@ -26,6 +26,8 @@
 
 #define NAMELEN 128
 
+//#define ONEBITGC_STUDY1  1
+
 /* Simulate the limited integer range (anything less than 18 and
  * CountDown breaks, anything less than 22 and While breaks). */
 #define ATOMWIDTH 22
@@ -128,6 +130,11 @@ Long swapCount, primCount, applyCount, unwindCount,
 
 Int maxHeapUsage, maxStackUsage, maxUStackUsage, maxLStackUsage;
 
+#if ONEBITGC_STUDY1
+Long sumCollected, sumOneBitCollected;
+double sumGc1bitpart = 0.0;
+#endif
+
 typedef struct
   {
     Bool seen;
@@ -200,6 +207,11 @@ void unwind(Bool sh, Int addr)
   if (sh && !nf(&app)) {
     Update u; u.saddr = sp-1; u.haddr = addr;
     ustack[usp++] = u;
+#if ONEBITGC_STUDY1
+    // Corrupt the app
+    memset(&heap[addr], 0xFF, sizeof heap[addr]);
+    ++sumOneBitCollected;
+#endif
   }
   dashApp(sh, &app);
   if (app.tag == CASE) lstack[lsp++] = app.details.lut;
@@ -492,6 +504,24 @@ void collect()
   copy();
   updateUStack();
   tmp = heap; heap = heap2; heap2 = tmp;
+
+#ifdef ONEBITGC_STUDY1
+  double gcPercent     = 100.0 * (hp - gcHigh) / hp;
+  double gcPercent1bit = 100.0 * sumOneBitCollected / hp;
+  double gc1bitpart    = gcPercent1bit / gcPercent;
+
+  if (0)
+  fprintf(stderr,
+          "GC #%4d: collected %4d apps out of %4d (%5.1f%%) "
+          "OBRC %4lld (%5.1f%%), thus %5.1f%% of the garbage\n",
+          gcCount, hp - gcHigh, hp, gcPercent,
+          sumOneBitCollected, gcPercent1bit,
+          100.0 * gc1bitpart);
+
+  sumOneBitCollected = 0;
+  sumGc1bitpart += gc1bitpart;
+#endif
+
   hp = gcHigh;
 
   if (hp > maxHeapUsage) maxHeapUsage = hp;
@@ -793,6 +823,12 @@ int main(int argc, const char **argv)
   else
       printf("%d\n", stack[0].contents.num);
   //displayProfTable();
+#ifdef ONEBITGC_STUDY1
+  if (gcCount)
+      fprintf(stderr,
+              "One bit reference count would have caught %5.1f%% of the garbage\n",
+              100 * sumGc1bitpart / gcCount);
+#endif
 
   return 0;
 }
