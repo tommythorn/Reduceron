@@ -7,7 +7,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <strings.h>
+#include <string.h>
 #include <assert.h>
 
 /* Compile-time options */
@@ -20,8 +20,8 @@
 
 #define MAXHEAPAPPS    8192
 #define MAXSTACKELEMS  1024
-#define MAXUSTACKELEMS 1024
-#define MAXLSTACKELEMS 1024
+#define MAXUSTACKELEMS 512
+#define MAXLSTACKELEMS 512
 #define MAXTEMPLATES   1024
 
 #define NAMELEN 128

@@ -38,7 +38,7 @@ Assumptions:
 
 type HeapAddrN    = S ToSpaceAddrN
 type HeapAddr     = Word HeapAddrN
-type StackAddrN   = N9 -- N9 should be enough
+type StackAddrN   = N10 -- KnuthBendix needs more than 512
 type StackAddr    = Word StackAddrN
 type ArityN       = N3
 type Arity        = Word ArityN
@@ -48,7 +48,7 @@ type ToSpaceAddrN = N13  -- half of heap. HERE IT IS, THE MAIN PARAMETER.
 type ToSpaceAddr  = Word ToSpaceAddrN
 type UStackAddrN  = N9 -- N6 should be enough
 type LStackAddrN  = N9 -- N9 should be enough
-type UpdateN      = N23 -- ew (UStackAddrN + HeapAddrN)
+type UpdateN      = N24 -- ew (UStackAddrN + HeapAddrN)
 
 -- In order to enlargen the integer range without affecting the heap
 -- size we break the previous assumption that pointers and integers

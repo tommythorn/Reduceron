@@ -1,5 +1,5 @@
 
-                    Reduceron for Embedded Systems
+                    Reduceron Expanded
 
 
 WHAT IS REDUCERON?
@@ -41,7 +41,9 @@ The York Reduceron needs the following enhancements to meet our needs:
  3. Support for 32-bit integers - this greatly simplifies interfacing to
     existing IO devices and simplifies various numerical computations.
 
-[[Work is progressing on all four fronts, but we are not there yet.]]
+ 4. Stack, update stack, [and case table stack?] should overflow
+    into/underflow from external, allowing for orders of magnitude
+    larger structures.
 
 
 While Reduceron technically refers to the FPGA implementation, it is
@@ -95,8 +97,7 @@ Plan:
 
   Step 1: Port to Verilog and Altera. DONE!
 
-  Step 2: Shrink to fit mid-sized FPGA kits (eg. DE2-70 and DE2-115).
-          Done (not all examples work currently, see STATUS)
+  Step 2: Shrink to fit mid-sized FPGA kits (eg. DE2-115). DONE!
 
   In some order:
 

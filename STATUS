@@ -9,7 +9,7 @@ Example      00000006  works
 SmallFib     0000000D  works
 Fib          00002AC2  works
 Parts        000015E4  works
-KnuthBendix  0000320F  FAILS This is unexpected
+KnuthBendix  0000320F  works
 CountDown    00000000  works
 Adjoxo       00000044  works
 Cichelli     00000824  works
@@ -25,3 +25,18 @@ PermSort     00000001  works
 SumPuz       00000003  works
 Mate2        000000BD  works
 Mate         000000BD  works
+
+
+The README list:
+
+0. Nothing yet, needs stalling support first
+
+1. In progress
+
+2. In progress, but trivial except for multi-cycle primitives (which
+   may include multiplication)
+
+3. Without 0, most targets would not have have enough block ram for a
+   useful heap.
+
+4. Depends on 0.
