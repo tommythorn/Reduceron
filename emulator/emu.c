@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <unistd.h>
 
 /* Compile-time options */
 
@@ -35,7 +36,7 @@
 
 #define perform(action) (action, 1)
 
-#define error(action) (action, exit(-1), 0)
+#define error(msg ...) (fprintf(stderr,msg), exit(-1), 0)
 
 /* Types */
 
@@ -80,10 +81,11 @@ typedef struct { AtomTag tag; AtomContents contents; } Atom;
 
 typedef Int Lut;
 
-typedef enum { AP, CASE, PRIM, COLLECTED } AppTag;
+typedef enum { AP, CASE, PRIM, COLLECTED, INVALID } AppTag;
 
 typedef struct {
     AppTag tag;
+    Int refcnt; // Used and updated by GC
     union { Bool normalForm; Lut lut; Int regId; } details;
     Int size;
     Atom atoms[APSIZE];
@@ -107,7 +109,7 @@ const Atom falseAtom = {.tag = CON, .contents.con = {0, 0}};
 
 const Atom trueAtom = {.tag = CON, .contents.con = {0, 1}};
 
-const Atom mainAtom = {.tag = FUN, .contents.fun = {0, 0, 0}};
+const Atom mainAtom = {.tag = FUN, .contents.fun = {1, 0, 0}};
 
 /* Globals */
 
@@ -129,6 +131,8 @@ Long swapCount, primCount, applyCount, unwindCount,
      updateCount, selectCount, prsCandidateCount, prsSuccessCount;
 
 Int maxHeapUsage, maxStackUsage, maxUStackUsage, maxLStackUsage;
+
+Bool tracingEnabled = 0;
 
 #if ONEBITGC_STUDY1
 Long sumCollected, sumOneBitCollected;
@@ -173,17 +177,43 @@ void displayProfTable()
   printf("+----------------------------------+------+----------+\n");
 }
 
+#if ONEBITGC_STUDY1
+void collectApp(Int addr)
+{
+    // Corrupt the app
+    memset(&heap[addr], 0xEE, sizeof heap[addr]);
+    heap[addr].tag = INVALID;
+    ++sumOneBitCollected;
+}
+#endif
+
+
+static void refcntcheck(Atom a)
+{
+    if (0)
+        // XXX Disabled as it fires, there is a bug somewhere
+        assert(!(a.tag == VAR && !a.contents.var.shared &&
+                 heap[a.contents.var.id].refcnt > 1));
+}
+
 /* Dashing */
 
 Atom dash(Bool sh, Atom a)
 {
   if (a.tag == VAR) a.contents.var.shared = a.contents.var.shared || sh;
+
+  refcntcheck(a);
+
   return a;
 }
 
 void dashApp(Bool sh, App* app)
 {
   Int i;
+
+  if (app->tag >= INVALID)
+      error("dashApp(): invalid tag.\n");
+
   for (i = 0; i < app->size; i++)
     app->atoms[i] = dash(sh, app->atoms[i]);
 }
@@ -204,15 +234,18 @@ void pushAtoms(Int size, Atom* atoms)
 void unwind(Bool sh, Int addr)
 {
   App app = heap[addr];
+
+  if (app.tag >= INVALID)
+      error("unwind(): invalid tag.\n");
+
   if (sh && !nf(&app)) {
     Update u; u.saddr = sp-1; u.haddr = addr;
     ustack[usp++] = u;
-#if ONEBITGC_STUDY1
-    // Corrupt the app
-    memset(&heap[addr], 0xFF, sizeof heap[addr]);
-    ++sumOneBitCollected;
-#endif
   }
+#if ONEBITGC_STUDY1
+  if (!sh)
+    collectApp(addr);
+#endif
   dashApp(sh, &app);
   if (app.tag == CASE) lstack[lsp++] = app.details.lut;
   sp--;
@@ -228,7 +261,7 @@ static inline Int arity(Atom a)
     case CON: return a.contents.con.arity+1;
     case PRI: return a.contents.pri.arity;
     case FUN: return a.contents.fun.arity;
-    default: error(printf("arity(): invalid tag\n"));
+    default: error("arity(): invalid tag\n");
   }
 }
 
@@ -359,6 +392,8 @@ Atom inst(Int base, Int argPtr, Atom a)
 {
   if (a.tag == VAR) {
     a.contents.var.id = base + a.contents.var.id;
+
+    refcntcheck(a);
   }
   else if (a.tag == ARG) {
     a = dash(a.contents.arg.shared, stack[argPtr-a.contents.arg.index]);
@@ -366,6 +401,7 @@ Atom inst(Int base, Int argPtr, Atom a)
   else if (a.tag == REG) {
     a = dash(a.contents.reg.shared, registers[a.contents.reg.index]);
   }
+
   return a;
 }
 
@@ -382,6 +418,9 @@ void instApp(Int base, Int argPtr, App *app)
   Atom a, b;
   App* new = &heap[hp];
   Int rid;
+
+  if (app->tag >= INVALID)
+      error("instApp(): invalid tag.\n");
 
   if (app->tag == PRIM) {
     prsCandidateCount++;
@@ -442,6 +481,9 @@ void apply(Template* t)
 
 Bool isSimple(App *app)
 {
+    if (app->tag >= INVALID)
+      error("dashApp(): invalid tag.\n");
+
   return (app->size == 1 && app->tag != CASE &&
            (app->atoms[0].tag == NUM || app->atoms[0].tag == CON));
 }
@@ -451,6 +493,13 @@ Atom copyChild(Atom child)
   App app;
   if (child.tag == VAR) {
     app = heap[child.contents.var.id];
+
+    if (app.tag >= INVALID)
+      error("copyChild(): invalid tag.\n");
+
+    if (app.tag == COLLECTED)
+        ++heap2[app.atoms[0].contents.var.id].refcnt;
+
     if (app.tag == COLLECTED || isSimple(&app)) {
       return app.atoms[0];
     }
@@ -460,7 +509,9 @@ Atom copyChild(Atom child)
       heap[addr].tag = COLLECTED;
       heap[addr].size = 1;
       heap[addr].atoms[0] = child;
-      heap2[gcHigh++] = app;
+      heap2[gcHigh] = app;
+      heap2[gcHigh++].refcnt = 1;
+
       return child;
     }
   }
@@ -473,6 +524,10 @@ void copy()
   App app;
   while (gcLow < gcHigh) {
     app = heap2[gcLow];
+
+    if (app.tag >= INVALID)
+      error("copy(): invalid tag.\n");
+
     for (i = 0; i < app.size; i++)
       app.atoms[i] = copyChild(app.atoms[i]);
     heap2[gcLow++] = app;
@@ -485,6 +540,10 @@ void updateUStack()
   App app;
   for (i = 0, j = 0; i < usp; i++) {
     app = heap[ustack[i].haddr];
+
+    if (app.tag >= INVALID)
+      error("updateUStack(): invalid tag.\n");
+
     if (app.tag == COLLECTED) {
       ustack[j].saddr = ustack[i].saddr;
       ustack[j].haddr = app.atoms[0].contents.var.id;
@@ -528,6 +587,11 @@ void collect()
   if (hp > MAXHEAPAPPS-200) stackOverflow("heap");
 
   //printf("After GC: %i\n", hp);
+
+  for (i = 0; i < MAXREGS; ++i)
+      refcntcheck(registers[i]);
+  for (i = 0; i < sp; ++i)
+      refcntcheck(stack[i]);
 }
 
 /* Allocate memory */
@@ -561,7 +625,7 @@ void init()
   usp = lsp = hp = 0;
   stack[0] = mainAtom;
   swapCount = primCount = applyCount =
-    unwindCount = updateCount = selectCount = 
+    unwindCount = updateCount = selectCount =
       prsCandidateCount = prsSuccessCount = gcCount = 0;
   initProfTable();
 }
@@ -587,6 +651,54 @@ void integerAddOverflow(int a, int b)
     exit(-1);
 }
 
+void showAtom(Atom a)
+{
+    static const char *primName[] = {
+        "(+)",
+        "(-)",
+        "(==)",
+        "(!=)",
+        "(<=)",
+        "emit",
+        "emitInt",
+        "(!)",
+        "(.&.)",
+        "st32",
+    };
+
+    switch (a.tag) {
+    case NUM: printf(" %d", a.contents.num); break;
+    case ARG: printf(" %sARG_%d", a.contents.arg.shared ? "" : "u", a.contents.arg.index); break;
+    case REG: printf(" %sREG_r%d", a.contents.reg.shared ? "" : "u", a.contents.reg.index); break;
+    case VAR: printf(" h%d%s", a.contents.var.id, a.contents.var.shared ? "" : "{0}"); break;
+    case CON: printf(" CON_%d_%d", a.contents.con.arity, a.contents.con.index); break;
+    case FUN: printf(" %sFUN_%d", a.contents.fun.original ? "o" : "", a.contents.fun.id); break;
+    case PRI: printf(" %s%s", a.contents.pri.swap ? "*" : "",
+                     a.contents.pri.id <= IOW ? primName[a.contents.pri.id] : "?"); break;
+    default: assert(0);
+    }
+}
+
+void showApp(int addr)
+{
+    App app = heap[addr];
+
+    printf(" h%d{%d}:", addr, app.refcnt);
+
+    switch (app.tag) {
+    case AP: printf("[%sAP", app.details.normalForm ? "nf" : ""); break;
+    case CASE: printf("[CASE %d", app.details.lut); break;
+    case PRIM: printf("[PRIM %d", app.details.regId); break;
+        case COLLECTED:printf(" COLLECTED"); return;
+        case INVALID: printf(" INVALID"); return;
+    default: assert(0);
+    }
+
+    for (int i = 0; i < app.size; ++i)
+        showAtom(app.atoms[i]);
+    printf("]");
+}
+
 void dispatch()
 {
   Atom top;
@@ -600,6 +712,28 @@ void dispatch()
     if (usp > MAXUSTACKELEMS-4) stackOverflow("update stack");
     if (lsp > MAXLSTACKELEMS-4) stackOverflow("case stack");
     if (hp > MAXHEAPAPPS-200 && canCollect()) collect();
+
+    /* Trace */
+    static int step = 0;
+
+    if (tracingEnabled) {
+        printf("\nStep %d\n", step++);
+        printf("Heap  :");
+        for (int i = 0; i < hp; ++i) {
+            showApp(i);
+        }
+        printf("\n");
+        printf("Stack :");
+        for (int i = sp - 1; i >= 0; --i)
+            showAtom(stack[i]);
+        printf("\n");
+
+        printf("Regs  :");
+        for (int i = 0; i < MAXREGS; ++i)
+            showAtom(registers[i]);
+        printf("\n");
+    }
+
     top = stack[sp-1];
     if (top.tag == VAR) {
       unwind(top.contents.var.shared, top.contents.var.id);
@@ -615,7 +749,7 @@ void dispatch()
         case FUN: profTable[top.contents.fun.id].callCount++; applyCount++;
                   apply(&code[top.contents.fun.id]); break;
         case CON: selectCount++; caseSelect(top.contents.con.index); break;
-        default: error(printf("dispatch(): invalid tag.\n")); break; 
+        default: error("dispatch(): invalid tag.\n"); break;
       }
     }
   }
@@ -627,7 +761,7 @@ Int strToBool(Char *s)
 {
   if (!strcmp(s, "True")) return 1;
   if (!strcmp(s, "False")) return 0;
-  error(printf("Parse error: boolean expected; got %s\n", s));
+  error("Parse error: boolean expected; got %s\n", s);
 }
 
 void strToPrim(Char *s, Prim *p, Bool *b)
@@ -647,7 +781,7 @@ void strToPrim(Char *s, Prim *p, Bool *b)
   if (!strcmp(s, "(<=)")) { *p = LEQ; return; }
   if (!strcmp(s, "(.&.)")) { *p = AND; return; }
   if (!strcmp(s, "(*<-)")) { *p = IOW; return; }
-  error(printf("Parse error: unknown primitive %s\n", s));
+  error("Parse error: unknown primitive %s\n", s);
 }
 
 Bool parseAtom(Atom* result)
@@ -690,7 +824,7 @@ Bool parseAtom(Atom* result)
     && perform(result->tag = PRI)
     && perform(strToPrim(str, &result->contents.pri.id,
                               &result->contents.pri.swap))
-    ) 
+    )
   );
 }
 
@@ -700,15 +834,15 @@ Bool parseAtom(Atom* result)
       Char c;                                                               \
       Int i = 0;                                                            \
       if (! (scanf(" %c", &c) == 1 && c == '['))                            \
-        error(printf("Parse error: expecting '['\n"));                      \
+        error("Parse error: expecting '['\n");                              \
       for (;;) {                                                            \
         if (i >= n)                                                         \
-          error(printf("Parse error: list contains too many elements\n"));  \
+          error("Parse error: list contains too many elements\n");          \
         if (p(&xs[i])) i++;                                                 \
         if (scanf(" %c", &c) == 1 && (c == ',' || c == ']')) {              \
           if (c == ']') return i;                                           \
         }                                                                   \
-        else error(printf("Parse error\n"));                                \
+        else error("Parse error\n");                                        \
       }                                                                     \
       return 0;                                                             \
     }
@@ -750,7 +884,7 @@ Bool parseString(Int n, Char *str)
   Int i;
   Char c;
   scanf(" \"");
-  
+
   for (i = 0; ; i++) {
     if (i >= n) return 0;
     scanf("%c", &c);
@@ -769,11 +903,11 @@ Bool parseTemplate(Template *t)
   if (parseString(NAMELEN, t->name) == 0) return 0;
   if (scanf(" ,%i,", &t->arity) != 1) return 0;
   t->numLuts = parseLuts(MAXLUTS, t->luts);
-  (scanf(" %c", &c) == 1 && c == ',') || error(printf("Parse error\n"));
+  (scanf(" %c", &c) == 1 && c == ',') || error("Parse error\n");
   t->numPushs = parseAtoms(MAXPUSH, t->pushs);
-  (scanf(" %c", &c) == 1 && c == ',') || error(printf("Parse error\n"));
+  (scanf(" %c", &c) == 1 && c == ',') || error("Parse error\n");
   t->numApps = parseApps(MAXAPS, t->apps);
-  (scanf(" %c", &c) == 1 && c == ')') || error(printf("Parse error\n"));
+  (scanf(" %c", &c) == 1 && c == ')') || error("Parse error\n");
   return 1;
 }
 
@@ -782,7 +916,7 @@ Int parse(Int n, Template *ts)
   Int i = 0;
 
   for (;;) {
-    if (i >= n) error(printf("Parse error: too many templates\n"));
+    if (i >= n) error("Parse error: too many templates\n");
     if (!parseTemplate(&ts[i])) return i;
     i++;
   }
@@ -790,17 +924,37 @@ Int parse(Int n, Template *ts)
 
 /* Main function */
 
-int main(int argc, const char **argv)
+int main(int argc, char *argv[])
 {
   Long ticks;
+  int ch;
+  Bool verbose = 0;
+  Bool profiling = 0;
+
+  while ((ch = getopt(argc, argv, "vtp")) != -1) {
+      switch (ch) {
+      case 'v':
+          verbose = 1;
+          break;
+      case 't':
+          tracingEnabled = 1;
+          break;
+      case 'p':
+          profiling = 1;
+          break;
+      default:
+          error("only options v, t and p supported\n");
+          break;
+      }
+  }
 
   alloc();
   numTemplates = parse(MAXTEMPLATES, code);
-  if (numTemplates <= 0) error(printf("No templates were parsed!\n"));
+  if (numTemplates <= 0) error("No templates were parsed!\n");
   init();
   dispatch();
 
-  if (argc == 2 && strcmp(argv[1], "-v") == 0) {
+  if (verbose) {
       printf("\n==== EXECUTION REPORT ====\n");
       printf("Result      = %12i\n", stack[0].contents.num);
       ticks = swapCount + primCount + applyCount +
@@ -822,7 +976,10 @@ int main(int argc, const char **argv)
   }
   else
       printf("%d\n", stack[0].contents.num);
-  //displayProfTable();
+
+  if (profiling)
+      displayProfTable();
+
 #ifdef ONEBITGC_STUDY1
   if (gcCount)
       fprintf(stderr,
