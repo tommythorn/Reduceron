@@ -12,19 +12,9 @@ import Text.ParserCombinators.Parsec hiding (many, option, (<|>))
 import Text.ParserCombinators.Parsec.Expr
 import Text.ParserCombinators.Parsec.Language
 import qualified Text.ParserCombinators.Parsec.Token as T
+import Text.ParserCombinators.Parsec.Language (haskellDef)
 
-flite = T.makeTokenParser fliteStyle
-
-fliteStyle = emptyDef
-    { commentLine       = "--"
-    , nestedComments    = False
-    , identStart        = letter <|> oneOf "_"
-    , identLetter       = alphaNum <|> oneOf "_'"
-    , opStart           = opLetter fliteStyle
-    , opLetter          = oneOf ":!#$%&*+./<=>?@\\^|-~"
-    , reservedNames     = ["_", "case", "of", "let", "in", "if", "then", "else", "data", "type"]
-    , caseSensitive     = True
-    }
+flite = T.makeTokenParser haskellDef
 
 identifier = T.identifier flite
 reservedOp = T.reservedOp flite
@@ -37,19 +27,11 @@ symbol = T.symbol flite
 operator = T.operator flite
 charLiteral = T.charLiteral flite
 stringLiteral = T.stringLiteral flite
-
-{-
-instance Applicative (GenParser s a) where
-    pure  = return
-    (<*>) = ap
-
-instance Alternative (GenParser s a) where
-    empty = mzero
-    (<|>) = mplus
--}
+whiteSpace = T.whiteSpace flite
 
 prog :: Parser Prog
-prog = block defn
+prog = do whiteSpace
+          block defn
 
 block :: Parser a -> Parser [a]
 block p = braces (p `sepEndBy` semi) <?> "block"
