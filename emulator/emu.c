@@ -36,7 +36,7 @@
 
 #define perform(action) (action, 1)
 
-#define error(msg ...) (fprintf(stderr,msg), exit(-1), 0)
+#define error(msg ...) (fprintf(stderr,"At step #%d, ", stepno), fprintf(stderr,msg), assert(0), 0)
 
 /* Types */
 
@@ -133,6 +133,7 @@ Long swapCount, primCount, applyCount, unwindCount,
 Int maxHeapUsage, maxStackUsage, maxUStackUsage, maxLStackUsage;
 
 Bool tracingEnabled = 0;
+int stepno = 0;
 
 #if ONEBITGC_STUDY1
 Long sumCollected, sumOneBitCollected;
@@ -187,13 +188,17 @@ void collectApp(Int addr)
 }
 #endif
 
+void showAtom(Atom);
 
 static void refcntcheck(Atom a)
 {
-    if (0)
-        // XXX Disabled as it fires, there is a bug somewhere
-        assert(!(a.tag == VAR && !a.contents.var.shared &&
-                 heap[a.contents.var.id].refcnt > 1));
+    if (a.tag == VAR && !a.contents.var.shared &&
+        heap[a.contents.var.id].refcnt > 1) {
+        fprintf(stderr, "Uniqueness violation: ");
+        showAtom(a);
+        fprintf(stderr, "\n");
+        assert(0);
+    }
 }
 
 /* Dashing */
@@ -201,8 +206,6 @@ static void refcntcheck(Atom a)
 Atom dash(Bool sh, Atom a)
 {
   if (a.tag == VAR) a.contents.var.shared = a.contents.var.shared || sh;
-
-  refcntcheck(a);
 
   return a;
 }
@@ -392,8 +395,6 @@ Atom inst(Int base, Int argPtr, Atom a)
 {
   if (a.tag == VAR) {
     a.contents.var.id = base + a.contents.var.id;
-
-    refcntcheck(a);
   }
   else if (a.tag == ARG) {
     a = dash(a.contents.arg.shared, stack[argPtr-a.contents.arg.index]);
@@ -517,10 +518,9 @@ Atom copyChild(Atom child)
       heap[addr].atoms[0] = child;
       heap2[gcHigh] = app;
       heap2[gcHigh++].refcnt = 1;
-
-      return child;
     }
   }
+
   return child;
 }
 
@@ -591,13 +591,6 @@ void collect()
 
   if (hp > maxHeapUsage) maxHeapUsage = hp;
   if (hp > MAXHEAPAPPS-200) stackOverflow("heap");
-
-  //printf("After GC: %i\n", hp);
-
-  for (i = 0; i < MAXREGS; ++i)
-      refcntcheck(registers[i]);
-  for (i = 0; i < sp; ++i)
-      refcntcheck(stack[i]);
 }
 
 /* Allocate memory */
@@ -657,29 +650,50 @@ void integerAddOverflow(int a, int b)
     exit(-1);
 }
 
+/* Succint printing of Atoms and Apps:
+   - C2___ for CON 2, arity 3
+   - F3__ for FUN 3, arity 2
+
+   - a5 for ARG 5, a5{1} for unique (= unshared)
+   - r7 for regs, r7{1} for unique (= unshared)
+ */
+
+/* returns a string of as many _ as n (for n <= 16) */
+char *arityStr(int n)
+{
+    return "________________" + 16 - n;
+}
+
+/* Use . postfix for unique pointers */
+char *shareStr(int sh)
+{
+    return sh ? "" : ".";
+}
+
 void showAtom(Atom a)
 {
     static const char *primName[] = {
-        "(+)",
-        "(-)",
-        "(==)",
-        "(!=)",
-        "(<=)",
+        "+",
+        "-",
+        "==",
+        "!=",
+        "<=",
         "emit",
         "emitInt",
-        "(!)",
-        "(.&.)",
+        "!",
+        ".&.",
         "st32",
     };
 
     switch (a.tag) {
-    case NUM: printf(" %d", a.contents.num); break;
-    case ARG: printf(" %sARG_%d", a.contents.arg.shared ? "" : "u", a.contents.arg.index); break;
-    case REG: printf(" %sREG_r%d", a.contents.reg.shared ? "" : "u", a.contents.reg.index); break;
-    case VAR: printf(" h%d%s", a.contents.var.id, a.contents.var.shared ? "" : "{0}"); break;
-    case CON: printf(" CON_%d_%d", a.contents.con.arity, a.contents.con.index); break;
-    case FUN: printf(" %sFUN_%d", a.contents.fun.original ? "o" : "", a.contents.fun.id); break;
-    case PRI: printf(" %s%s", a.contents.pri.swap ? "*" : "",
+    case NUM: printf("%d", a.contents.num); break;
+    case ARG: printf("a%d%s", a.contents.arg.index, shareStr(a.contents.arg.shared)); break;
+    case REG: printf("r%d%s", a.contents.reg.index, shareStr(a.contents.reg.shared)); break;
+    case VAR: printf("h%d%s", a.contents.var.id,    shareStr(a.contents.var.shared)); break;
+    case CON: printf("C%d%s", a.contents.con.index, arityStr(a.contents.con.arity)); break;
+    case FUN: printf("F%d%s%s", a.contents.fun.id,  arityStr(a.contents.fun.arity),
+                     a.contents.fun.original ? "" : ".."); break;
+    case PRI: printf("%s%s", a.contents.pri.swap ? "*:" : "",
                      a.contents.pri.id <= IOW ? primName[a.contents.pri.id] : "?"); break;
     default: assert(0);
     }
@@ -689,20 +703,24 @@ void showApp(int addr)
 {
     App app = heap[addr];
 
-    printf(" h%d{%d}:", addr, app.refcnt);
+    //printf("h%d{%d}:", addr, app.refcnt);
+    printf("h%d:", addr);
 
     switch (app.tag) {
-    case AP: printf("[%sAP", app.details.normalForm ? "nf" : ""); break;
-    case CASE: printf("[CASE %d", app.details.lut); break;
-    case PRIM: printf("[PRIM %d", app.details.regId); break;
-        case COLLECTED:printf(" COLLECTED"); return;
-        case INVALID: printf(" INVALID"); return;
+    case AP: printf("("); break;
+    case CASE: printf("(CASE F%d ", app.details.lut); break;
+    case PRIM: printf("(r%d=", app.details.regId); break;
+    case COLLECTED:printf("COLLECTED"); return;
+    case INVALID: printf("INVALID"); return;
     default: assert(0);
     }
 
-    for (int i = 0; i < app.size; ++i)
+    for (int i = 0; i < app.size; ++i) {
+        if (i)
+            putchar(' ');
         showAtom(app.atoms[i]);
-    printf("]");
+    }
+    printf(")");
 }
 
 void dispatch()
@@ -720,24 +738,34 @@ void dispatch()
     if (hp > MAXHEAPAPPS-200 && canCollect()) collect();
 
     /* Trace */
-    static int step = 0;
 
     if (tracingEnabled) {
-        printf("\nStep %d\n", step++);
+        printf("\nStep #%d\n", stepno);
         printf("Heap  :");
-        for (int i = 0; i < hp; ++i) {
-            showApp(i);
-        }
+        for (int i = 0; i < hp; ++i)
+            if (heap[i].tag < COLLECTED) {
+                putchar(' ');
+                showApp(i);
+            }
         printf("\n");
         printf("Stack :");
-        for (int i = sp - 1; i >= 0; --i)
+        for (int i = sp - 1; i >= 0; --i) {
+            putchar(' ');
             showAtom(stack[i]);
+        }
         printf("\n");
 
         printf("Regs  :");
-        for (int i = 0; i < MAXREGS; ++i)
+        for (int i = 0; i < MAXREGS; ++i) {
+            putchar(' ');
             showAtom(registers[i]);
+        }
         printf("\n");
+
+        for (int i = 0; i < MAXREGS; ++i)
+            refcntcheck(registers[i]);
+        for (int i = 0; i < sp; ++i)
+            refcntcheck(stack[i]);
     }
 
     top = stack[sp-1];
@@ -758,6 +786,8 @@ void dispatch()
         default: error("dispatch(): invalid tag.\n"); break;
       }
     }
+
+    ++stepno;
   }
 }
 
@@ -989,7 +1019,7 @@ int main(int argc, char *argv[])
 #ifdef ONEBITGC_STUDY1
   if (gcCount)
       fprintf(stderr,
-              "One bit reference count would have caught %5.1f%% of the garbage\n",
+              "One bit reference count could have caught %5.1f%% of the garbage\n",
               100 * sumGc1bitpart / gcCount);
 #endif
 
