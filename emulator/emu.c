@@ -500,8 +500,14 @@ Atom copyChild(Atom child)
     if (app.tag == COLLECTED)
         ++heap2[app.atoms[0].contents.var.id].refcnt;
 
-    if (app.tag == COLLECTED || isSimple(&app)) {
+    if (isSimple(&app))
       return app.atoms[0];
+
+    if (app.tag == COLLECTED) {
+      // return app.atoms[0];
+      // This was a bug, as this would ignore the value
+      // of the childs shared attribute
+      child.contents.var.id = app.atoms[0].contents.var.id;
     }
     else {
       Int addr = child.contents.var.id;
