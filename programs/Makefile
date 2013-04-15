@@ -32,7 +32,7 @@ $(RED):
 regress-emu: $(patsubst %,%.emu-checked,$(WORKLOADS))
 
 %.emu-checked: gold/compiled/%.red $(EMU)
-	$(EMU) < $< | diff -u $(patsubst gold/compiled/%.red,gold/run/%.out,$<) - && touch $@
+	$(EMU) $< | diff -u $(patsubst gold/compiled/%.red,gold/run/%.out,$<) - && touch $@
 
 regress-flite-sim: $(patsubst %,%.flite-sim-checked,$(WORKLOADS))
 

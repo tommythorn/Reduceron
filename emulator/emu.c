@@ -820,43 +820,43 @@ void strToPrim(Char *s, Prim *p, Bool *b)
   error("Parse error: unknown primitive %s\n", s);
 }
 
-Bool parseAtom(Atom* result)
+Bool parseAtom(FILE *f, Atom* result)
 {
   Char str[16];
 
   return (
-    (  scanf(" INT%*[ (]%i)", &result->contents.num) == 1
+    (  fscanf(f, " INT%*[ (]%i)", &result->contents.num) == 1
     && perform(result->contents.num = TRUNCATE(result->contents.num))
     && perform(result->tag = NUM)
     )
     ||
-    (  scanf(" ARG %5s%*[ (]%i)", str, &result->contents.arg.index) == 2
+    (  fscanf(f, " ARG %5s%*[ (]%i)", str, &result->contents.arg.index) == 2
     && perform(result->tag = ARG)
     && perform(result->contents.arg.shared = strToBool(str))
     )
     ||
-    (  scanf(" VAR %5s%*[ (]%i)", str, &result->contents.var.id) == 2
+    (  fscanf(f, " VAR %5s%*[ (]%i)", str, &result->contents.var.id) == 2
     && perform(result->tag = VAR)
     && perform(result->contents.var.shared = strToBool(str))
     )
     ||
-    (  scanf(" REG %5s%*[ (]%i)", str, &result->contents.reg.index) == 2
+    (  fscanf(f, " REG %5s%*[ (]%i)", str, &result->contents.reg.index) == 2
     && perform(result->tag = REG)
     && perform(result->contents.reg.shared = strToBool(str))
     )
     ||
-    (  scanf(" CON%*[ (]%i%*[ )(]%i)",
+    (  fscanf(f, " CON%*[ (]%i%*[ )(]%i)",
          &result->contents.con.arity, &result->contents.con.index) == 2
     && perform(result->tag = CON)
     )
     ||
-    (  scanf(" FUN %5s%*[ (]%i%*[ )(]%i)",
+    (  fscanf(f, " FUN %5s%*[ (]%i%*[ )(]%i)",
          str, &result->contents.fun.arity, &result->contents.fun.id) == 3
     && perform(result->tag = FUN)
     && perform(result->contents.fun.original = strToBool(str))
     )
     ||
-    (  scanf(" PRI%*[ (]%i%*[) ]\"%10[^\"]\"", &result->contents.pri.arity, str)
+    (  fscanf(f, " PRI%*[ (]%i%*[) ]\"%10[^\"]\"", &result->contents.pri.arity, str)
     && perform(result->tag = PRI)
     && perform(strToPrim(str, &result->contents.pri.id,
                               &result->contents.pri.swap))
@@ -864,18 +864,18 @@ Bool parseAtom(Atom* result)
   );
 }
 
-#define makeListParser(f, p, elem)                                          \
-  Int f(Int n, elem *xs)                                                    \
+#define makeListParser(fun, p, elem)                                        \
+  Int fun(FILE *f, Int n, elem *xs)                                         \
     {                                                                       \
       Char c;                                                               \
       Int i = 0;                                                            \
-      if (! (scanf(" %c", &c) == 1 && c == '['))                            \
+      if (! (fscanf(f, " %c", &c) == 1 && c == '['))                        \
         error("Parse error: expecting '['\n");                              \
       for (;;) {                                                            \
         if (i >= n)                                                         \
           error("Parse error: list contains too many elements\n");          \
-        if (p(&xs[i])) i++;                                                 \
-        if (scanf(" %c", &c) == 1 && (c == ',' || c == ']')) {              \
+        if (p(f, &xs[i])) i++;                                              \
+        if (fscanf(f, " %c", &c) == 1 && (c == ',' || c == ']')) {          \
           if (c == ']') return i;                                           \
         }                                                                   \
         else error("Parse error\n");                                        \
@@ -885,45 +885,45 @@ Bool parseAtom(Atom* result)
 
 makeListParser(parseAtoms, parseAtom, Atom)
 
-Bool parseApp(App *app)
+Bool parseApp(FILE *f, App *app)
 {
   Char str[16];
   Bool success =
-    (  scanf(" APP %5s ", str) == 1
+    (  fscanf(f, " APP %5s ", str) == 1
     && perform(app->tag = AP)
     && perform(app->details.normalForm = strToBool(str))
     )
     ||
-    (  scanf(" CASE %i ", &app->details.lut) == 1
+    (  fscanf(f, " CASE %i ", &app->details.lut) == 1
     && perform(app->tag = CASE)
     )
     ||
-    (  scanf(" PRIM %i ", &app->details.regId) == 1
+    (  fscanf(f, " PRIM %i ", &app->details.regId) == 1
     && perform(app->tag = PRIM)
     );
   if (!success) return 0;
-  app->size = parseAtoms(APSIZE, app->atoms);
+  app->size = parseAtoms(f, APSIZE, app->atoms);
   return 1;
 }
 
 makeListParser(parseApps, parseApp, App)
 
-Bool parseLut(Int *i)
+Bool parseLut(FILE *f, Int *i)
 {
-  return (scanf(" %i", i) == 1);
+    return fscanf(f, " %i", i) == 1;
 }
 
 makeListParser(parseLuts, parseLut, Lut)
 
-Bool parseString(Int n, Char *str)
+Bool parseString(FILE *f, Int n, Char *str)
 {
   Int i;
   Char c;
-  scanf(" \"");
+  fscanf(f, " \"");
 
   for (i = 0; ; i++) {
     if (i >= n) return 0;
-    scanf("%c", &c);
+    fscanf(f, "%c", &c);
     if (c == '"') {
       str[i] = '\0';
       return 1;
@@ -932,28 +932,28 @@ Bool parseString(Int n, Char *str)
   }
 }
 
-Bool parseTemplate(Template *t)
+Bool parseTemplate(FILE *f, Template *t)
 {
   Char c;
-  scanf(" (");
-  if (parseString(NAMELEN, t->name) == 0) return 0;
-  if (scanf(" ,%i,", &t->arity) != 1) return 0;
-  t->numLuts = parseLuts(MAXLUTS, t->luts);
-  (scanf(" %c", &c) == 1 && c == ',') || error("Parse error\n");
-  t->numPushs = parseAtoms(MAXPUSH, t->pushs);
-  (scanf(" %c", &c) == 1 && c == ',') || error("Parse error\n");
-  t->numApps = parseApps(MAXAPS, t->apps);
-  (scanf(" %c", &c) == 1 && c == ')') || error("Parse error\n");
+  fscanf(f, " (");
+  if (parseString(f, NAMELEN, t->name) == 0) return 0;
+  if (fscanf(f, " ,%i,", &t->arity) != 1) return 0;
+  t->numLuts = parseLuts(f, MAXLUTS, t->luts);
+  (fscanf(f, " %c", &c) == 1 && c == ',') || error("Parse error\n");
+  t->numPushs = parseAtoms(f, MAXPUSH, t->pushs);
+  (fscanf(f, " %c", &c) == 1 && c == ',') || error("Parse error\n");
+  t->numApps = parseApps(f, MAXAPS, t->apps);
+  (fscanf(f, " %c", &c) == 1 && c == ')') || error("Parse error\n");
   return 1;
 }
 
-Int parse(Int n, Template *ts)
+Int parse(FILE *f, Int n, Template *ts)
 {
   Int i = 0;
 
   for (;;) {
     if (i >= n) error("Parse error: too many templates\n");
-    if (!parseTemplate(&ts[i])) return i;
+    if (!parseTemplate(f, &ts[i])) return i;
     i++;
   }
 }
@@ -984,8 +984,20 @@ int main(int argc, char *argv[])
       }
   }
 
+  argc -= optind;
+  argv += optind;
+
+  if (argc != 1)
+      error("Need .red file (argc = %d)", argc);
+
+  FILE *f = fopen(argv[0], "r");
+  if (!f) {
+      perror(argv[0]);
+      exit(-1);
+  }
+
   alloc();
-  numTemplates = parse(MAXTEMPLATES, code);
+  numTemplates = parse(f, MAXTEMPLATES, code);
   if (numTemplates <= 0) error("No templates were parsed!\n");
   init();
   dispatch();
