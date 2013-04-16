@@ -962,6 +962,7 @@ Int parse(FILE *f, Int n, Template *ts)
 
 int main(int argc, char *argv[])
 {
+  FILE *f;
   Long ticks;
   int ch;
   Bool verbose = 0;
@@ -988,9 +989,13 @@ int main(int argc, char *argv[])
   argv += optind;
 
   if (argc != 1)
-      error("Need .red file (argc = %d)", argc);
+      error("Need .red file or - for stdin");
 
-  FILE *f = fopen(argv[0], "r");
+  if (strcmp(argv[0], "-") == 0)
+      f = stdin;
+  else
+      f = fopen(argv[0], "r");
+
   if (!f) {
       perror(argv[0]);
       exit(-1);

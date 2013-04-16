@@ -42,7 +42,7 @@ regress-flite-sim: $(patsubst %,%.flite-sim-checked,$(WORKLOADS))
 regress-flite-comp: $(patsubst %,%.flite-comp-checked,$(WORKLOADS))
 
 %.flite-comp-checked: %.hs $(EMU) $(FLITE)
-	$(FLITE) $(FLITE_OPTS) $< | $(EMU) | diff -u $(patsubst %.hs,gold/run/%.out,$<) - && touch $@
+	$(FLITE) $(FLITE_OPTS) $< | $(EMU) - | diff -u $(patsubst %.hs,gold/run/%.out,$<) - && touch $@
 
 regress-red-sim:
 	echo Not implemented, as simulation in York Lava very quickly runs out of memory.
