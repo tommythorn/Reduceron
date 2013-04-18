@@ -58,7 +58,7 @@ isUnaryPrim "emitInt" = True
 isUnaryPrim _ = False
 
 isTernaryPrim :: Id -> Bool
-isTernaryPrim "(*<-)"  = True
+isTernaryPrim "st32" = True
 isTernaryPrim ('s':'w':'a':'p':':':f) = isTernaryPrim f
 isTernaryPrim _ = False
 

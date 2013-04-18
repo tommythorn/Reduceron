@@ -62,7 +62,7 @@ typedef struct { Int arity; Int index; } Con;
 
 typedef struct { Bool original; Int arity; Int id; } Fun;
 
-typedef enum { ADD, SUB, EQ, NEQ, LEQ, EMIT, EMITINT, SEQ, AND, IOW } Prim;
+typedef enum { ADD, SUB, EQ, NEQ, LEQ, EMIT, EMITINT, SEQ, AND, ST32, LAST_PRIM } Prim;
 
 typedef struct { Int arity; Bool swap; Prim id; } Pri;
 
@@ -343,8 +343,9 @@ Atom prim(Prim p, Atom a, Atom b, Atom c)
     case EMIT: printf("%c", n); fflush(stdout); result = b; break;
     case EMITINT: printf("%i", n); fflush(stdout); result = b; break;
     case AND: result.tag = NUM; result.contents.num = TRUNCATE(n&m); break;
-    case IOW: printf("[[%d <- %d]]", n, m); fflush(stdout); result = c; break;
+    case ST32: printf("[[st32 (%d)=%d]]", n, m); fflush(stdout); result = c; break;
     case SEQ: assert(0);
+    case LAST_PRIM: assert(0);
   }
   return result;
 }
@@ -694,7 +695,7 @@ void showAtom(Atom a)
     case FUN: printf("F%d%s%s", a.contents.fun.id,  arityStr(a.contents.fun.arity),
                      a.contents.fun.original ? "" : ".."); break;
     case PRI: printf("%s%s", a.contents.pri.swap ? "*:" : "",
-                     a.contents.pri.id <= IOW ? primName[a.contents.pri.id] : "?"); break;
+                     a.contents.pri.id < LAST_PRIM ? primName[a.contents.pri.id] : "?"); break;
     default: assert(0);
     }
 }
@@ -816,7 +817,7 @@ void strToPrim(Char *s, Prim *p, Bool *b)
   if (!strcmp(s, "(/=)")) { *p = NEQ; return; }
   if (!strcmp(s, "(<=)")) { *p = LEQ; return; }
   if (!strcmp(s, "(.&.)")) { *p = AND; return; }
-  if (!strcmp(s, "(*<-)")) { *p = IOW; return; }
+  if (!strcmp(s, "st32")) { *p = ST32; return; }
   error("Parse error: unknown primitive %s\n", s);
 }
 

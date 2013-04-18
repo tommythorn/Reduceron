@@ -37,7 +37,7 @@ block :: Parser a -> Parser [a]
 block p = braces (p `sepEndBy` semi) <?> "block"
 
 primitives = ["(+)", "(-)", "(==)", "(/=)", "(<=)", "emit", "emitInt", "(.&.)",
-              "(*<-)"]
+              "st32"]
 
 -- | Build an application out of an infix operation
 infixApp t x y = App t [x, y]
@@ -156,7 +156,7 @@ partitionDecl = partition isFunc
 parseProgFile :: SourceName -> IO Prog
 parseProgFile f = parseFromFile prog f >>= \result -> case result of
                     Left e  -> error . show $ e
-                    Right p -> return . Prelude.supplyPrelude . fst . partitionDecl  $ p
+                    Right p -> return . Prelude.supplyPrelude . fst . partitionDecl $ p
 
 
 parseProgFileExt :: SourceName -> IO (Prog, Prog)
