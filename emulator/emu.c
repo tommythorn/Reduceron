@@ -27,7 +27,7 @@
 
 #define NAMELEN 128
 
-//#define ONEBITGC_STUDY1  1
+#define ONEBITGC_STUDY1  1
 
 /* Simulate the limited integer range (anything less than 18 and
  * CountDown breaks, anything less than 22 and While breaks). */
@@ -116,6 +116,7 @@ const Atom mainAtom = {.tag = FUN, .contents.fun = {1, 0, 0}};
 App* heap;
 App* heap2;
 Atom* stack;
+Bool* stackUsed;
 Update* ustack;
 Lut* lstack;
 Template* code;
@@ -231,7 +232,10 @@ static inline Bool nf(App* app)
 void pushAtoms(Int size, Atom* atoms)
 {
   Int i;
-  for (i = size-1; i >= 0; i--) stack[sp++] = atoms[i];
+  for (i = size-1; i >= 0; i--) {
+      stackUsed[sp] = 0;
+      stack[sp++] = atoms[i];
+  }
 }
 
 void unwind(Bool sh, Int addr)
@@ -284,6 +288,7 @@ void upd(Atom top, Int sp, Int len, Int hp)
     Atom a = dash(1, stack[j]);
     heap[hp].atoms[i] = a;
     stack[j] = a;
+    stackUsed[j] = 1;
   }
 }
 
@@ -311,6 +316,8 @@ void update(Atom top, Int saddr, Int haddr)
 
 void swap()
 {
+  /* This is actually not used so stackUsed[] isn't updated */
+  assert(0);
   Atom tmp = stack[sp-1];
   stack[sp-1] = stack[sp-2];
   stack[sp-2] = tmp;
@@ -353,6 +360,7 @@ Atom prim(Prim p, Atom a, Atom b, Atom c)
 void applyPrim()
 {
   Pri p = stack[sp-2].contents.pri;
+
   if (p.id == SEQ) {
     stack[sp-2] = stack[sp-3];
     stack[sp-3] = stack[sp-1];
@@ -398,6 +406,7 @@ Atom inst(Int base, Int argPtr, Atom a)
     a.contents.var.id = base + a.contents.var.id;
   }
   else if (a.tag == ARG) {
+    stackUsed[argPtr-a.contents.arg.index] = 1;
     a = dash(a.contents.arg.shared, stack[argPtr-a.contents.arg.index]);
   }
   else if (a.tag == REG) {
@@ -409,7 +418,10 @@ Atom inst(Int base, Int argPtr, Atom a)
 
 Atom getPrimArg(Int argPtr, Atom a)
 {
-  if (a.tag == ARG) return stack[argPtr-a.contents.arg.index];
+  if (a.tag == ARG) {
+        stackUsed[argPtr-a.contents.arg.index] = 1;
+        return stack[argPtr-a.contents.arg.index];
+  }
   else if (a.tag == REG) return registers[a.contents.reg.index];
   else return a;
 }
@@ -457,11 +469,65 @@ void instApp(Int base, Int argPtr, App *app)
   }
 }
 
+/*
+  Slide(p,n) moves the slice starting at p up by n elements, that is
+
+    stack[p-n:sp-1-n] <- stack[p:sp-1]
+    sp <- sp - n;
+
+  This destroys stack[p-n:p-1];
+*/
 void slide(Int p, Int n)
 {
   Int i;
-  for (i = p; i < sp; i++) stack[i-n] = stack[i];
+
+  if (tracingEnabled) {
+      printf("Slide(%d,%d):", p, n);
+      for (i = sp - 1; i >= 0; --i) {
+          putchar(' ');
+          showAtom(stack[i]);
+      }
+      printf(" ->");
+  }
+
+  for (i = 1; i <= n; ++i) {
+      Int j = p - i;
+      if (!stackUsed[j] && stack[j].tag == VAR && !stack[j].contents.var.shared) {
+
+          /* Alas, it could have just been reintroduced */
+          int k;
+          for (k = p; k < sp; k++)
+              if (stack[k].tag == VAR
+                  && stack[k].contents.var.id == stack[j].contents.var.id)
+                  break;
+
+          if (k == sp) {
+              if (tracingEnabled) {
+                  printf("step # %d, slide(%d, %d) found garbage @ %d: ", stepno, p, n, j);
+                  showAtom(stack[j]);
+                  printf("\n");
+              }
+              collectApp(stack[j].contents.var.id);
+              stack[j].tag = NUM;
+              stack[j].contents.num = 999;
+          }
+      }
+  }
+
+  for (i = p; i < sp; i++) {
+      stackUsed[i-n] = stackUsed[i-n];
+      stack[i-n] = stack[i];
+  }
+
   sp -= n;
+
+  if (tracingEnabled) {
+  for (i = sp - 1; i >= 0; --i) {
+      putchar(' ');
+      showAtom(stack[i]);
+  }
+  printf("\n");
+  }
 }
 
 void apply(Template* t)
@@ -473,8 +539,10 @@ void apply(Template* t)
   for (i = t->numLuts-1; i >= 0; i--) lstack[lsp++] = t->luts[i];
   for (i = 0; i < t->numApps; i++)
     instApp(base, spOld-2, &(t->apps[i]));
-  for (i = t->numPushs-1; i >= 0; i--)
+  for (i = t->numPushs-1; i >= 0; i--) {
+    stackUsed[sp] = 0;
     stack[sp++] = inst(base, spOld-2, t->pushs[i]);
+  }
 
   slide(spOld, t->arity+1);
 }
@@ -576,7 +644,7 @@ void collect()
   double gcPercent1bit = 100.0 * sumOneBitCollected / hp;
   double gc1bitpart    = gcPercent1bit / gcPercent;
 
-  if (0)
+  if (tracingEnabled)
   fprintf(stderr,
           "GC #%4d: collected %4d apps out of %4d (%5.1f%%) "
           "OBRC %4lld (%5.1f%%), thus %5.1f%% of the garbage\n",
@@ -601,6 +669,7 @@ void alloc()
   heap = (App*) malloc(sizeof(App) * MAXHEAPAPPS);
   heap2 = (App*) malloc(sizeof(App) * MAXHEAPAPPS);
   stack = (Atom*) malloc(sizeof(Atom) * MAXSTACKELEMS);
+  stackUsed = (Bool*) malloc(sizeof *stackUsed * MAXSTACKELEMS);
   ustack = (Update*) malloc(sizeof(Update) * MAXUSTACKELEMS);
   lstack = (Lut*) malloc(sizeof(Lut) * MAXLSTACKELEMS);
   code = (Template*) malloc(sizeof(Template) * MAXTEMPLATES);
@@ -621,6 +690,8 @@ void initProfTable()
 
 void init()
 {
+  memset(stackUsed, 0, sizeof *stackUsed * MAXSTACKELEMS);
+
   sp = 1;
   usp = lsp = hp = 0;
   stack[0] = mainAtom;
@@ -770,6 +841,7 @@ void dispatch()
     }
 
     top = stack[sp-1];
+    stackUsed[sp-1] = 1;
     if (top.tag == VAR) {
       unwind(top.contents.var.shared, top.contents.var.id);
       unwindCount++;
