@@ -37,7 +37,7 @@ block :: Parser a -> Parser [a]
 block p = braces (p `sepEndBy` semi) <?> "block"
 
 primitives = ["(+)", "(-)", "(==)", "(/=)", "(<=)", "emit", "emitInt", "(.&.)",
-              "st32"]
+              "st32", "ld32"]
 
 -- | Build an application out of an infix operation
 infixApp t x y = App t [x, y]

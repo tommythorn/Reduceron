@@ -49,6 +49,7 @@ isBinaryPrim "(==)" = True
 isBinaryPrim "(/=)" = True
 isBinaryPrim "(<=)" = True
 isBinaryPrim "(.&.)"  = True
+isBinaryPrim "ld32"  = True
 isBinaryPrim _      = False
 
 isUnaryPrim :: Id -> Bool

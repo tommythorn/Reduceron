@@ -62,7 +62,7 @@ typedef struct { Int arity; Int index; } Con;
 
 typedef struct { Bool original; Int arity; Int id; } Fun;
 
-typedef enum { ADD, SUB, EQ, NEQ, LEQ, EMIT, EMITINT, SEQ, AND, ST32, LAST_PRIM } Prim;
+typedef enum { ADD, SUB, EQ, NEQ, LEQ, EMIT, EMITINT, SEQ, AND, ST32, LD32, LAST_PRIM } Prim;
 
 typedef struct { Int arity; Bool swap; Prim id; } Pri;
 
@@ -318,6 +318,24 @@ void swap()
 
 /* Primitive reduction */
 
+Atom prim_ld32(Num addr)
+{
+    /* For now, a quick hack:
+       [0] - serial in (writes are serial out)
+    */
+    Atom res = { .tag = NUM, .contents.num = 666 };
+
+    if (addr == 0)
+        res.contents.num = getchar();
+
+    if (tracingEnabled) {
+        printf("[[ld32 (%d) -> %d]]", addr, res.contents.num);
+        fflush(stdout);
+    }
+
+    return res;
+}
+
 Atom prim(Prim p, Atom a, Atom b, Atom c)
 {
   Atom result;
@@ -344,6 +362,7 @@ Atom prim(Prim p, Atom a, Atom b, Atom c)
     case EMITINT: printf("%i", n); fflush(stdout); result = b; break;
     case AND: result.tag = NUM; result.contents.num = TRUNCATE(n&m); break;
     case ST32: printf("[[st32 (%d)=%d]]", n, m); fflush(stdout); result = c; break;
+    case LD32: result = prim_ld32(n); break;
     case SEQ: assert(0);
     case LAST_PRIM: assert(0);
   }
@@ -684,6 +703,7 @@ void showAtom(Atom a)
         "!",
         ".&.",
         "st32",
+        "ld32",
     };
 
     switch (a.tag) {
@@ -818,6 +838,7 @@ void strToPrim(Char *s, Prim *p, Bool *b)
   if (!strcmp(s, "(<=)")) { *p = LEQ; return; }
   if (!strcmp(s, "(.&.)")) { *p = AND; return; }
   if (!strcmp(s, "st32")) { *p = ST32; return; }
+  if (!strcmp(s, "ld32")) { *p = LD32; return; }
   error("Parse error: unknown primitive %s\n", s);
 }
 
