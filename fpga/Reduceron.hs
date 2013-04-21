@@ -50,8 +50,11 @@ data Reduceron =
   , result     :: Reg AtomN
   , collector  :: Collect
   , ioAddr     :: Sig NumberN
+  , ioWait     :: Sig N1
   , ioWriteData:: Sig NumberN
   , ioWrite    :: Sig N1
+  , ioReadData :: Sig NumberN
+  , ioRead     :: Sig N1
   }
 
 newReduceron :: [Integer] -> New Reduceron
@@ -74,8 +77,11 @@ newReduceron program =
                   (col!collecting!val!vhead)
 
      ioAddr      <- newSig
+     ioWait      <- newSig
      ioWrite     <- newSig
      ioWriteData <- newSig
+     ioRead      <- newSig
+     ioReadData  <- newSig
 
      return $ Reduceron {
                 top        = delay 0 (nt!val)
@@ -92,8 +98,11 @@ newReduceron program =
               , result     = res
               , collector  = col
               , ioAddr     = ioAddr
+              , ioWait     = ioWait
               , ioWrite    = ioWrite
               , ioWriteData= ioWriteData
+              , ioRead     = ioRead
+              , ioReadData = ioReadData
               }
 
 {-
@@ -398,27 +407,27 @@ prim r = isSwapState (r!state) |>
   Seq [
     ready |>
       Seq [ r!newTop <== result
-          , inv iow |> r!vstack!update (-2) 0 []
+          , inv st32 |> r!vstack!update (-2) 0 []
 
           -- Handle IO primitives
-          , iow |> Seq [ r!vstack!update (-3) 0 []
-                       , r!ioWrite     <== 1
-                       , r!ioAddr      <== sw ? (arg2!intValue, arg1!intValue)
-                       , r!ioWriteData <== sw ? (arg1!intValue, arg2!intValue) ]
+          , st32 |> Seq [ r!vstack!update (-3) 0 []
+                        , r!ioWrite     <== 1
+                        , r!ioAddr      <== sw ? (arg2!intValue, arg1!intValue)
+                        , r!ioWriteData <== sw ? (arg1!intValue, arg2!intValue) ]
           ]
   , inv ready |>
       Seq [ r!newTop <== arg2, r!vstack!update 0 3 [pr!invSwapBit, arg1] ]
   ]
   where
     pr = r!vstack!OS.tops `vat` n0
-    iow = isIOW pr
+    st32 = isST32 pr
     sw = pr!getSwapBit
     arg1 = r!top
     arg2 = r!vstack!OS.tops `vat` n1
     ready = arg2!isINT
     result0 = alu pr (arg1!intValue) (arg2!intValue)
     result1 = alu pr (arg2!intValue) (arg1!intValue)
-    result = iow ? (r!vstack!OS.tops `vat` n2, sw ? (result1, result0))
+    result = st32 ? (r!vstack!OS.tops `vat` n2, sw ? (result1, result0))
 
 alu f a b =
   pickG

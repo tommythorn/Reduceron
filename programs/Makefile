@@ -25,6 +25,7 @@ $(EMU): ../emulator/emu.c
 $(FLITE):
 	$(MAKE) -C ../flite
 
+.PHONY: $(RED)
 $(RED):
 	$(MAKE) -C ../fpga
 

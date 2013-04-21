@@ -21,7 +21,8 @@ encodeAtom (PRI n s)
   | s' == "(/=)" = B.primNEQ swap
   | s' == "(<=)" = B.primLEQ swap
   | s' == "(.&.)" = B.primAND swap
-  | s' == "(*<-)" = B.primIOW swap
+  | s' == "st32" = B.primST32 swap
+  | s' == "ld32" = B.primLD32 swap
   | otherwise   = error $ "Encode.encodeAtom: primitive '" ++ s ++ "' "
                        ++ "not yet supported on the Reduceron."
   where
