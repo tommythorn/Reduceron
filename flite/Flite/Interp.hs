@@ -125,7 +125,7 @@ prims = let (-->) = (,) in
  , "(<=)" --> logical2 (<=)
  , "(.&.)" --> arith2 (.&.)
  , "st32" --> (Lam $ \a -> Lam $ \d -> Lam $ \k -> forceInt a $ \a' -> forceInt d $ \d' -> St32 a' d' k)
--- potential future: , "ld32" --> arith2 (+) -- The interpreter doesn't really handle ld32
+ , "ld32" --> (Lam $ \a -> Lam $ \d -> forceInt a $ \a' -> forceInt d $ \d' -> N 666)
  , "emit" --> (Lam $ \a -> Lam $ \k -> forceInt a $ \a' -> Emit [toEnum a'] k)
  , "emitInt" --> (Lam $ \a -> Lam $ \k -> forceInt a $ \a' -> Emit (show a') k)
  ]
