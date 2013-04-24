@@ -122,7 +122,7 @@ void dashApp(App* app)
 
 /* Unwinding */
 
-inline Bool nf(App* app)
+static inline Bool nf(App* app)
 {
     return getAppTag(*app) == CASE ? 0 : getAppNF(*app);
 }
@@ -486,7 +486,7 @@ void init()
 
 /* Dispatch loop */
 
-inline Bool canCollect()
+static inline Bool canCollect()
 {
     return !isFUN(stack[sp-1]) || getFUNOriginal(stack[sp-1]);
 }

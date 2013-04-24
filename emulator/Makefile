@@ -1,4 +1,4 @@
-CFLAGS=-O2 -Wall -Werror
+CFLAGS=-std=c99 -O2 -Wall -Werror
 #CFLAGS=-g -Wall -Werror
 #TEST=Parts.red
 #TEST=Cichelli.red

@@ -10,6 +10,7 @@
 #include <string.h>
 #include <assert.h>
 #include <unistd.h>
+#include <getopt.h>
 
 /* Compile-time options */
 
