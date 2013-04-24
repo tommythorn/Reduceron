@@ -52,4 +52,12 @@ module toplevel;
       if (finish)
          $finish;
    end
+
+`ifdef VCD
+   initial
+      begin
+         $dumpfile("top.vcd");
+         $dumpvars(0,toplevel);
+      end
+`endif
 endmodule
