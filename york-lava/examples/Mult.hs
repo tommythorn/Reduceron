@@ -2,7 +2,7 @@ module Mult where
 
 import Lava
 import Recipe
-import Monad
+import Control.Monad
 
 data Mult n = Mult { a, b, result :: Reg n }
 
@@ -30,7 +30,7 @@ example s = s!multiply 5 25
 
 simExample = simRecipe newMult example result
 
-synExample =
+main =
   do let (s, done) = recipe newMult example (delay high low)
      writeVerilog "MultExample"
                   (s!result!val, done)
