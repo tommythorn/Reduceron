@@ -50,11 +50,12 @@ data Reduceron =
   , result     :: Reg AtomN
   , collector  :: Collect
   , ioAddr     :: Sig NumberN
-  , ioWait     :: Sig N1
   , ioWriteData:: Sig NumberN
   , ioWrite    :: Sig N1
-  , ioReadData :: Sig NumberN
   , ioRead     :: Sig N1
+  , ioWait          :: Bit
+  , ioReadDataValid :: Bit
+  , ioReadData      :: Word NumberN
   }
 
 newReduceron :: [Integer] -> New Reduceron
@@ -77,11 +78,9 @@ newReduceron program =
                   (col!collecting!val!vhead)
 
      ioAddr      <- newSig
-     ioWait      <- newSig
      ioWrite     <- newSig
      ioWriteData <- newSig
      ioRead      <- newSig
-     ioReadData  <- newSig
 
      return $ Reduceron {
                 top        = delay 0 (nt!val)
@@ -98,11 +97,12 @@ newReduceron program =
               , result     = res
               , collector  = col
               , ioAddr     = ioAddr
-              , ioWait     = ioWait
               , ioWrite    = ioWrite
               , ioWriteData= ioWriteData
               , ioRead     = ioRead
-              , ioReadData = ioReadData
+              , ioWait          = name "ioWait"
+              , ioReadDataValid = name "ioReadDataValid"
+              , ioReadData      = nameWord "ioReadData"
               }
 
 {-
