@@ -2,8 +2,8 @@ module Stack where
 
 import Lava
 import Recipe
-import Monad
-import List
+import Control.Monad
+import Data.List
 
 data Stack n m =
   Stack {
@@ -80,8 +80,8 @@ example s =
 
 simExample = simRecipe (newStack [7,9,2,3]) example top
 
-synExample =
+main =
   do let (s, done) = recipe (newStack [7,9,2,3]) example (delay high low)
-     writeVerilog "StackExample"
+     writeVerilog "Stack"
                   (s!top, done)
                   (nameWord "result", name "done")
