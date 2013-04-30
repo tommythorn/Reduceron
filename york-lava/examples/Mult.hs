@@ -1,4 +1,4 @@
-module Mult where
+module Mult(Mult(..), newMult, multiply) where
 
 import Lava
 import Recipe

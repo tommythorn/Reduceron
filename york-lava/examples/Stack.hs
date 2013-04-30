@@ -1,4 +1,4 @@
-module Stack where
+module Stack(Stack, newStack, push, pop, top) where
 
 import Lava
 import Recipe

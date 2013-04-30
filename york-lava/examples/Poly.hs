@@ -1,9 +1,9 @@
-module Poly where
+module Main where
 import Lava
 import Recipe
 import Mult
 import Stack
-import Monad
+import Control.Monad
 
 -- A small language for expressing polynomials.
 
@@ -132,3 +132,5 @@ cPoly e x =
      writeC "Poly"
                (s!rtop!val, done)
                (nameWord "result", name "done")
+
+main = synPoly expr 7
