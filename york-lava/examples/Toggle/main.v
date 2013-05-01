@@ -4,11 +4,18 @@ module toplevel;
 
    wire       output1;
    wire       done;
+   reg        ready = 0;
 
-   Toggle Toggle_inst(clock, output1, done);
+   Toggle Toggle_inst(clock, ready, output1, done);
 
    always @(posedge clock)
-      $display("%05d  output %d done %d", $time, output1, done);
+      $display("%05d  ready %d output %d done %d", $time, ready, output1, done);
 
-   initial #100 $finish;
+   initial begin
+      #41 ready = 1;
+      #40 ready = 0;
+      #40 ready = 1;
+
+      #100 $finish;
+   end
 endmodule
