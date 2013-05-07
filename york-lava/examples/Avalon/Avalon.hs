@@ -3,46 +3,80 @@ import Lava
 import Recipe
 import Control.Monad
 
-data WriteMaster =
-  WriteMaster {
-    av_write       :: Sig N1
-  , av_writedata   :: Reg N4
-  , av_address     :: Reg N4
-  , av_waitrequest :: Bit
+data AvalonMaster w =
+  AvalonMaster {
+    av_write         :: Reg N1
+  , av_read          :: Reg N1
+  , av_writedata     :: Reg w
+  , av_address       :: Reg w
+  , av_waitrequest   :: Bit
+  , av_readdatavalid :: Bit
+  , av_readdata      :: Word w
+  , m_readdata       :: Reg w
   }
 
-newWriteMaster :: Bit -> New WriteMaster
-newWriteMaster waitrequest = do
-  write <- newSig
+newAvalonMaster :: N w => Bit -> Bit -> Word w -> New (AvalonMaster w)
+newAvalonMaster waitrequest readdatavalid readdata = do
+  write <- newReg
+  read <- newReg
   writedata <- newReg
   address <- newReg
-  return $ WriteMaster {
+  readdata_var <- newReg
+  return $ AvalonMaster {
              av_write = write
+           , av_read = read
            , av_writedata = writedata
            , av_address = address
            , av_waitrequest = waitrequest
+           , av_readdatavalid = readdatavalid
+           , av_readdata = readdata
+           , m_readdata = readdata_var
            }
 
-writeMaster :: Int -> Int -> WriteMaster -> Recipe
-writeMaster addr value s = Do writeit waitrequest
-  where
-  waitrequest = name "waitrequest"
-  writeit = Seq
-             [ s!av_write <== 1
-             , s!av_address <== fromIntegral addr
-             , s!av_writedata <== fromIntegral value
-             , Tick]
+writeMaster :: N w => Word w -> Word w -> AvalonMaster w -> Recipe
+writeMaster addr value s =
+  Seq [ s!av_write <== 1
+      , s!av_address <== addr
+      , s!av_writedata <== value
+      , Do Tick (s!av_waitrequest)
+      , s!av_write <== 0
+      ]
 
-test :: WriteMaster -> Recipe
-test s = Seq [ writeMaster 1 3 s
-             , writeMaster 2 1 s
-             , writeMaster 3 2 s
+readMaster :: N w => Word w -> AvalonMaster w -> Recipe
+readMaster addr s =
+  Seq [ s!av_read <== 1
+      , s!av_address <== addr
+      , Do Tick (s!av_waitrequest)
+      , s!av_read <== 0
+      , While (inv (s!av_readdatavalid)) Tick
+      , s!m_readdata <== s!av_readdata
+      , Tick
+      ]
+
+test :: N w => AvalonMaster w -> Recipe
+test s = Seq [ writeMaster a1 v1 s
+             , Tick, Tick, Tick
+             , writeMaster a2 v2 s
+             , writeMaster a3 v3 s
+             , readMaster  a2 s
+             , writeMaster a2 (s!m_readdata!val + 1) s
              ]
+  where
+  [a1, a2, a3, v1, v2, v3] = map fromIntegral [1, 2, 3, 3, 1, 2]
+
 main =
-  do let (s, done) = recipe (newWriteMaster (name "waitrequest")) test (delay high low)
+  do let (s, done) = recipe s0 test (delay high low)
      writeVerilog "Avalon"
-                  ( s!av_write!val!vhead
+                  ( s!av_read!val!vhead
+                  , s!av_write!val!vhead
                   , s!av_address!val
                   , s!av_writedata!val
                   , done)
-                  (name "write", nameWord "address", nameWord "writedata", name "done")
+                  (name "read", name "write", nameWord "address", nameWord "writedata",
+                  name "done")
+   where
+   s0 :: New (AvalonMaster N4)
+   s0 = newAvalonMaster waitrequest readdatavalid readdata
+   waitrequest = name "waitrequest"
+   readdata = nameWord "readdata"
+   readdatavalid = name "readdatavalid"
