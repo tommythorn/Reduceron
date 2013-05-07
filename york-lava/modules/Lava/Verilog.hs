@@ -16,6 +16,7 @@ import Lava.Bit
 import Lava.Binary
 import System.Cmd
 import Numeric (showHex)
+import Data.List (nub)
 
 verilogModuleHeader :: String -> Netlist -> String
 verilogModuleHeader name nl =
@@ -25,8 +26,8 @@ verilogModuleHeader name nl =
         [ "  output " ++ v | v <- outs, check v]) ++
   ");\n\n"
   where
-    inps = [ lookupParam (netParams net) "name"
-           | net <- nets nl, netName net == "name"]
+    inps = nub [ lookupParam (netParams net) "name"
+               | net <- nets nl, netName net == "name"]
     outs = map fst (namedOutputs nl)
 
 check name = if name `elem` reserved then
