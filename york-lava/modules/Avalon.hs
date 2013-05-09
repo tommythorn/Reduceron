@@ -1,4 +1,20 @@
-module Main where
+{- |
+
+A library to export a pipeline Altera Avalon bus master with support
+for waitrequest and readdatavalid (Avalon comes in many variants, but
+this is a fairly generic version).
+
+The AvalonMaster state just holds the output registers (read, write,
+writedata, address) and the inputs (waitrequest, readdatavalid,
+readdata).  writeMaster will block until the write is accepted (posted
+write), while readMaster will block until the read request is accepted
+AND the data is available.  Clients of readMaster are responsible for
+sampling av_readdata immediately after readMaster as it will not be
+valid in the next cycle).
+
+-}
+
+module Avalon where
 import Lava
 import Recipe
 import Control.Monad
@@ -12,16 +28,16 @@ data AvalonMaster w =
   , av_waitrequest   :: Bit
   , av_readdatavalid :: Bit
   , av_readdata      :: Word w
-  , m_readdata       :: Reg w
   }
 
 newAvalonMaster :: N w => Bit -> Bit -> Word w -> New (AvalonMaster w)
 newAvalonMaster waitrequest readdatavalid readdata = do
+
   write <- newReg
   read <- newReg
   writedata <- newReg
   address <- newReg
-  readdata_var <- newReg
+
   return $ AvalonMaster {
              av_write = write
            , av_read = read
@@ -30,7 +46,6 @@ newAvalonMaster waitrequest readdatavalid readdata = do
            , av_waitrequest = waitrequest
            , av_readdatavalid = readdatavalid
            , av_readdata = readdata
-           , m_readdata = readdata_var
            }
 
 writeMaster :: N w => Word w -> Word w -> AvalonMaster w -> Recipe
@@ -49,34 +64,4 @@ readMaster addr s =
       , Do Tick (s!av_waitrequest)
       , s!av_read <== 0
       , While (inv (s!av_readdatavalid)) Tick
-      , s!m_readdata <== s!av_readdata
-      , Tick
       ]
-
-test :: N w => AvalonMaster w -> Recipe
-test s = Seq [ writeMaster a1 v1 s
-             , Tick, Tick, Tick
-             , writeMaster a2 v2 s
-             , writeMaster a3 v3 s
-             , readMaster  a2 s
-             , writeMaster a2 (s!m_readdata!val + 1) s
-             ]
-  where
-  [a1, a2, a3, v1, v2, v3] = map fromIntegral [1, 2, 3, 3, 1, 2]
-
-main =
-  do let (s, done) = recipe s0 test (delay high low)
-     writeVerilog "Avalon"
-                  ( s!av_read!val!vhead
-                  , s!av_write!val!vhead
-                  , s!av_address!val
-                  , s!av_writedata!val
-                  , done)
-                  (name "read", name "write", nameWord "address", nameWord "writedata",
-                  name "done")
-   where
-   s0 :: New (AvalonMaster N4)
-   s0 = newAvalonMaster waitrequest readdatavalid readdata
-   waitrequest = name "waitrequest"
-   readdata = nameWord "readdata"
-   readdatavalid = name "readdatavalid"
