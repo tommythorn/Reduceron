@@ -322,7 +322,7 @@ void swap()
 Atom prim_ld32(Num addr)
 {
     /* For now, a quick hack:
-       [0] - serial in (writes are serial out)
+       [0] - serial in
     */
     Atom res = { .tag = NUM, .contents.num = 666 };
 
@@ -334,8 +334,30 @@ Atom prim_ld32(Num addr)
         fflush(stdout);
     }
 
+    /* This is a hack to terminate otherwise infinite processes */
+    if (res.contents.num < 0)
+        exit(0);
+
     return res;
 }
+
+Atom prim_st32(Num addr, Num value, Atom k)
+{
+    /* For now, a quick hack:
+       [0] - serial out
+    */
+
+    if (addr == 0)
+        putchar(value);
+
+    if (tracingEnabled) {
+        printf("[[st32 (%d)=%d]]", addr, value);
+        fflush(stdout);
+    }
+
+    return k;
+}
+
 
 Atom prim(Prim p, Atom a, Atom b, Atom c)
 {
@@ -362,7 +384,7 @@ Atom prim(Prim p, Atom a, Atom b, Atom c)
     case EMIT: printf("%c", n); fflush(stdout); result = b; break;
     case EMITINT: printf("%i", n); fflush(stdout); result = b; break;
     case AND: result.tag = NUM; result.contents.num = TRUNCATE(n&m); break;
-    case ST32: printf("[[st32 (%d)=%d]]", n, m); fflush(stdout); result = c; break;
+    case ST32: result = prim_st32(n, m, c); break;
     case LD32: result = prim_ld32(n); break;
     case SEQ: assert(0);
     case LAST_PRIM: assert(0);
