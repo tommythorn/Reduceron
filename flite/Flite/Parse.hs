@@ -42,11 +42,15 @@ defn = pure Func <*> lowerIdent <*> many pat <*> tok "=" |> expr
 expr :: Parser Exp
 expr = pure App <*> expr' <*> many expr'
 
+pNil :: Parser Exp
+pNil = tok "[" |> tok "]" |> pure (Con "Nil")
+
 expr' :: Parser Exp
 expr' = pure Case <*> (key "case" |> expr) <*> (key "of" |> block alt)
     <|> pure Let  <*> (key "let" |> block bind) <*> (key "in" |> expr)
     <|> pure Var  <*> lowerIdent
     <|> pure Con  <*> upperIdent
+    <|> pNil
     <|> pure Int  <*> nat
     <|> pure Fun  <*> prim
     <|> ifte
@@ -62,11 +66,13 @@ prim = tok "(+)" <|> tok "(-)" <|> tok "(==)" <|> tok "(/=)" <|> tok "(<=)"
 pat :: Parser Pat
 pat = pure Var <*> lowerIdent
   <|> pure (\s -> App (Con s) []) <*> upperIdent
+  <|> pNil
   <|> tok "(" |> pat' <| tok ")"
 
 pat' :: Parser Pat
 pat' = pure Var <*> lowerIdent
    <|> pure App <*> (pure Con <*> upperIdent) <*> many pat
+   <|> pure App <*> pNil <*> many pat
 
 bind :: Parser Binding
 bind = pure (,) <*> (lowerIdent <| tok "=") <*> expr

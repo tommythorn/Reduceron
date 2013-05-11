@@ -10,49 +10,49 @@ apply Sub x y  =  (-) x y ;
 apply Mul x y  =  mul x y ;
 apply Div x y  =  div x y ;
 
-subs Nil         =  Cons Nil Nil ;
+subs []         =  Cons [] [] ;
 subs (Cons x xs) =  let { yss = subs xs } in append yss (map (Cons x) yss) ;
-                                 
-interleave x Nil         =  Cons (Cons x Nil) Nil ;
+
+interleave x []         =  Cons (Cons x []) [] ;
 interleave x (Cons y ys) =  Cons (Cons x (Cons y ys))
                                  (map (Cons y) (interleave x ys)) ;
 
-perms Nil         =  Cons Nil Nil ;
+perms []         =  Cons [] [] ;
 perms (Cons x xs) =  concatMap (interleave x) (perms xs) ;
 
 choices xs  =  concatMap perms (subs xs) ;
 
-ops  =  Cons Add (Cons Sub (Cons Mul (Cons Div Nil))) ;
+ops  =  Cons Add (Cons Sub (Cons Mul (Cons Div []))) ;
 
 split (Cons x xs)  =  case null xs of {
-                      True  -> Nil ;
-                      False -> Cons (Pair (Cons x Nil) xs)
+                      True  -> [] ;
+                      False -> Cons (Pair (Cons x []) xs)
                                     (map (cross (Pair (Cons x) id)) (split xs)) ;
                       } ;
 
-results Nil         =  Nil ;
+results []         =  [] ;
 results (Cons n ns) =  case null ns of {
-                       True  -> Cons (Pair (Val n) n) Nil ;
+                       True  -> Cons (Pair (Val n) n) [] ;
                        False -> concatMap combinedResults (split (Cons n ns)) ;
                        } ;
 
 combinedResults (Pair ls rs)  = concatProdWith combine (results ls) (results rs) ;
 
-concatProdWith f Nil         ys = Nil ;
+concatProdWith f []         ys = [] ;
 concatProdWith f (Cons x xs) ys = append (concatMap (f x) ys) (concatProdWith f xs ys) ;
 
 combine (Pair l x) (Pair r y) =  concatMap (combi l x r y) ops ;
- 
+
 combi l x r y o = case valid o x y of {
-                  True  -> Cons (Pair (App o l r) (apply o x y)) Nil ;
-                  False -> Nil ;
-                  } ; 
+                  True  -> Cons (Pair (App o l r) (apply o x y)) [] ;
+                  False -> [] ;
+                  } ;
 
 solutions ns n = concatMap (solns n) (choices ns) ;
 
 solns n ns = let { ems = results ns } in preImage n (results ns) ;
 
-preImage n Nil                   = Nil ;
+preImage n []                   = [] ;
 preImage n (Cons (Pair e m) ems) = case (==) m n of {
                                    True  -> Cons e (preImage n ems) ;
                                    False -> preImage n ems ;
@@ -91,22 +91,22 @@ cross (Pair f g) (Pair x y) = Pair (f x) (g y) ;
 
 id x = x ;
 
-null Nil         = True ;
+null []         = True ;
 null (Cons x xs) = False ;
 
-length Nil         = 0 ;
+length []         = 0 ;
 length (Cons x xs) = (+) 1 (length xs) ;
 
-append Nil         ys = ys ;
+append []         ys = ys ;
 append (Cons x xs) ys = Cons x (append xs ys) ;
 
-map f Nil         = Nil ;
+map f []         = [] ;
 map f (Cons x xs) = Cons (f x) (map f xs) ;
 
-concatMap f Nil         = Nil ;
+concatMap f []         = [] ;
 concatMap f (Cons x xs) = append (f x) (concatMap f xs) ;
 
-givens = Cons 1 (Cons 3 (Cons 7 (Cons 10 (Cons 25 (Cons 50 Nil))))) ;
+givens = Cons 1 (Cons 3 (Cons 7 (Cons 10 (Cons 25 (Cons 50 []))))) ;
 
 target = 765 ;
 

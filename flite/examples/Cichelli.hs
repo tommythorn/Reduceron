@@ -13,7 +13,7 @@ last (Cons x xs) = case null xs of {
                    False -> last xs ;
                    } ;
 
-null Nil         = True ;
+null []         = True ;
 null (Cons x xs) = False ;
 
 length Nil         = 0 ;
@@ -39,7 +39,7 @@ filter p Nil         = Nil ;
 filter p (Cons x xs) =
   case p x of { True -> Cons x (filter p xs) ; False -> filter p xs ; } ;
 
-enumFromTo m n = 
+enumFromTo m n =
   case (<=) m n of { True -> Cons m (enumFromTo ((+) m 1) n) ; False -> Nil ; } ;
 
 assoc x (Cons (Pair y z) yzs) =
@@ -71,7 +71,7 @@ histins x (Cons yn yns) =
 sorted lt = foldr (ordins lt) Nil ;
 
 ordins lt x Nil         = Cons x Nil ;
-ordins lt x (Cons y ys) = 
+ordins lt x (Cons y ys) =
   case lt x y of {
   True  -> Cons x (Cons y ys) ;
   False -> Cons y (ordins lt x ys) ;
@@ -98,7 +98,7 @@ freqTabOf ks = histo (concatMap ends ks) ;
 blocked = blockedWith Nil ;
 
 blockedWith ds Nil         = Nil ;
-blockedWith ds (Cons k ks) = 
+blockedWith ds (Cons k ks) =
   let { dsk = union ds (ends k) ;
         eks = endsSubset dsk ;
         det = filter eks ks ;
@@ -113,14 +113,14 @@ enKey k = K k (head k) (last k) (length k) ;
 
 hashAssoc (Hash hs hf) = hf ;
 
-findhash mv ks = 
+findhash mv ks =
   case hashes mv (length ks) ks (Hash (H Nothing Nothing Nil) Nil) of {
   Cons (Hash s f) hs -> Just f ;
   Nil                -> Nothing ;
   } ;
 
 hashes maxval nk Nil         h = Cons h Nil ;
-hashes maxval nk (Cons k ks) h =               
+hashes maxval nk (Cons k ks) h =
   concatMap (hashes maxval nk ks) (
   concatMap (insertKey nk k) (
   concatMap (assignUpto maxval (lastLetter k))
@@ -139,7 +139,7 @@ insertKey nk k (Hash hs hf) =
   } ;
 
 assign c (Hash hs hf) v = Hash hs (Cons (Pair c v) hf) ;
-           
+
 hinsert nk h (H lo hi hs) =
     let { newlo = case lo of { Nothing -> h ; Just x -> min x h } ;
           newhi = case hi of { Nothing -> h ; Just x -> max x h } ;
@@ -152,7 +152,7 @@ hinsert nk h (H lo hi hs) =
              } ;
     } ;
 
-hash hf (K s a z n) = (+) n ((+) (assoc a hf) (assoc z hf)) ; 
+hash hf (K s a z n) = (+) n ((+) (assoc a hf) (assoc z hf)) ;
 
 cichelli ss = case freqSorted (map enKey ss) of {
               Pair ks mv -> findhash mv (blocked ks) ;

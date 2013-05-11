@@ -6,20 +6,20 @@ implies True x = x;
 and False x = False;
 and True x = x;
 
-andList Nil = True;
+andList [] = True;
 andList (Cons x xs) = and x (andList xs);
 
-append Nil ys = ys;
+append [] ys = ys;
 append (Cons x xs) ys = Cons x (append xs ys);
 
-map f Nil = Nil;
+map f [] = [];
 map f (Cons x xs) = Cons (f x) (map f xs);
 
-ord Nil = True;
-ord (Cons x Nil) = True;
+ord [] = True;
+ord (Cons x []) = True;
 ord (Cons x (Cons y ys)) = and (implies x y) (ord (Cons y ys));
 
-insert x Nil = Cons x Nil;
+insert x [] = Cons x [];
 insert x (Cons y ys) =
   case implies x y of {
     True -> Cons x (Cons y ys);
@@ -28,7 +28,7 @@ insert x (Cons y ys) =
 
 prop x xs = implies (ord xs) (ord (insert x xs));
 
-boolList Z = Cons Nil Nil;
+boolList Z = Cons [] [];
 boolList (S n) =
   append (boolList n)
          (append (map (Cons False) (boolList n))

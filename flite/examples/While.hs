@@ -3,7 +3,7 @@
 value (Cons (Pair x y) s) v k =
   case (==) x v of { True -> k y ; False -> value s v k };
 
-update Nil v k i = k Nil;
+update [] v k i = k [];
 update (Cons (Pair x y) s) v k i =
   update s v (case (==) x v of {
                 True -> upd k v i;
@@ -61,7 +61,7 @@ ssos ss s = run (Inter ss s);
 
 id x = x;
 
-example = 
+example =
   let {
     divide = While (Le (V 1) (V 0))
                (Comp (Ass 0 (Sub (V 0) (V 1)))
@@ -82,7 +82,7 @@ example =
              Cons (Pair 2 0) (
              Cons (Pair 3 10000) (
              Cons (Pair 4 0) (
-             Cons (Pair 5 0) Nil)))));
+             Cons (Pair 5 0) [])))));
 
     } in value (ssos ndivs sinit) 5 id;
 

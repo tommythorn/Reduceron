@@ -20,14 +20,14 @@ eval s (Implies p q)   = case eval s p of {
                          False -> True ;
                          } ;
 
-vars (Const b)         = Nil ;
-vars (Var x)           = Cons x Nil ;
+vars (Const b)         = [] ;
+vars (Var x)           = Cons x [] ;
 vars (Not p)           = vars p ;
 vars (And p q)         = append (vars p) (vars q) ;
 vars (Implies p q)     = append (vars p) (vars q) ;
 
 bools n = case (==) n 0 of {
-          True  -> Cons Nil Nil ;
+          True  -> Cons [] [] ;
           False -> let { bss = bools ((-) n 1) } in
                    append (map (Cons False) bss)
                           (map (Cons True)  bss) ;
@@ -35,7 +35,7 @@ bools n = case (==) n 0 of {
 
 neq x y = (/=) x y;
 
-rmdups Nil         = Nil ;
+rmdups []         = [] ;
 rmdups (Cons x xs) = Cons x (rmdups (filter (neq x) xs)) ;
 
 substs p = let { vs = rmdups (vars p) } in
@@ -45,32 +45,32 @@ isTaut p = and (map (flip eval p) (substs p)) ;
 
 flip f y x = f x y ;
 
-length Nil         = 0 ;
+length []         = 0 ;
 length (Cons x xs) = (+) 1 (length xs) ;
 
-append Nil         ys = ys ;
+append []         ys = ys ;
 append (Cons x xs) ys = Cons x (append xs ys) ;
 
-map f Nil         = Nil ;
+map f []         = [] ;
 map f (Cons x xs) = Cons (f x) (map f xs) ;
 
-and Nil         = True ;
+and []         = True ;
 and (Cons b bs) = case b of {
                   True  -> and bs ;
                   False -> False ;
                   } ;
 
-filter p Nil         = Nil ;
+filter p []         = [] ;
 filter p (Cons x xs) = case p x of {
                        True  -> Cons x (filter p xs) ;
                        False -> filter p xs ;
                        } ;
 
-null Nil         = True ;
+null []         = True ;
 null (Cons x xs) = False;
 
-zip Nil         ys          = Nil ;
-zip (Cons x xs) Nil         = Nil ; 
+zip []         ys          = [] ;
+zip (Cons x xs) []         = [] ;
 zip (Cons x xs) (Cons y ys) = Cons (Pair x y) (zip xs ys) ;
 
 foldr1 f (Cons x xs) = case null xs of {
@@ -92,4 +92,3 @@ main = case isTaut testProp of {
        } ;
 
 }
-
