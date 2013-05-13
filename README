@@ -1,5 +1,8 @@
 
                     Reduceron Expanded
+                    Reduceron Embedded
+                    Reduceron, The Next Generation
+                    Reduceron, A New Hope
 
 
 WHAT IS REDUCERON?
@@ -20,9 +23,7 @@ OK, WHAT'S THIS THEN?
 
 The present is a fork of the original distribution which intends to take
 the (York) Reduceron from the research prototype to the point where it
-can be useful for embedded projects.  One could imagine an Arduino-like
-ecosystem, except replacing C++ for Haskell and the inexpensive Atmel AVR
-for a less inexpensive FPGA.
+can be useful for embedded projects and more.
 
 The York Reduceron needs the following enhancements to meet our needs:
 
@@ -62,8 +63,8 @@ one repository.
 
 HOW DO I USE IT?
 
-The was last tested with Haskell Platform 2012.4.0.0 for Mac OS X,
-64-bit, but I expect it should work the same on Linux and Windows.
+The was last tested with Haskell Platform 2012.4.0.0 for Mac OS X and
+Linux, 64-bit, but I expect it can be made to work on Windows.
 
 Optionally: just run make in the toplevel directory and a large regression
 run will start. The Verilog simulation part will take weeks to finish.
@@ -99,7 +100,17 @@ Plan:
 
   Step 2: Shrink to fit mid-sized FPGA kits (eg. DE2-115). DONE!
 
+  Step 3: Support load/store to an external bus (the key difficulty is
+          stalling while waiting on the bus).
+
+  Step 4: Use the program memory as a cache, making programs
+          dynamically loadable and dramatically raise the size limits.
+
   In some order:
+
+  Step I: Add basic primitives (mul, AND, OR, XOR, SHL, ASR, [SHR], ...)
+          (*), (.&.), (.|.), (.^.), (.<<.), (.>>.)
+          DONE: (.&.)
 
   Step ?: Improve Lava simulation and RTL gen
        - Add a C backend for much faster simulation
@@ -107,26 +118,16 @@ Plan:
        - generate busses where possible
        - Make the design resettable
 
-  Step ?: Make programs dynamically loadable.
-
-  Step I: Add primitives (mul, AND, OR, XOR, SHL, ASR, [SHR], ...)
-          (*), (.&.), (.|.), (.^.), (.<<.), (.>>.)
-          DONE: (.&.)
-
-  Step X: Add IO primitives (store and load from the IO bus)
-          (*<-), (<-*) [subword variants]
-          DONE: (*<-) with room for improvement
-
-  Step ?: Add the ability to accept bubbles (eg. cache misses)
-       - Start with (<-*) which will block for some cycles until IO returns
-
   Step H1: Move the heap [and tospace] to external memory
   Step H2: Add a heap cache/newspace memory
   Step H3: Implement the emu-32.c representation for the external heap
+
+  Step ?: Haskell front-end
+
   Finally: Performance improvements
 
 
-WHAT? MORE QUESTIONS?
+OPEN QUESTIONS
 
 Q1: Currently there doesn't seem an efficient way to handle toplevel
     variable bindings (CAFs).  What did the York team have in mind
@@ -139,6 +140,3 @@ Q2: Why does Flite default to 0 for the MAXREGS parameter?  Eg, why is
       redDefaults = CompileToRed 6 4 2 1 0
 
 Q3: What happend to Memo 24?
-
-Questions, suggestions, help, etc. are most welcome,
-please write reduceron@thorn.ws
