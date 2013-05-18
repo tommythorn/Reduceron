@@ -28,8 +28,7 @@ module toplevel
    assign      LEDR       =   (!KEY[3] ? res >> 3  :
                                !KEY[2] ? s         :
                                !KEY[1] ? h         :
-                               !KEY[0] ? wd        :
-                               'h 5555);
+                                         wd);
 
    assign      LEDG       =   {res[2:0],s};
 
