@@ -128,7 +128,8 @@ typedef uint32_t UInt;
 #define HT 6
 
 typedef enum { CON, PRI, ARG, REG, FUN, INV  } AtomTag;
-typedef enum { ADD, SUB, EQ, NEQ, LEQ, EMIT, EMITINT, SEQ } Prim;
+typedef enum { ADD, SUB, EQ, NEQ, LEQ, EMIT, EMITINT, SEQ,
+               AND, ST32, LD32, LAST_PRIM} Prim;
 
 static inline bool isINT(Atom a)              {return a >> 32;}
 static inline Int  getINTValue(Atom a)        {return (Int) a;}

@@ -3,12 +3,16 @@
 /* EVALUATION OF PRIMITIVE REDEXES     */
 /* Matthew N                           */
 /* 23 September 2009                   */
+/* Tommy Thorn 2014-07-28              */
 /* =================================== */
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
+#include <assert.h>
+#include <unistd.h>
+#include <getopt.h>
 
 /* Compile-time options */
 
@@ -66,6 +70,8 @@ Int numTemplates;
 
 Long swapCount, primCount, applyCount, unwindCount,
      updateCount, selectCount, prsCandidateCount, prsSuccessCount;
+
+Bool tracingEnabled = 0;
 
 typedef struct
   {
@@ -222,9 +228,48 @@ void swap()
 
 /* Primitive reduction */
 
-Atom prim(Prim p, Atom a, Atom b)
+Atom prim_ld32(Int addr)
 {
-  Atom result;
+    /* For now, a quick hack:
+       [0] - serial in
+    */
+    Atom res = mkINT(666);
+
+    if (addr == 0)
+        res = mkINT(getchar());
+
+    if (tracingEnabled) {
+        printf("[[ld32 (%d) -> %d]]", addr, getINTValue(res));
+        fflush(stdout);
+    }
+
+    /* This is a hack to terminate otherwise infinite processes */
+    if (getINTValue(res) < 0)
+        exit(0);
+
+    return res;
+}
+
+Atom prim_st32(Int addr, Int value, Atom k)
+{
+    /* For now, a quick hack:
+       [0] - serial out
+    */
+
+    if (addr == 0)
+        putchar(value);
+
+    if (tracingEnabled) {
+        printf("[[st32 (%d)=%d]]", addr, value);
+        fflush(stdout);
+    }
+
+    return k;
+}
+
+Atom prim(Prim p, Atom a, Atom b, Atom c)
+{
+  Atom result = 0;
   Int n, m;
   n = getINTValue(a);
   m = getINTValue(b);
@@ -236,8 +281,12 @@ Atom prim(Prim p, Atom a, Atom b)
     case LEQ: result = n <= m ? trueAtom : falseAtom; break;
     case EMIT: printf("%c", n); fflush(stdout); result = b; break;
     case EMITINT: printf("%i", n); fflush(stdout); result = b; break;
-    default: assert(0); return mkINT(0);
+    case AND: result = mkINT(n & m); break;
+    case ST32: result = prim_st32(n, m, c); break;
+    case LD32: result = prim_ld32(n); break;
+    default: assert(0);
   }
+
   return result;
 }
 
@@ -254,10 +303,10 @@ void applyPrim()
   else if (isINT(stack[sp-3])
         || pid == EMIT || pid == EMITINT) {
     if (getPRISwap(p))
-      stack[sp-3] = prim(pid, stack[sp-3], stack[sp-1]);
+        stack[sp-3] = prim(pid, stack[sp-3], stack[sp-1], stack[4 <= sp ? sp-4 : 0]);
     else
-      stack[sp-3] = prim(pid, stack[sp-1], stack[sp-3]);
-    sp-=2;
+        stack[sp-3] = prim(pid, stack[sp-1], stack[sp-3], stack[4 <= sp ? sp-4 : 0]);
+    sp -= getPRIArity(p);
     primCount++;
   }
   else {
@@ -318,7 +367,7 @@ void instApp(Int base, Int argPtr, App *app)
     rid = getAppRegId(*app);
     if (isINT(a) && isINT(b)) {
       prsSuccessCount++;
-      registers[rid] = prim(getPRIId(getAppAtom(*app, 1)), a, b);
+      registers[rid] = prim(getPRIId(getAppAtom(*app, 1)), a, b, b);
     }
     else {
       Atom atoms[APSIZE];
@@ -561,10 +610,13 @@ void strToPrim(Char *s, Prim *p, Bool *b)
   if (!strcmp(s, "(==)")) { *p = EQ; return; }
   if (!strcmp(s, "(/=)")) { *p = NEQ; return; }
   if (!strcmp(s, "(<=)")) { *p = LEQ; return; }
+  if (!strcmp(s, "(.&.)")) { *p = AND; return; }
+  if (!strcmp(s, "st32")) { *p = ST32; return; }
+  if (!strcmp(s, "ld32")) { *p = LD32; return; }
   error(printf("Parse error: unknown primitive %s\n", s));
 }
 
-Bool parseAtom(Atom* result)
+Bool parseAtom(FILE *f, Atom* result)
 {
   Char str[16];
   Int v;
@@ -573,51 +625,51 @@ Bool parseAtom(Atom* result)
   Prim p;
 
   return (
-    (  scanf(" INT%*[ (]%i)", &v) == 1
+    (  fscanf(f, " INT%*[ (]%i)", &v) == 1
     && perform(*result = mkINT(v))
     )
     ||
-    (  scanf(" ARG %5s%*[ (]%i)", str, &i) == 2
+    (  fscanf(f, " ARG %5s%*[ (]%i)", str, &i) == 2
     && perform(*result = mkARG(strToBool(str), i))
     )
     ||
-    (  scanf(" VAR %5s%*[ (]%i)", str, &i) == 2
+    (  fscanf(f, " VAR %5s%*[ (]%i)", str, &i) == 2
     && perform(*result = mkPTR(strToBool(str), i))
     )
     ||
-    (  scanf(" REG %5s%*[ (]%i)", str, &i) == 2
+    (  fscanf(f, " REG %5s%*[ (]%i)", str, &i) == 2
     && perform(*result = mkREG(strToBool(str), i))
     )
     ||
-    (  scanf(" CON%*[ (]%i%*[ )(]%i)",
+    (  fscanf(f, " CON%*[ (]%i%*[ )(]%i)",
          &a, &i) == 2
     && perform(*result = mkCON(a,i))
     )
     ||
-    (  scanf(" FUN %5s%*[ (]%i%*[ )(]%i)",
+    (  fscanf(f, " FUN %5s%*[ (]%i%*[ )(]%i)",
          str, &a, &i) == 3
     && perform(*result = mkFUN(strToBool(str), a, i))
     )
     ||
-    (  scanf(" PRI%*[ (]%i%*[) ]\"%10[^\"]\"", &a, str)
+    (  fscanf(f, " PRI%*[ (]%i%*[) ]\"%10[^\"]\"", &a, str)
     && perform(strToPrim(str, &p, &swap))
     && perform(*result = mkPRI(a, swap, p))
     )
   );
 }
 
-#define makeListParser(f, p, elem)                                          \
-  Int f(Int n, elem *xs)                                                    \
+#define makeListParser(fun, p, elem)                                        \
+  Int fun(FILE *f, Int n, elem *xs)                                         \
     {                                                                       \
       Char c;                                                               \
       Int i = 0;                                                            \
-      if (! (scanf(" %c", &c) == 1 && c == '['))                            \
+      if (! (fscanf(f, " %c", &c) == 1 && c == '['))                        \
         error(printf("Parse error: expecting '['\n"));                      \
       for (;;) {                                                            \
         if (i >= n)                                                         \
           error(printf("Parse error: list contains too many elements\n"));  \
-        if (p(&xs[i])) i++;                                                 \
-        if (scanf(" %c", &c) == 1 && (c == ',' || c == ']')) {              \
+        if (p(f, &xs[i])) i++;                                              \
+        if (fscanf(f, " %c", &c) == 1 && (c == ',' || c == ']')) {          \
           if (c == ']') return i;                                           \
         }                                                                   \
         else error(printf("Parse error\n"));                                \
@@ -627,7 +679,7 @@ Bool parseAtom(Atom* result)
 
 makeListParser(parseAtoms, parseAtom, Atom)
 
-Bool parseApp(App *app)
+Bool parseApp(FILE *f, App *app)
 {
   Char str[16];
   Bool success;
@@ -637,20 +689,20 @@ Bool parseApp(App *app)
   Int info = 0, size;
 
   success =
-    (  scanf(" APP %5s ", str) == 1
+    (  fscanf(f, " APP %5s ", str) == 1
     && perform(tag = AP)
     && perform(nf = strToBool(str))
     )
     ||
-    (  scanf(" CASE %i ", &info) == 1
+    (  fscanf(f, " CASE %i ", &info) == 1
     && perform(tag = CASE)
     )
     ||
-    (  scanf(" PRIM %i ", &info) == 1
+    (  fscanf(f, " PRIM %i ", &info) == 1
     && perform(tag = PRIM)
     );
   if (!success) return 0;
-  size = parseAtoms(APSIZE, atoms);
+  size = parseAtoms(f, APSIZE, atoms);
 
   if (tag == CASE || tag == PRIM)
       assert(size < 4);
@@ -662,22 +714,22 @@ Bool parseApp(App *app)
 
 makeListParser(parseApps, parseApp, App)
 
-Bool parseLut(Int *i)
+Bool parseLut(FILE *f, Int *i)
 {
-  return (scanf(" %i", i) == 1);
+    return fscanf(f, " %i", i) == 1;
 }
 
 makeListParser(parseLuts, parseLut, Lut)
 
-Bool parseString(Int n, Char *str)
+Bool parseString(FILE *f, Int n, Char *str)
 {
   Int i;
   Char c;
-  scanf(" \"");
+  fscanf(f, " \"");
 
   for (i = 0; ; i++) {
     if (i >= n) return 0;
-    scanf("%c", &c);
+    fscanf(f, "%c", &c);
     if (c == '"') {
       str[i] = '\0';
       return 1;
@@ -686,58 +738,95 @@ Bool parseString(Int n, Char *str)
   }
 }
 
-Bool parseTemplate(Template *t)
+Bool parseTemplate(FILE *f, Template *t)
 {
   Char c;
-  scanf(" (");
-  if (parseString(NAMELEN, t->name) == 0) return 0;
-  if (scanf(" ,%i,", &t->arity) != 1) return 0;
-  t->numLuts = parseLuts(MAXLUTS, t->luts);
-  (scanf(" %c", &c) == 1 && c == ',') || error(printf("Parse error\n"));
-  t->numPushs = parseAtoms(MAXPUSH, t->pushs);
-  (scanf(" %c", &c) == 1 && c == ',') || error(printf("Parse error\n"));
-  t->numApps = parseApps(MAXAPS, t->apps);
-  (scanf(" %c", &c) == 1 && c == ')') || error(printf("Parse error\n"));
+  fscanf(f, " (");
+  if (parseString(f, NAMELEN, t->name) == 0) return 0;
+  if (fscanf(f, " ,%i,", &t->arity) != 1) return 0;
+  t->numLuts = parseLuts(f, MAXLUTS, t->luts);
+  (fscanf(f, " %c", &c) == 1 && c == ',') || error(printf("Parse error\n"));
+  t->numPushs = parseAtoms(f, MAXPUSH, t->pushs);
+  (fscanf(f, " %c", &c) == 1 && c == ',') || error(printf("Parse error\n"));
+  t->numApps = parseApps(f, MAXAPS, t->apps);
+  (fscanf(f, " %c", &c) == 1 && c == ')') || error(printf("Parse error\n"));
   return 1;
 }
 
-Int parse(Int n, Template *ts)
+Int parse(FILE *f, Int n, Template *ts)
 {
   Int i = 0;
 
   for (;;) {
-    if (i >= n) error(printf("Parse error: too many templates\n"));
-    if (!parseTemplate(&ts[i])) return i;
+      if (i >= n) error(printf("Parse error: too many templates\n"));
+    if (!parseTemplate(f, &ts[i])) return i;
     i++;
   }
 }
 
 /* Main function */
 
-int main()
+int main(int argc, char **argv)
 {
+  FILE *f;
   Long ticks;
+  int ch;
+  Bool verbose = 0;
+
+  while ((ch = getopt(argc, argv, "vt")) != -1) {
+      switch (ch) {
+      case 'v':
+          verbose = 1;
+          break;
+      case 't':
+          tracingEnabled = 1;
+          break;
+      default:
+          error(printf("only options v, t and p supported\n"));
+          break;
+      }
+  }
+
+  argc -= optind;
+  argv += optind;
+
+  if (argc != 1)
+      error(printf("Need .red file or - for stdin"));
+
+  if (strcmp(argv[0], "-") == 0)
+      f = stdin;
+  else
+      f = fopen(argv[0], "r");
+
+  if (!f) {
+      perror(argv[0]);
+      exit(-1);
+  }
 
   alloc();
-  numTemplates = parse(MAXTEMPLATES, code);
+  numTemplates = parse(f, MAXTEMPLATES, code);
   if (numTemplates <= 0) error(printf("No templates were parsed!\n"));
   init();
   dispatch();
 
-  printf("\n==== EXECUTION REPORT ====\n");
-  printf("Result      = %12i\n", getINTValue(stack[0]));
-  ticks = swapCount + primCount + applyCount +
-            unwindCount + updateCount;
-  printf("Ticks       = %12lld\n", ticks);
-  printf("Swap        = %11.1f%%\n", (100.0*swapCount)/ticks);
-  printf("Prim        = %11.1f%%\n", (100.0*primCount)/ticks);
-  printf("Unwind      = %11.1f%%\n", (100.0*unwindCount)/ticks);
-  printf("Update      = %11.1f%%\n", (100.0*updateCount)/ticks);
-  printf("Apply       = %11.1f%%\n", (100.0*applyCount)/ticks);
-  printf("PRS Success = %11.1f%%\n",
-    (100.0*prsSuccessCount)/(1+prsCandidateCount));
-  printf("#GCs        = %12d\n", gcCount);
-  printf("==========================\n");
+  if (verbose) {
+      printf("\n==== EXECUTION REPORT ====\n");
+      printf("Result      = %12i\n", getINTValue(stack[0]));
+      ticks = swapCount + primCount + applyCount +
+          unwindCount + updateCount;
+      printf("Ticks       = %12lld\n", ticks);
+      printf("Swap        = %11.1f%%\n", (100.0*swapCount)/ticks);
+      printf("Prim        = %11.1f%%\n", (100.0*primCount)/ticks);
+      printf("Unwind      = %11.1f%%\n", (100.0*unwindCount)/ticks);
+      printf("Update      = %11.1f%%\n", (100.0*updateCount)/ticks);
+      printf("Apply       = %11.1f%%\n", (100.0*applyCount)/ticks);
+      printf("PRS Success = %11.1f%%\n",
+             (100.0*prsSuccessCount)/(1+prsCandidateCount));
+      printf("#GCs        = %12d\n", gcCount);
+      printf("==========================\n");
+  }
+  else
+      printf("%d\n", getINTValue(stack[0]));
 
   //  displayProfTable();
 
