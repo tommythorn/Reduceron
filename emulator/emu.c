@@ -265,7 +265,7 @@ static inline Int arity(Atom a)
     case CON: return a.contents.con.arity+1;
     case PRI: return a.contents.pri.arity;
     case FUN: return a.contents.fun.arity;
-    default: error("arity(): invalid tag\n");
+    default: error("arity(): invalid tag\n"); return 0;
   }
 }
 
@@ -842,6 +842,7 @@ Int strToBool(Char *s)
   if (!strcmp(s, "True")) return 1;
   if (!strcmp(s, "False")) return 0;
   error("Parse error: boolean expected; got %s\n", s);
+  return 0;
 }
 
 void strToPrim(Char *s, Prim *p, Bool *b)

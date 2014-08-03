@@ -1,5 +1,6 @@
-OPT=-O -DNDEBUG
-#OPT=-g
+OPT_FAST=-O -DNDEBUG
+OPT_DEBUG=-g
+OPT=$(OPT_FAST)
 CFLAGS=-std=c99 $(OPT) -Wall -Werror
 EMUOPT=
 #EMUOPT=-t
@@ -8,13 +9,16 @@ EMU=emu-32-bit
 
 all: emu profemu emu-32-bit #fast-sw-emu
 
-regress: $(EMU)
+run: $(EMU)
 	$(MAKE) EMU=../emulator/$(EMU) -C ../programs regress-emu
 
 # Poor mans benchmark
 bench:
-	$(MAKE) $(EMU)
+	$(MAKE) OPT="$(OPT_FAST)" run
 	time $(MAKE) regress
+
+regress:
+	$(MAKE) OPT="$(OPT_DEBUG)" run
 
 emu: emu.c Makefile
 	$(CC) $(CFLAGS) $< -o $@
