@@ -1,22 +1,20 @@
-CFLAGS=-std=c99 -O2 -Wall -Werror
-#CFLAGS=-g -Wall -Werror
-#TEST=Parts.red
-#TEST=Cichelli.red
-#TEST=KnuthBendix.red
-#TEST=CountDown.red
-#TEST=MSS.red
-TEST=Sudoku.red
+OPT=-O -DNDEBUG
+#OPT=-g
+CFLAGS=-std=c99 $(OPT) -Wall -Werror
 EMUOPT=
 #EMUOPT=-t
 
 EMU=emu-32-bit
 
-all: emu
+all: emu profemu emu-32-bit #fast-sw-emu
 
 regress: $(EMU)
 	$(MAKE) EMU=../emulator/$(EMU) -C ../programs regress-emu
 
-all: emu profemu emu-32-bit #fast-sw-emu
+# Poor mans benchmark
+bench:
+	$(MAKE) $(EMU)
+	time $(MAKE) regress
 
 emu: emu.c Makefile
 	$(CC) $(CFLAGS) $< -o $@

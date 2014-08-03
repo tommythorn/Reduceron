@@ -41,19 +41,19 @@
   a tagged value.  Tagged values have bottom Head Tag (HT) bits
   reserved.
 
-  Effectively we have a multi level tagging scheme (assume HT=6 marked
+  Effectively we have a multi level tagging scheme (assume HT=5 marked
   with ------):
 
   - Integers           1NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN integer
   - Tagged Values
-    = Pointers         01spppppppppppppppppppppppp------ shared,heap index
+    = Pointers         01sppppppppppppppppppppppppp----- shared,heap index
     = Non-pointers
-      * Constructors   00000.AAAiiiiiiiiiiiiiiiiii------ arity,index
-      * Primitives     00001sAAAiiiiiiiiiiiiiiiiii------ arity,swapped,index
-      * Arguments      00010s...iiiiiiiiiiiiiiiiii------ shared,index
-      * Registers      00011s...iiiiiiiiiiiiiiiiii------ shared,index
-      * Functions      00100oAAAiiiiiiiiiiiiiiiiii------ original,arity,index
-      * Invalid        00101lr..iiiiiiiiiiiiiiiiii------ LUT, REGID, index
+      * Constructors   00000.AAAiiiiiiiiiiiiiiiiiii----- arity,index
+      * Primitives     00001sAAAiiiiiiiiiiiiiiiiiii----- arity,swapped,index
+      * Arguments      00010s...iiiiiiiiiiiiiiiiiii----- shared,index
+      * Registers      00011s...iiiiiiiiiiiiiiiiiii----- shared,index
+      * Functions      00100oAAAiiiiiiiiiiiiiiiiiii----- original,arity,index
+      * Invalid        00101lr..iiiiiiiiiiiiiiiiiii----- LUT, REGID, index
 
   Recall, Argument and Register atoms can only occur in
   templates. Invalid is used to mark unused atom slots and implicitly
@@ -81,10 +81,9 @@
 
   These are the heap tag bits:
   - HT_INT0, HT_INT1, HT_INT2, HT_INT3: which atom are numbers
-  - HT_GC: COLLECTED or {AP, CASE, PRIM}
   - HT_NF: application is an irreducible normal form
 
-  Thus, HT is currently 6, however it could be reduced to 4 as
+  Thus, HT is currently 5, however it could be reduced to 3 as
   follows:
 
   - HT_NF is strictly redundant and can be recovered, but is included
@@ -107,10 +106,10 @@
   - The App tag is implicitly represented by a combination of the GC
     flag and the last atom.
 
-  With an HT of 6, we left with 30-6 = 24 bits for the pointer, enough
-  for 16 Mi heap cells, a 256 MiB heap.  The more complicated scheme
-  reduces HT to 4 bit, thus leaving 26 bits for the pointer (= 64 Mi
-  cells = 1 GiB).
+  With an HT of 5, we left with 30-5 = 25 bits for the pointer, enough
+  for 32 Mi heap cells, a 512 MiB heap.  The more complicated scheme
+  reduces HT to 3 bit, thus leaving 27 bits for the pointer (= 128 Mi
+  cells = 2 GiB).
 */
 
 #ifndef _RED_ATOM_H
@@ -119,13 +118,12 @@
 #include <stdint.h>
 #include "red_types.h"
 
-#define NDEBUG 1
 #include <assert.h>
 
 typedef uint64_t Atom;
 typedef uint32_t UInt;
 
-#define HT 6
+#define HT 5
 
 typedef enum { CON, PRI, ARG, REG, FUN, INV  } AtomTag;
 typedef enum { ADD, SUB, EQ, NEQ, LEQ, EMIT, EMITINT, SEQ,
@@ -205,32 +203,63 @@ static inline Atom setHT(Atom a, UInt ht)     {return (a & (-1LL << HT)) | ht;}
 
 /**** Apps ****/
 
-typedef enum { HT_INT0, HT_INT1, HT_INT2, HT_INT3, HT_GC, HT_NF } HeadTag;
+typedef enum { HT_INT0, HT_INT1, HT_INT2, HT_INT3, HT_NF } HeadTag;
 
 typedef Int Lut;
 
-typedef enum { AP, CASE, PRIM, COLLECTED } AppTag;
+typedef enum { AP, CASE, PRIM } AppTag;
 
 typedef struct {
     uint32_t atom[APSIZE];
   } App;
 
+static inline bool   isAppCollected(App app) {
+    return isINV(app.atom[0]); }
+
+static inline Atom   getAppCollectedAtom(App app) {
+    assert(isAppCollected(app));
+
+    return app.atom[1];}
+
+static inline App    mkAppCollected(Atom atom) {
+    App app;
+
+    assert(!isINT(atom)); // INT wouldn't make sense here
+
+    app.atom[0] = mkINV();
+    app.atom[1] = atom;
+
+    assert(isAppCollected(app));
+    assert(getAppCollectedAtom(app) == atom);
+
+    return app;}
+
 static inline AppTag getAppTag(App app) {
     return
-        ((getHT(app.atom[0]) >> HT_GC) & 1) ? COLLECTED :
         isLUT(app.atom[3]) ? CASE :
         isPRIM(app.atom[3]) ? PRIM :
         AP;}
 
-static inline UInt   getAppSize(App app){
+static inline UInt   getAppSize(App app) {
+    assert(!isAppCollected(app));
     return 1 + !isINV(app.atom[1]) + !isINV(app.atom[2]) + !isINV(app.atom[3]);}
 
-static inline Bool   getAppNF(App app)        {return (getHT(app.atom[0]) >> HT_NF) & 1;}
-static inline Lut    getAppLUT(App app)       {return getLUTIndex(app.atom[3]);}
-static inline UInt   getAppRegId(App app)     {return getPRIMDest(app.atom[3]);}
+static inline Bool   getAppNF(App app) {
+    assert(!isAppCollected(app));
+    return (getHT(app.atom[0]) >> HT_NF) & 1;}
+
+static inline Lut    getAppLUT(App app) {
+    assert(!isAppCollected(app));
+    return getLUTIndex(app.atom[3]);}
+
+static inline UInt   getAppRegId(App app) {
+    assert(!isAppCollected(app));
+    return getPRIMDest(app.atom[3]);}
 
 static inline Atom   getAppAtom(App app, int i) {
     Atom a = app.atom[i];
+
+    assert(!isAppCollected(app));
 
     /* Recover the integer tag from the head tag */
     a |= (Atom) ((app.atom[0] >> i) & 1) << 32;
@@ -241,6 +270,10 @@ static inline Atom   getAppAtom(App app, int i) {
 
     return a;}
 
+#ifndef NDEBUG
+static bool atomEq(Atom a, Atom b) {
+    return isINT(a) ? a == b : ((a & -1 << HT) == (b & -1 << HT)); }
+#endif
 
 static inline App    mkApp(AppTag tag, Int size, bool nf, Int info, Atom *atom) {
     App app;
@@ -276,7 +309,7 @@ static inline App    mkApp(AppTag tag, Int size, bool nf, Int info, Atom *atom) 
     case CASE: app.atom[3] = mkLUT(info); assert(size < 4); break;
     case PRIM: app.atom[3] = mkPRIM(info); assert(size < 4); break;
     case AP:   ht |= nf << HT_NF; break;
-    case COLLECTED: ht |= 1 << HT_GC; break;
+    default: assert(0);
     }
 
     app.atom[0] = setHT(app.atom[0], ht);
@@ -284,6 +317,7 @@ static inline App    mkApp(AppTag tag, Int size, bool nf, Int info, Atom *atom) 
     assert(getAppSize(app) == size);
     assert(getAppTag(app) == tag);
     assert(atomEq(getAppAtom(app, 0), atom[0]));
+
     if (size > 1)
         assert(atomEq(getAppAtom(app, 1), atom[1]));
     if (size > 2)
@@ -295,6 +329,7 @@ static inline App    mkApp(AppTag tag, Int size, bool nf, Int info, Atom *atom) 
 
 /* Accelerated access to App atoms */
 static inline void shareAppAtom(App *app, int i) {
+    assert(!isAppCollected(*app));
     app->atom[i] |= 1 << 30;
 }
 

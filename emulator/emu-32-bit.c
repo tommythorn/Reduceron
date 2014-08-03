@@ -432,13 +432,14 @@ Atom copyChild(Atom child)
   App app;
   if (isPTR(child)) {
     app = heap[getPTRId(child)];
-    if (getAppTag(app) == COLLECTED || isSimple(&app)) {
+    if (isAppCollected(app))
+        return getAppCollectedAtom(app);
+    else if (isSimple(&app))
         return getAppAtom(app, 0);
-    }
     else {
       Int addr = getPTRId(child);
       child = setPTRId(child, gcHigh);
-      heap[addr] = mkApp(COLLECTED, 1, 0, 0, &child);
+      heap[addr] = mkAppCollected(child);
       heap2[gcHigh++] = app;
       return child;
     }
@@ -469,9 +470,9 @@ void updateUStack()
   App app;
   for (i = 0, j = 0; i < usp; i++) {
     app = heap[ustack[i].haddr];
-    if (getAppTag(app) == COLLECTED) {
+    if (isAppCollected(app)) {
       ustack[j].saddr = ustack[i].saddr;
-      ustack[j].haddr = getPTRId(getAppAtom(app, 0));
+      ustack[j].haddr = getPTRId(getAppCollectedAtom(app));
       j++;
     }
   }
