@@ -16,6 +16,7 @@ regress: regress-emu \
          regress-flite-sim \
          regress-flite-comp \
          regress-red-sim \
+         regress-flite-c-comp \
          regress-red-verilog-sim \
          regress-red-verilog-run
 
@@ -42,8 +43,14 @@ regress-flite-sim: $(patsubst %,%.flite-sim-checked,$(WORKLOADS))
 
 regress-flite-comp: $(patsubst %,%.flite-comp-checked,$(WORKLOADS))
 
+regress-flite-c-comp: $(patsubst %,%.flite-c-comp-checked,$(WORKLOADS))
+
 %.flite-comp-checked: %.hs $(EMU) $(FLITE)
 	$(FLITE) $(FLITE_OPTS) $< | $(EMU) - | diff -u $(patsubst %.hs,gold/run/%.out,$<) - && touch $@
+
+%.flite-c-comp-checked: %.hs $(EMU) $(FLITE)
+	$(FLITE) -c $< | cc -O3 -DPRINT_RESULT -x c - -o $(patsubst %.hs,%.exe,$<)
+	./$(patsubst %.hs,%.exe,$<) | diff -u $(patsubst %.hs,gold/run/%.out,$<) - && touch $@
 
 regress-red-sim:
 	echo Not implemented, as simulation in York Lava very quickly runs out of memory.

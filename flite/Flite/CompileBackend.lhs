@@ -1,12 +1,12 @@
 ========================
-REDUCERON MEMO 22
+REDUCERON MEMO 22'
 Compiling F-lite to C
 Matthew N, 30 April 2009
+Tommy T, 2014-12-12
 ========================
 
 This memo defines a compiler from supercombinators to portable C.  It
-is intended as a back-end to the F-lite implementation.  The aim is to
-run F-lite programs on an FPGA soft-core, such as the Microblaze.
+is intended as a C back-end to the F-lite implementation.
 
 > module Flite.CompileBackend where
 
@@ -66,6 +66,7 @@ More precisely:
 >   , "#define makeFUN(arity,f,final) " ++
 >              "(((f) << 9) | ((arity) << 3) | ((final) << 1) | 5)"
 >   , "#define arity(n) (isFUN(n) ? getARITY(n) : 1)"
+>   , "#define isEMIT(n) (getFUN(n) - PRIM_EMIT < 4)"
 >   ]
 
 Update records
@@ -92,15 +93,17 @@ Registers
 Swapping
 --------
 
-The following code swaps the top two elements of the stack.  It is
-used in the evaluation of strict primitive functions.
+The following code swaps the top and 3rd elements of the stack and
+flips the SWAPPED bit of the middle primitive.  It is used in the
+evaluation of strict primitive functions.
 
 > swapCode = unlines
 >   [ "{"
 >   , "  Node tmp;"
 >   , "  tmp = top;"
->   , "  top = sp[-1];"
->   , "  sp[-1] = tmp;"
+>   , "  top = sp[-2];"
+>   , "  sp[-2] = tmp;"
+>   , "  sp[-1] ^= 1 << 9;"
 >   , "}"
 >   ]
 
@@ -153,7 +156,7 @@ if so, performs an update.
 Evaluation driver
 -----------------
 
-Evalution proceeds depedning on the element on top of the stack.
+Evalution proceeds depending on the element on top of the stack.
 
 > evalCode = unlines
 >   [ "EVAL:"
@@ -161,19 +164,23 @@ Evalution proceeds depedning on the element on top of the stack.
 >   ,    unwindCode
 >   , "  goto EVAL;"
 >   , "}"
->   , "else {"
->   , "  EVAL_OTHER:"
->   , "  if (hp > heapFull) collect();"
->   ,    updateCode
->   , "  if (isFUN(top)) {"
+
+>   , "if (hp > heapFull) collect();"
+>   ,  updateCode
+>   , "if (isFUN(top)) {"
 >   , "    dest = getFUN(top);"
 >   , "    goto CALL;"
->   , "  }"
->   , "  else {"
->   ,      swapCode
->   , "    goto EVAL;"
->   , "  }"
 >   , "}"
+
+Invoke primitives (emit is unary is thus special)
+
+>   , "if (isINT(top) && (isINT(sp[-2]) || isEMIT(sp[-1]))) {"
+>   , "    dest = getFUN(sp[-1]);"
+>   , "    goto CALL;"
+>   , "}"
+
+>   ,  swapCode
+>   , "goto EVAL;"
 >   ]
 
 Abstract syntax of source code
@@ -255,8 +262,8 @@ the following definition.
 
   Ci v1 ... vn f = (f+i) v1 ... vn f
 
-where i is the index of the constructor, n is the artiy of the
-constructor, and (f+i) represents the function occuring i definitions
+where i is the index of the constructor, n is the arity of the
+constructor, and (f+i) represents the function occuring in definitions
 after the definition of f in the program code.  It is assumed that
 case alternatives occur contiguously, ordered by index.  For example,
 the F-lite program
@@ -307,6 +314,9 @@ Map F-lite primitives to suitable C identifiers.
 > fun "(<=)"     = "PRIM_LEQ"
 > fun "(==)"     = "PRIM_EQ"
 > fun "(/=)"     = "PRIM_NEQ"
+> fun "(.&.)"    = "PRIM_BINAND"
+> fun "st32"     = "PRIM_ST32"
+> fun "ld32"     = "PRIM_LD32"
 > fun "emit"     = "PRIM_EMIT"
 > fun "emitInt"  = "PRIM_EMITINT"
 > fun "_|_"      = "PRIM_UNDEFINED"
@@ -376,23 +386,28 @@ Map F-lite primitives to suitable C identifiers.
 Primitives
 ----------
 
+Note: the order of primitives is such that the original primitive is
+even which the swapped version is odd.  This makes is trivial to
+transform one into the other.
+
 > primIds :: [Id]
-> primIds = l ++ ["swap:" ++ p | p <- l] ++ ["_|_"]
->   where l = [ "(+)" , "(-)" , "(<=)" , "(==)", "(/=)", "emit", "emitInt" ]
+> primIds = concatMap (\p -> [p,  "swap:" ++ p]) l ++ ["_|_"]
+>   where l = [ "(+)" , "(-)" , "(<=)" , "(==)", "(/=)",
+>               "(.&.)", "st32", "ld32", "emit", "emitInt" ]
 
 > arithPrim :: Id -> String -> String
 > arithPrim p op = unlines
 >   [ "case " ++ fun p ++ ":"
 >   , "{"
->   , "top = makeINT(getINT(sp[-"++a++"]) " ++ op ++ " getINT(sp[-"++b++"]),0);"
+>   , "top = makeINT(getINT("++a++") " ++ op ++ " getINT("++b++"),0);"
 >   , "sp -= 2;"
 >   , "goto EVAL;"
 >   , "}"
 >   , "break;"
 >   ]
 >   where (a,b) = case p of
->                 's':_ -> ("2","1")
->                 _     -> ("1","2")
+>                 's':_ -> ("sp[-2]","top")
+>                 _     -> ("top","sp[-2]")
 
 Ditto for boolean operator.
 
@@ -400,7 +415,7 @@ Ditto for boolean operator.
 > boolPrim p op = unlines
 >   [ "case " ++ fun p ++ ":"
 >   , "{"
->   , "top = (getINT(sp[-"++a++"]) " ++ op ++ " getINT(sp[-"++b++"])) ? "
+>   , "top = (getINT("++a++") " ++ op ++ " getINT("++b++")) ? "
 >       ++ "makeFUN(1," ++ fun "True"  ++ ",0) "
 >       ++ ": makeFUN(1," ++ fun "False" ++ ",0);"
 >   , "sp -= 2;"
@@ -409,25 +424,57 @@ Ditto for boolean operator.
 >   , "break;"
 >   ]
 >   where (a,b) = case p of
->                 's':_ -> ("2","1")
->                 _     -> ("1","2")
+>                 's':_ -> ("sp[-2]","top")
+>                 _     -> ("top","sp[-2]")
 
-Print the second stack element.
+Print the top stack element.
 
 > emitPrim :: Id -> String -> String -> String
 > emitPrim p format cast = unlines
 >   [ "case " ++ fun p ++ ":"
 >   , "{"
->   , "top = sp[-" ++ b ++ "];"
->   , "printf(\"" ++ format ++ "\", " ++ cast ++ "getINT(sp[-" ++ a ++ "]));"
+>   , "printf(\"" ++ format ++ "\", " ++ cast ++ "getINT(" ++ a ++ "));"
+>   , "top = " ++ b ++ ";"
 >   , "sp -= 2;"
 >   , "goto EVAL;"
 >   , "}"
 >   , "break;"
 >   ]
 >   where (a,b) = case p of
->                 's':_ -> ("2","1")
->                 _     -> ("1","2")
+>                 's':_ -> ("sp[-2]","top")
+>                 _     -> ("top","sp[-2]")
+
+> st32Prim :: Id -> String
+> st32Prim p = unlines
+>   [ "case " ++ fun p ++ ":"
+>   , "{"
+>   , "int addr = getINT("++a++");"
+>   , "int value = getINT("++b++");"
+>   , "if (addr == 0) putchar(value);"
+>   , "top = sp[-3];"
+>   , "sp -= 3;"
+>   , "goto EVAL;"
+>   , "}"
+>   , "break;"
+>   ]
+>   where (a,b) = case p of
+>                 's':'w':_ -> ("sp[-2]","top")
+>                 _     -> ("top","sp[-2]")
+
+> ld32Prim :: Id -> String
+> ld32Prim p = unlines
+>   [ "case " ++ fun p ++ ":"
+>   , "{"
+>   , "int addr = getINT("++a++");"
+>   , "top = makeINT(getchar(),0);"
+>   , "sp -= 2;"
+>   , "goto EVAL;"
+>   , "}"
+>   , "break;"
+>   ]
+>   where (a,b) = case p of
+>                 's':_ -> ("sp[-2]","top")
+>                 _     -> ("top","sp[-2]")
 
 > undefPrim :: String
 > undefPrim = unlines
@@ -445,6 +492,8 @@ Print the second stack element.
 >   , arithPrim "swap:(+)" "+"
 >   , arithPrim "(-)" "-"
 >   , arithPrim "swap:(-)" "-"
+>   , arithPrim "(.&.)" "&"
+>   , arithPrim "swap:(.&.)" "&"
 >   , boolPrim "(<=)" "<="
 >   , boolPrim "swap:(<=)" "<="
 >   , boolPrim "(==)" "=="
@@ -455,6 +504,10 @@ Print the second stack element.
 >   , emitPrim "swap:emit" "%c" "(char)"
 >   , emitPrim "emitInt" "%ld" ""
 >   , emitPrim "swap:emitInt" "%ld" ""
+>   , st32Prim "st32"
+>   , st32Prim "swap:st32"
+>   , ld32Prim "ld32"
+>   , ld32Prim "swap:ld32"
 >   , undefPrim
 >   ]
 
@@ -576,14 +629,16 @@ Program compilation
 > funIds (cs, ds) = map first cs ++ map first ds
 >   where first (x, y, z) = x
 
+Note: primitives comes first so we are guaranteed the first is even.
+
 > declareFuns :: Program -> String
 > declareFuns p =
 >   unlines $ ["enum dest {"] ++ [fun f ++ ","| f <- primIds ++ funIds p] ++ ["};"]
 
 > program :: Program -> String
-> program p = show p
-> program' p = unlines
->   [ "#include <stdio.h>"
+> program p = unlines
+>   [ "// " ++ show p
+>   , "#include <stdio.h>"
 >   , "#include <stdlib.h>"
 >   , "#include <stdint.h>"
 >   , "#include <assert.h>"
@@ -603,6 +658,9 @@ Program compilation
 >   , switchCode p
 >   , evalCode
 >   , "EXIT:"
+>   , "#ifdef PRINT_RESULT"
+>   , "printf(\"%ld\\n\", getINT(top));"
+>   , "#endif"
 >   , "return 0;"
 >   , "}"
 >   ]
