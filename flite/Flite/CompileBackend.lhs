@@ -165,6 +165,7 @@ Evalution proceeds depending on the element on top of the stack.
 >   , "  goto EVAL;"
 >   , "}"
 
+>   , "EVAL_NO_AP:"
 >   , "if (hp > heapFull) collect();"
 >   ,  updateCode
 >   , "if (isFUN(top)) {"
@@ -401,7 +402,7 @@ transform one into the other.
 >   , "{"
 >   , "top = makeINT(getINT("++a++") " ++ op ++ " getINT("++b++"),0);"
 >   , "sp -= 2;"
->   , "goto EVAL;"
+>   , "goto EVAL_NO_AP;"
 >   , "}"
 >   , "break;"
 >   ]
@@ -419,7 +420,7 @@ Ditto for boolean operator.
 >       ++ "makeFUN(1," ++ fun "True"  ++ ",0) "
 >       ++ ": makeFUN(1," ++ fun "False" ++ ",0);"
 >   , "sp -= 2;"
->   , "goto EVAL;"
+>   , "goto EVAL_NO_AP;"
 >   , "}"
 >   , "break;"
 >   ]
@@ -468,7 +469,7 @@ Print the top stack element.
 >   , "int addr = getINT("++a++");"
 >   , "top = makeINT(getchar(),0);"
 >   , "sp -= 2;"
->   , "goto EVAL;"
+>   , "goto EVAL_NO_AP;"
 >   , "}"
 >   , "break;"
 >   ]
