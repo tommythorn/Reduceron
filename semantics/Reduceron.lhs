@@ -647,8 +647,8 @@ We retranslate tri5 again:
 
 [[End of Reduceron Reconfigured]]
 
-While the variant 4 Reduceron is conceptually what has built, it's
-different enough that we cannot execute the output of Flite.
+While the variant 4 Reduceron is conceptually what has been built,
+it's different enough that we cannot execute the output of Flite.
 
 Using the Tri.hs example again
 
@@ -703,7 +703,7 @@ The data type differences from the trivial to the significant are:
 4. The TAB Atom is gone - this is now part of the LUT list and the
    CASE App.
 
-5. The Template is quite changed - the waves aren't separated but now
+5. The Template is significantly changed - the waves aren't separated but now
    appears as PRIM apps intermingled with applications and the case
    table is given as a separate lookup-table list.
 
@@ -854,10 +854,14 @@ types:
 
 6-> step (p, h, FUN orig n f:s, r, u, c) = (p, h'', s', r, u, lut ++ c) where
 6->   (name, pop, lut, spine, appsWaves) = p !! f
-6->   (apps, prsApps) = partition isApp appsWaves
+6->   (apps, prsApps) = partition isApp appsWaves  -- XXX This is partially wrong, see below
 6->   (h', r') = prs s (h, r) prsApps -- XXX Fun True should start with empty RF
 6->   s' = instSpine s r' h' spine ++ drop pop s
 6->   h'' = h' ++ map (instApp s r h') apps
+
+XXX The partitioning above based on isApp has the potential to change
+the heap address given the the Apps.  We need to change this is a more
+complicated handing of both cases sequentially.
 
 6-> prs :: Stack -> (Heap, RegFile) -> Wave -> (Heap, RegFile)
 6-> prs s = foldr prs1 where
