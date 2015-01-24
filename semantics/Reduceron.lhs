@@ -1,5 +1,6 @@
 > module Main where
 > import Data.List
+6> import System.Environment (getArgs)
 
 [[This is based on text extracted from
 
@@ -647,8 +648,8 @@ We retranslate tri5 again:
 
 [[End of Reduceron Reconfigured]]
 
-While the variant 4 Reduceron is conceptually what has been built,
-it's different enough that we cannot execute the output of Flite.
+While the variant 4 Reduceron is conceptually what has built, it's
+different enough that we cannot execute the output of Flite.
 
 Using the Tri.hs example again
 
@@ -703,7 +704,7 @@ The data type differences from the trivial to the significant are:
 4. The TAB Atom is gone - this is now part of the LUT list and the
    CASE App.
 
-5. The Template is significantly changed - the waves aren't separated but now
+5. The Template is quite changed - the waves aren't separated but now
    appears as PRIM apps intermingled with applications and the case
    table is given as a separate lookup-table list.
 
@@ -854,14 +855,10 @@ types:
 
 6-> step (p, h, FUN orig n f:s, r, u, c) = (p, h'', s', r, u, lut ++ c) where
 6->   (name, pop, lut, spine, appsWaves) = p !! f
-6->   (apps, prsApps) = partition isApp appsWaves  -- XXX This is partially wrong, see below
+6->   (apps, prsApps) = partition isApp appsWaves
 6->   (h', r') = prs s (h, r) prsApps -- XXX Fun True should start with empty RF
 6->   s' = instSpine s r' h' spine ++ drop pop s
 6->   h'' = h' ++ map (instApp s r h') apps
-
-XXX The partitioning above based on isApp has the potential to change
-the heap address given the the Apps.  We need to change this is a more
-complicated handing of both cases sequentially.
 
 6-> prs :: Stack -> (Heap, RegFile) -> Wave -> (Heap, RegFile)
 6-> prs s = foldr prs1 where
@@ -968,4 +965,21 @@ complicated handing of both cases sequentially.
 -5>      TAB i -> "T" ++ show i
 
 > main2 = putStrLn (show (run tri5))
-> main = runT tri5
+-5> main = runT tri5
+
+6> testAll dir = mapM_ doOne programs
+6>   where
+6>   doOne p = do putStrLn $ p ++ ":"
+6>                runT $ dir ++ p
+6>   programs = ["Example.red", "SmallFib.red", "Fib.red", "Parts.red",
+6>               "KnuthBendix.red", "CountDown.red", "Adjoxo.red",
+6>               "Cichelli.red", "Taut.red", "While.red", "Braun.red",
+6>               "MSS.red", "Clausify.red", "OrdList.red", "Queens.red",
+6>               "Queens2.red", "PermSort.red", "SumPuz.red", "Mate2.red",
+6>               "Mate.red"]
+
+6> main = do args <- getArgs
+6>           let (opts, files) = partition (\(c:_) -> c == '-') args
+6>           if "-a" `elem` opts
+6>           then testAll (head files)
+6>           else mapM_ (\p -> putStrLn (p ++ ":") >> runT p) files
