@@ -1,7 +1,7 @@
 /*
   Reduceron Atom and App representation,
 
-  Tommy Thorn, October 2011
+  Tommy Thorn, October 2011, January 2015
 
   This describes how we achieve two seamingly conflicting goals:
   supporting full 32-bit primitive numbers and fitting heap
@@ -23,14 +23,14 @@
   It's important to stress that this is only concerned with the
   representation in external memory. A realistic implementation would
   not operated directly on packed application as done here, but rather
-  pack and unpack them as they enter and exit the cache.
+  unpack and pack them as they enter and exit the heap cache.
 
-  Fitting atoms in just 33 bit was the primary goal, but the secondary
-  goal was to allow as much pointer address space as possible.  Thus,
-  some of the complications below comes from minimizing the
-  application overhead (the "Head Tag"), for example the elimination
-  of the size field and the partially implicit representation of the
-  application tag.
+  While fitting apps in just 128 bits is the primary goal, the
+  secondary goal is to allow as much pointer address space as
+  possible.  Thus, some of the complications below comes from
+  minimizing the application overhead (the "Head Tag"), for example
+  the elimination of the size field and the partially implicit
+  representation of the application tag.
 
 
 
@@ -40,6 +40,10 @@
   indicates whether the rest is an unboxed 32-bit primitive integer or
   a tagged value.  Tagged values have bottom Head Tag (HT) bits
   reserved.
+
+  Heap allocated apps doesn't have to share atom representation with
+  apps in templates, but for this software emulator there's little
+  downside, so we include Register and Argument below.
 
   Effectively we have a multi level tagging scheme (assume HT=5 marked
   with ------):
@@ -55,27 +59,27 @@
       * Functions      00100oAAAiiiiiiiiiiiiiiiiiii----- original,arity,index
       * Invalid        00101lr..iiiiiiiiiiiiiiiiiii----- LUT, REGID, index
 
-  Recall, Argument and Register atoms can only occur in
-  templates. Invalid is used to mark unused atom slots and implicitly
-  represents the size.  Furthermore, for CASE/PRIM, the LUT/RegId is
-  encoded in an Invalid atom in the last atom slot with the
-  corresponding LUT/REGID bits set.  For simplicity most atoms share
+  Invalid is used to mark unused atom slots and implicitly represents
+  the size.  Furthermore, for CASE/PRIM, the LUT/RegId is encoded in
+  an Invalid atom in the last atom slot with the corresponding
+  LUT/REGID bits set.  Also, an invalid atom in the first slot
+  indicated the app has been copied by the garbage collection and the
+  second slot holds the new pointer.  For simplicity most atoms share
   layout, but that could be change if some, say functions, needs a
   larger address space.
 
+  XXX For faster _software_ emulation it might be better to reorganize
+  the bits so the most frequently accessed bits are in the lower order
+  bits.
+
 
   Heap applications
-
-  While we are primarily concerned with heap allocated apps as opposed
-  to apps in templates (which could have a completely different
-  representation with hardly any consequence), we sacrifice some
-  pointer address range for a simpler representation.
 
   The HT bits in the first atom are the application tag bits.  For the
   case where the first atom is a primitive number, we recover the HT
   bits from the second atom.  This is possible because it is
   (currently) impossible for a legal heap allocation to have both the
-  first and the second atom being a number. (Heap app can't be PRIM
+  first and the second atom being a number.  (Heap app can't be PRIM
   and can't contain REG and ARG atoms which could further enables us
   to play a few more tricks to save bits here and there).
 
@@ -86,25 +90,24 @@
   Thus, HT is currently 5, however it could be reduced to 3 as
   follows:
 
-  - HT_NF is strictly redundant and can be recovered, but is included
-    currently as in the original Reduceron-2 as the payoff is high
-    compared to the cost.
-
   - Only primitive applications can have a number at the head, so it
-    may be possible to represent them swapped thus the need for
-    NUM_TAG0 disappears.
+    would make sense to represent those swapped and elimitate the need
+    for NUM_TAG0.
+
+  - HT_NF is strictly redundant and can be inferred from the App.
+
+  XXX No good reason not to just do this.
 
   Comparing the App tags from the original emulator:
 
-  - The size isn't explicitly represented, but instead unused atoms
-    are marked with an illegal value.
+  - The size isn't explicitly represented, but is inferred by the
+    number of valid atoms in an app.
 
   - lut and regId take the place of the last atom (apparently the
     compiler already expects this for LUTs and PRIMs are all currently
     binary).
 
-  - The App tag is implicitly represented by a combination of the GC
-    flag and the last atom.
+  - The App tag is inferred by the last atom.
 
   With an HT of 5, we left with 30-5 = 25 bits for the pointer, enough
   for 32 Mi heap cells, a 512 MiB heap.  The more complicated scheme
@@ -125,7 +128,7 @@ typedef uint32_t UInt;
 
 #define HT 5
 
-typedef enum { CON, PRI, ARG, REG, FUN, INV  } AtomTag;
+typedef enum { CON, PRI, ARG, REG, FUN, INV } AtomTag;
 typedef enum { ADD, SUB, EQ, NEQ, LEQ, EMIT, EMITINT, SEQ,
                AND, ST32, LD32, LAST_PRIM} Prim;
 
@@ -203,6 +206,11 @@ static inline Atom setHT(Atom a, UInt ht)     {return (a & (-1LL << HT)) | ht;}
 
 /**** Apps ****/
 
+// XXX It might be better to define a packed-app and unpacked-app type
+// and a pair conversion functions, letting the emulator work only
+// directly with the unpacked version.
+
+
 typedef enum { HT_INT0, HT_INT1, HT_INT2, HT_INT3, HT_NF } HeadTag;
 
 typedef Int Lut;
@@ -275,7 +283,7 @@ static bool atomEq(Atom a, Atom b) {
     return isINT(a) ? a == b : ((a & -1 << HT) == (b & -1 << HT)); }
 #endif
 
-static inline App    mkApp(AppTag tag, Int size, bool nf, Int info, Atom *atom) {
+static inline App mkApp(AppTag tag, Int size, bool nf, Int info, Atom *atom) {
     App app;
     int i;
     UInt ht = 0;
