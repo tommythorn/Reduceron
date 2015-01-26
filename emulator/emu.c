@@ -646,7 +646,7 @@ void alloc()
   ustack = (Update*) malloc(sizeof(Update) * MAXUSTACKELEMS);
   lstack = (Lut*) malloc(sizeof(Lut) * MAXLSTACKELEMS);
   code = (Template*) malloc(sizeof(Template) * MAXTEMPLATES);
-  registers = (Atom*) malloc(sizeof(Atom) * MAXREGS);
+  registers = (Atom*) calloc(sizeof(Atom), MAXREGS);
   profTable = (ProfEntry*) malloc(sizeof(ProfEntry) * MAXTEMPLATES);
 }
 
@@ -697,20 +697,20 @@ void integerAddOverflow(int a, int b)
    - C2___ for CON 2, arity 3
    - F3__ for FUN 3, arity 2
 
-   - a5 for ARG 5, a5{1} for unique (= unshared)
-   - r7 for regs, r7{1} for unique (= unshared)
+   - h3 for heap addr 3
+   - a5 for ARG 5
+   - r7 for reg 7
  */
 
 /* returns a string of as many _ as n (for n <= 16) */
-char *arityStr(int n)
+static char *arityStr(int n)
 {
     return "________________" + 16 - n;
 }
 
-/* Use . postfix for unique pointers */
-char *shareStr(int sh)
+static char *shareStr(int sh)
 {
-    return sh ? "" : ".";
+    return sh ? "*" : "";
 }
 
 void showAtom(Atom a)
@@ -719,7 +719,7 @@ void showAtom(Atom a)
         "+",
         "-",
         "==",
-        "!=",
+        "/=",
         "<=",
         "emit",
         "emitInt",
@@ -735,9 +735,8 @@ void showAtom(Atom a)
     case REG: printf("r%d%s", a.contents.reg.index, shareStr(a.contents.reg.shared)); break;
     case VAR: printf("h%d%s", a.contents.var.id,    shareStr(a.contents.var.shared)); break;
     case CON: printf("C%d%s", a.contents.con.index, arityStr(a.contents.con.arity)); break;
-    case FUN: printf("F%d%s%s", a.contents.fun.id,  arityStr(a.contents.fun.arity),
-                     a.contents.fun.original ? "" : ".."); break;
-    case PRI: printf("%s%s", a.contents.pri.swap ? "*:" : "",
+    case FUN: printf("%s", code[a.contents.fun.id].name); break;
+    case PRI: printf("%s(%s)", a.contents.pri.swap ? "swap:" : "",
                      a.contents.pri.id < LAST_PRIM ? primName[a.contents.pri.id] : "?"); break;
     default: assert(0);
     }
@@ -747,13 +746,12 @@ void showApp(int addr)
 {
     App app = heap[addr];
 
-    //printf("h%d{%d}:", addr, app.refcnt);
-    printf("h%d:", addr);
+    printf("%d(", addr);
 
     switch (app.tag) {
-    case AP: printf("("); break;
-    case CASE: printf("(CASE F%d ", app.details.lut); break;
-    case PRIM: printf("(r%d=", app.details.regId); break;
+    case AP: printf(""); break;
+    case CASE: printf("CASE F%d ", app.details.lut); break;
+    case PRIM: printf("r%d=", app.details.regId); break;
     case COLLECTED:printf("COLLECTED"); return;
     case INVALID: printf("INVALID"); return;
     default: assert(0);
@@ -784,7 +782,7 @@ void dispatch()
     /* Trace */
 
     if (tracingEnabled) {
-        printf("\nStep #%d\n", stepno);
+        printf("\n%d:\n", stepno);
         printf("Heap  :");
         for (int i = 0; i < hp; ++i)
             if (heap[i].tag < COLLECTED) {
@@ -799,10 +797,22 @@ void dispatch()
         }
         printf("\n");
 
+        printf("UStack:");
+        for (int i = usp-1; i >= 0; --i) {
+            printf(" %d-h%d", ustack[i].saddr, ustack[i].haddr);
+        }
+        printf("\n");
+
         printf("Regs  :");
         for (int i = 0; i < MAXREGS; ++i) {
             putchar(' ');
             showAtom(registers[i]);
+        }
+        printf("\n");
+
+        printf("LStack:");
+        for (int i = lsp-1; i >= 0; --i) {
+            printf(" %d", lstack[i]);
         }
         printf("\n");
 
