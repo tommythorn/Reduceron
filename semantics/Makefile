@@ -9,7 +9,7 @@ all: Reduceron1 Reduceron2 Reduceron3 Reduceron4 Reduceron5 Reduceron6
 	./Reduceron6|tail -8
 
 Reduceron%: Reduceron%.hs
-	ghc $(O) -cpp $^ -o $@
+	ghc $(O) -cpp -optP-Wno-invalid-pp-token $^ -o $@
 
 Reduceron1.hs: Reduceron.lhs variant.lhs
 	runhaskell variant.lhs 1 Reduceron.lhs > $@

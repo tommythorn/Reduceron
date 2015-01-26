@@ -1,5 +1,7 @@
 > module Main where
 > import Data.List
+> import Data.Bits ((.&.))
+6> import Data.Array
 6> import System.Environment (getArgs)
 
 [[This is based on text extracted from
@@ -431,9 +433,14 @@ For every binary primitive function p, we introduce a new primitive
 *p, a version of p that expects its arguments flipped.
 
 3-> prim ('*':p) n m = prim p m n
+3-> prim ('s':'w':'a':'p':':':p) n m = prim p m n
 3-> prim "(+)" n m = INT (n+m)
 3-> prim "(-)" n m = INT (n-m)
 3-> prim "(<=)" n m = bool (n<=m)
+3-> prim "(==)" n m = bool (n==m)
+3-> prim "(/=)" n m = bool (n/=m)
+3-> prim "(.&.)" n m = INT (n .&. m)
+3-> prim s n m = error ("Unsupported primitive " ++ show s)
 
 Any primitive function p can be flipped.
 
@@ -512,7 +519,9 @@ analysis.
 Register File: To support PRS, we introduce a register file to the
 reduction machine, for storing the results of speculative reductions.
 
-4-> type RegFile = [Atom]
+4-5> type RegFile = [Atom]
+4-5> accessRF rf i = rf !! i
+4-5> rf0 = []
 
 The body of a function may refer to these results as required.
 
@@ -536,7 +545,7 @@ register file r as an argument, and the following equation is added to
 the definition of inst.
 
 4-> inst :: Stack -> RegFile -> HeapAddr -> Atom -> Atom
-4-> inst s r base (REG sh i) = dashIf sh (r !! i)
+4-> inst s r base (REG sh i) = dashIf sh (accessRF r i)
 4-> inst s r base (VAR sh p) = VAR sh (base + p)
 4-> inst s r base (ARG sh i) = dashIf sh (s !! i)
 4-> inst s r base a = a
@@ -569,7 +578,7 @@ produces a possibly-modified heap, and one result for each application
 in each wave.
 
 4-5> prs :: Stack -> Heap -> [Wave] -> (Heap, RegFile)
-4-5> prs s h = foldl (wave s) (h, [])
+4-5> prs s h = foldl (wave s) (h, rf0)
 
 4-5> wave s (h,r) = foldl spec (h,r) . map (instApp s r h)
 
@@ -593,7 +602,7 @@ instantiation of the body.
 4>   | arity top > n = (p, h', top:dashN n s, u)
 4>   where
 4>     n = 1 + length s - sa
-4>     h' = update ha (top:dashN (take n s)) h
+4>     h' = update ha (top:dashN n (take n s)) h
 4> step (p, h, CON n j:s, u) = (p, h, FUN 0 (i + j):s,u)
 4>   where TAB i = s !! n
 4> step (p, h, INT m:PRI f:INT n:s, u) =
@@ -827,6 +836,12 @@ The case table stack is in the state as is the Register file.  This is
 necessary to fully handle split functions which can refer back to
 results calculated earlier.
 
+6-> type RegFile = Array Int Atom
+6-> accessRF rf i = rf ! i
+6-> updateRF :: Int -> Atom -> RegFile -> RegFile
+6-> updateRF i a as = as // [(i, a)]
+6-> rf0 = listArray (0,7) (repeat (INT 0))
+
 6-> type CaseTable = Int
 6-> type State = (Prog, Heap, Stack, RegFile, UStack, [CaseTable])
 
@@ -893,15 +908,11 @@ types:
 6-> red (APP nf as) = not nf
 6-> red _           = True
 
-6-> updateRF :: Int -> a -> [a] -> [a]
-6-> updateRF i a as = take i as ++ [a] ++ drop (i+1) as
-
-
 6-> eval (p, h, [INT i], u, _, _) = i
 6-> eval s = eval (step s)
 
 6-> run p = eval initialState
-6->   where initialState = (p, [], [FUN True 0 0], [], [], [])
+6->   where initialState = (p, [], [FUN True 0 0], rf0, [], [])
 
 6-> tri5 = [ ("main",  0, [],  [FUN True 1 1, INT 5], [])
 6->        , ("tri",   1, [2], [ARG True 0, PRI 2 "(<=)", INT 1, ARG True 0], [])
@@ -924,7 +935,7 @@ types:
 > runT p = evalT 0 initialState
 -4>   where initialState = (p, [], [FUN 0 0], [])
 5>    where initialState = (p, [], [FUN True 0 0], [])
-6->   where initialState = (p, [], [FUN True 0 0], [], [], [])
+6->   where initialState = (p, [], [FUN True 0 0], rf0, [], [])
 
 > evalT :: Int -> State -> IO ()
 -5> evalT n (p, h, [INT i], u) =
@@ -936,17 +947,25 @@ types:
 >   showState s
 >   evalT (n+1) (step s)
 
+
 > showState :: State -> IO ()
 -5> showState (p, h, s, u) = do
-6-> showState (p, h, s, u, r, c) = do
->   putStrLn ("Heap  :" ++ show h)
->   putStrLn ("Stack :" ++ stack)
->   putStrLn ("UStack:" ++ show u)
-6->   putStrLn ("RegFil:" ++ show r)
-6->   putStrLn ("CaseTa:" ++ show c)
+6-> showState (p, h, s, r, u, c) = do
+>   putStrLn ("Heap  : " ++ showList showHeapApp (zip [0..] h))
+>   putStrLn ("Stack : " ++ showList showAtom s)
+>   putStrLn ("UStack: " ++ showList showUStack u)
+6->   putStrLn ("Regs  : " ++ showList showAtom (elems r))
+6->   putStrLn ("LStack: " ++ showList show c)
 >   putStrLn ""
 >   where
->   stack = concat (intersperse " " (map showAtom  s))
+>   showList show l = concat $ intersperse " " $ map show l
+>   showHeapApp (a,app) = show a ++ "(" ++ showApp app ++ ")"
+-5>   showApp app = show app
+6>   showApp app = case app of
+6>     APP nf spine     -> showSpine spine
+6>     CASE ct spine    -> "CASE F"++show ct ++ " " ++ showSpine spine
+6>     PRIM regid spine -> "r" ++ show regid ++ "=" ++ showSpine spine
+6>   showSpine spine = showList showAtom spine
 >   showAtom :: Atom -> String
 >   showAtom a = case a of
 -4>      FUN a 0 -> "Fmain"
@@ -955,24 +974,32 @@ types:
 5>      FUN _ a i -> "F" ++ show i
 6->      FUN _ a i -> case p !! i of (name, _, _, _, _) -> name
 -1>      ARG i -> "a" ++ show i
--1>      VAR i -> "#" ++ show i
-2->      ARG True  i -> "*a" ++ show i
+-1>      VAR i -> "h" ++ show i
+2->      ARG True  i -> "a" ++ show i ++ "*"
 2->      ARG False i -> "a" ++ show i
-2->      VAR True  i -> "*#" ++ show i
-2->      VAR False i -> "#" ++ show i
->      CON a i-> "CON-" ++ show a ++ "-" ++ show i
+2->      VAR True  i -> "h" ++ show i ++ "*"
+2->      VAR False i -> "h" ++ show i
+>      CON a i-> "C" ++ show i ++ take a (repeat '_')
 >      INT i -> show i
 -4>      PRI p -> p
 5->      PRI _ p -> p
 -5>      TAB i -> "T" ++ show i
+>   showUStack (sp,haddr) = show sp ++ "-h" ++ show haddr
 
 > main2 = putStrLn (show (run tri5))
 -5> main = runT tri5
 
+6> runP :: String -> IO ()
+6> runP fn = do s <- readFile fn
+6>              runT (map read (lines s) :: [Template])
+
+Note, it probably will run out of memory while computing Parts or
+anything beyond that.
+
 6> testAll dir = mapM_ doOne programs
 6>   where
 6>   doOne p = do putStrLn $ p ++ ":"
-6>                runT $ dir ++ p
+6>                runP $ dir ++ p
 6>   programs = ["Example.red", "SmallFib.red", "Fib.red", "Parts.red",
 6>               "KnuthBendix.red", "CountDown.red", "Adjoxo.red",
 6>               "Cichelli.red", "Taut.red", "While.red", "Braun.red",
@@ -983,5 +1010,5 @@ types:
 6> main = do args <- getArgs
 6>           let (opts, files) = partition (\(c:_) -> c == '-') args
 6>           if "-a" `elem` opts
-6>           then testAll (head files)
-6>           else mapM_ (\p -> putStrLn (p ++ ":") >> runT p) files
+6>           then testAll "../programs/gold/compiled/" -- (head files)
+6>           else mapM_ (\p -> putStrLn (p ++ ":") >> runP p) files
