@@ -349,11 +349,14 @@ written to the heap. The normal-form may contain a unique pointer, but
 the process of writing it to the heap will duplicate it. Hence the
 normal-form on the stack is dashed.
 
+[[The paper and report has a bug here: the update application wasn't
+dashed.]]
+
 2> step (p, h, top:s, (sa,ha):u)
 2>   | arity top > n = (p, h', top:dashN n s, u)
 2>   where
 2>     n = 1 + length s - sa
-2>     h' = update ha (top:take n s) h
+2>     h' = update ha (top:dashN n (take n s)) h
 
 The rest is the same but has to be repeated as function definitions
 have to be continous.
@@ -449,7 +452,7 @@ Now we translate binary primitive applications by the rule
 3>   | arity top > n = (p, h', top:dashN n s, u)
 3>   where
 3>     n = 1 + length s - sa
-3>     h' = update ha (top:take n s) h
+3>     h' = update ha (top:dashN n (take n s)) h
 3> step (p, h, CON n j:s, u) = (p, h, FUN 0 (i + j):s,u)
 3>   where TAB i = s !! n
 3> step (p, h, FUN n f:s, u) = (p, h', s', u)
@@ -590,7 +593,7 @@ instantiation of the body.
 4>   | arity top > n = (p, h', top:dashN n s, u)
 4>   where
 4>     n = 1 + length s - sa
-4>     h' = update ha (top:take n s) h
+4>     h' = update ha (top:dashN (take n s)) h
 4> step (p, h, CON n j:s, u) = (p, h, FUN 0 (i + j):s,u)
 4>   where TAB i = s !! n
 4> step (p, h, INT m:PRI f:INT n:s, u) =
@@ -765,7 +768,7 @@ The first two step cases as before.
 5>   | arity top > n = (p, h', top:dashN n s, u)
 5>   where
 5>     n = 1 + length s - sa
-5>     h' = update ha (top:take n s) h
+5>     h' = update ha (top:dashN n (take n s)) h
 
 The constructor step changed
 
@@ -842,7 +845,7 @@ types:
 6->   | arity top > n = (p, h', top:dashN n s, r, u, c)
 6->   where
 6->     n = 1 + length s - sa
-6->     app = top : take n s
+6->     app = top : dashN n (take n s)
 6->     h' = update ha (mkAPP app) h
 
 6-> step (p, h, CON n j:s, r, u, i:c) = (p, h, FUN False 0 (i + j):s, r, u, c)
