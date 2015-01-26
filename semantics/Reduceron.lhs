@@ -856,7 +856,7 @@ types:
 6-> step (p, h, INT m:PRI 2 f:x:s, r, u, c) =
 6->   (p, h, x:PRI 2 (flipPrim f):INT m:s, r, u, c)
 
-6-> step (p, h, FUN orig n f:s, r, u, c) = (p, h'', s', r, u, lut ++ c) where
+6-> step (p, h, FUN orig n f:s, r, u, c) = (p, h'', s', r', u, lut ++ c) where
 6->   (name, pop, lut, spine, appsWaves) = p !! f
 6->   (apps, prsApps) = partition isApp appsWaves
 6->   (h', r') = prs s (h, r) prsApps -- XXX Fun True should start with empty RF
@@ -893,6 +893,7 @@ types:
 
 6-> red :: App -> Bool
 6-> red (APP nf as) = not nf
+6-> red _           = True
 
 6-> updateRF :: Int -> a -> [a] -> [a]
 6-> updateRF i a as = take i as ++ [a] ++ drop (i+1) as
