@@ -884,9 +884,7 @@ types:
 
 6-> mkAPP spine = APP (isNormal spine) spine
 
-6-> isNormal (CON n c:rest) = length rest <= n
-6-> isNormal (FUN b n f:rest) = length rest < n
-6-> isNormal _ = False
+6-> isNormal (x:xs) = arity x > length xs
 
 6-> isApp (PRIM regid app) = False
 6-> isApp _                = True
