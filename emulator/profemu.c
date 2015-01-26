@@ -185,7 +185,7 @@ void unwind(Bool sh, Int addr)
 {
   App app = heap[addr];
   if (sh && !nf(&app)) {
-    Update u; u.saddr = sp-1; u.haddr = addr;
+    Update u; u.saddr = sp; u.haddr = addr;
     ustack[usp++] = u;
   }
   dashApp(sh, &app);
@@ -209,7 +209,7 @@ static inline Int arity(Atom a)
 
 Bool updateCheck(Atom top, Update utop)
 {
-  return (arity(top) > sp-1 - utop.saddr);
+  return (arity(top) > sp - utop.saddr);
 }
 
 void upd(Atom top, Int sp, Int len, Int hp)
@@ -228,7 +228,7 @@ void upd(Atom top, Int sp, Int len, Int hp)
 
 void update(Atom top, Int saddr, Int haddr)
 {
-  Int len = sp - saddr;
+  Int len = 1 + sp - saddr;
   Int p = sp-2;
 
   for (;;) {
