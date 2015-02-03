@@ -958,7 +958,7 @@ types:
 6->   putStrLn ("LStack: " ++ showList show c)
 >   putStrLn ""
 >   where
->   showList show l = concat $ intersperse " " $ map show l
+>   showList show l = intercalate " " $ map show l
 >   showHeapApp (a,app) = show a ++ "(" ++ showApp app ++ ")"
 -5>   showApp app = show app
 6>   showApp app = case app of
@@ -979,7 +979,7 @@ types:
 2->      ARG False i -> "a" ++ show i
 2->      VAR True  i -> "h" ++ show i ++ "*"
 2->      VAR False i -> "h" ++ show i
->      CON a i-> "C" ++ show i ++ take a (repeat '_')
+>      CON a i-> "C" ++ show i ++ replicate a '_'
 >      INT i -> show i
 -4>      PRI p -> p
 5->      PRI _ p -> p
