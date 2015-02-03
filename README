@@ -127,16 +127,27 @@ Plan:
   Finally: Performance improvements
 
 
-OPEN QUESTIONS
+OPEN QUESTIONS, with answers from Matthew:
 
 Q1: Currently there doesn't seem an efficient way to handle toplevel
-    variable bindings (CAFs).  What did the York team have in mind
-    there or does it require an extension?  (Obviously one can treat
-    them all other functional arguments, but that would mean a lot of
-    parameters to pass around).
+    variable bindings (CAFs).  What did the York team have in mind there
+    or does it require an extension?  (Obviously one can treat them all
+    other functional arguments, but that would mean a lot of parameters
+    to pass around).
+
+A1: "Some mechanism would be needed to construct graphs at a specified
+    location on the heap at the beginning of program execution.  The
+    initial (unevaluated) graphs have constant size so can be linked to
+    at compile time."
 
 Q2: Why does Flite default to 0 for the MAXREGS parameter?  Eg, why is
 
       redDefaults = CompileToRed 6 4 2 1 0
 
+A2: "It just disables primitive redex speculation, which is only
+    supported in the emulator, not FPGA."  ?? Not true?
+
 Q3: What happend to Memo 24?
+
+A3: "I'd like to say it was our best kept secret, but in reality it
+    probably got trashed :)"
