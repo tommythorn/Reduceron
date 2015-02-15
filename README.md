@@ -140,12 +140,13 @@ location on the heap at the beginning of program execution.  The
 initial (unevaluated) graphs have constant size so can be linked to at
 compile time."
 
+
 Q2: Why does Flite default to 0 for the MAXREGS parameter?  Eg, why is
 
       redDefaults = CompileToRed 6 4 2 1 0
 
-A2: "It just disables primitive redex speculation, which is only
-supported in the emulator, not FPGA."  ?? Not true?
+A2: (Historical reasons it would appear).
+
 
 Q3: What happend to Memo 24?
 

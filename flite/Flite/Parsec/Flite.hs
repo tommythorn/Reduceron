@@ -44,7 +44,7 @@ options =
   , Option ['v'] [] (NoArg VerboseResult) "show the integer result from main"
   ]
   where
-    redDefaults = CompileToRed 6 4 2 1 0
+    redDefaults = CompileToRed 6 4 2 1 8
     red Nothing = redDefaults
     red (Just s) =
       case split ':' s of

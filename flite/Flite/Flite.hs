@@ -36,7 +36,7 @@ options =
   , Option ['s'] [] (NoArg StrictnessAnalysis) "employ strictness analysis"
   ]
   where
-    redDefaults = CompileToRed 6 4 2 1 0
+    redDefaults = CompileToRed 6 4 2 1 8
     red Nothing = redDefaults
     red (Just s) =
       case split ':' s of
