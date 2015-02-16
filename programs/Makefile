@@ -64,7 +64,7 @@ regress-red-sim:
 regress-red-verilog-sim: $(patsubst %,%.red-verilog-sim-checked,$(WORKLOADS))
 
 %.red-verilog-sim-checked: gold/compiled/%.red $(RED)
-	cd ../fpga; ./Red -v ../programs/$<
+	cd ../fpga; rm Reduceron/a.out; ./Red -v ../programs/$<
 	time $(MAKE) -C ../fpga/Reduceron sim | diff -u $(patsubst gold/compiled/%.red,gold/run/%.out,$<) - && touch $@
 
 regress-red-verilog-run: $(patsubst %,%.red-verilog-run-checked,$(WORKLOADS))
