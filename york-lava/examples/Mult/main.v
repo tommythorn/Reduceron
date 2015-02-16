@@ -5,7 +5,7 @@ module main;
    wire [7:0] r;
    wire       done;
 
-   MultExample MultExample_inst
+   Mult Mult_inst
       (clock, r[0], r[1], r[2], r[3], r[4], r[5], r[6], r[7], done);
 
    always @(posedge clock)
