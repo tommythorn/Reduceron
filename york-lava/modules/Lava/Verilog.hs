@@ -14,7 +14,7 @@ Suggestions for improvements:
 
 import Lava.Bit
 import Lava.Binary
-import System.Cmd
+import System.Process
 import Numeric (showHex)
 import Data.List (nub)
 

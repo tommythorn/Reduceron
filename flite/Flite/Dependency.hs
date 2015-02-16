@@ -6,6 +6,7 @@ module Flite.Dependency
   , closure      -- :: DepGraph -> DepGraph
   , callGroups   -- :: [Decl] -> [[Decl]]
   , letGroups    -- :: [Binding] -> [[Binding]]
+  , joinGraph    -- :: DepGraph -> (Id, [Id]) -> ((Id, [Id]), Bool)
   ) where
 
 import Flite.Syntax
@@ -25,10 +26,10 @@ step :: DepGraph -> Maybe DepGraph
 step g
   | any snd joined = Just (map fst joined)
   | otherwise = Nothing
-  where joined = map (join g) g
+  where joined = map (joinGraph g) g
 
-join :: DepGraph -> (Id, [Id]) -> ((Id, [Id]), Bool)
-join g (f, fs) = ((f, reached), length fs < length reached)
+joinGraph :: DepGraph -> (Id, [Id]) -> ((Id, [Id]), Bool)
+joinGraph g (f, fs) = ((f, reached), length fs < length reached)
   where reached = nub (fs ++ concatMap (depends g) fs)
 
 fixPoint :: (a -> Maybe a) -> a -> a
@@ -78,7 +79,7 @@ letGroups :: [Binding] -> [[Binding]]
 letGroups bs = map (map (lookupBinding bs)) (components (letGraph bs))
 
 lookupBinding :: [(Id, Exp)] -> Id -> (Id, Exp)
-lookupBinding bs w = 
+lookupBinding bs w =
   case lookup w bs of
     Nothing -> error "Dependency: lookupBinding"
     Just e -> (w, e)

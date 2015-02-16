@@ -1,7 +1,7 @@
 module Lava.C(writeC) where
 import Lava.Bit
 import Lava.Binary
-import System.Cmd
+import System.Process
 import Numeric (showHex)
 import Data.List
 import Data.Maybe (fromJust)

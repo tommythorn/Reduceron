@@ -289,7 +289,7 @@ encodeApp arity n c as
            arity
        .|. (boolToNum n `shiftL` 2)
        .|. (boolToNum c `shiftL` 3)
-       .|. (join atomWidth as `shiftL` 5)
+       .|. (joinIntegers atomWidth as `shiftL` 5)
    | otherwise = error "encodeApp: invalid parameters"
 
 mapApp :: (Atom -> Atom) -> App -> App
@@ -486,9 +486,9 @@ boolToNum :: Num a => Bool -> a
 boolToNum False = 0
 boolToNum True = 1
 
-join :: Int -> [Integer] -> Integer
-join n [] = 0
-join n (x:xs) = x .|. join n (map (`shiftL` n) xs)
+joinIntegers :: Int -> [Integer] -> Integer
+joinIntegers n [] = 0
+joinIntegers n (x:xs) = x .|. joinIntegers n (map (`shiftL` n) xs)
 
 infixl 5 <>
 (x0, w0) <> (x1, w1) = (x0 .|. x1 `shiftL` w0, w0+w1)

@@ -10,7 +10,7 @@ module Lava.Vhdl
 
 import Lava.Bit
 import Lava.Binary
-import System.Cmd
+import System.Process
 
 
 vhdlGumpth :: String

@@ -1,6 +1,7 @@
 module Flite.WriterState where
 
 import Control.Monad
+import Control.Applicative (Applicative(..))
 
 newtype WriterState w s a = WS { runWS :: s -> (s, [w], a) }
 
@@ -13,6 +14,10 @@ instance Monad (WriterState w s) where
 
 instance Functor (WriterState w s) where
   fmap = liftM
+
+instance Applicative (WriterState w s) where
+  pure  = return
+  (<*>) = ap
 
 write :: w -> WriterState w s ()
 write w = WS $ \s -> (s, [w], ())

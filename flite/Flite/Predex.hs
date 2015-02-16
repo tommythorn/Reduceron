@@ -12,6 +12,7 @@ module Flite.Predex where
 import Data.List
 import Flite.Syntax
 import Control.Monad
+import Control.Applicative (Applicative(..))
 import Flite.Traversals
 import qualified Flite.RedSyntax as R
 
@@ -40,7 +41,7 @@ ident spine scope (Let bs e) =
      return (Let (zip vs es') e')
 ident spine scope (PrimApp p es) = return (PrimApp p es)
 ident spine scope e = return e
- 
+
 isPrimApp :: Exp -> Bool
 isPrimApp (PrimApp p es) = True
 isPrimApp _ = False
@@ -51,7 +52,7 @@ checkArgs scope es = all (checkArg scope) es
 checkArg :: [(Id, Bool)] -> Exp -> Bool
 checkArg scope (Int i) = True
 checkArg scope (PrimApp p xs) = True
-checkArg scope (Var v) = 
+checkArg scope (Var v) =
   case lookup v scope of
     Nothing -> True
     Just b -> b
@@ -64,6 +65,13 @@ data Count a = Count { runCount :: Int -> (Int, a) }
 instance Monad Count where
   return a = Count $ \n -> (n, a)
   x >>= f = Count $ \n -> case runCount x n of (m, y) -> runCount (f y) m
+
+instance Functor Count where
+  fmap = liftM
+
+instance Applicative Count where
+  pure  = return
+  (<*>) = ap
 
 one :: a -> a -> Count a
 one a b = Count $ \n -> if n > 0 then (n-1, a) else (n, b)

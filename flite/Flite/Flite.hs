@@ -1,3 +1,4 @@
+-- Note, this version is stale and depricated
 module Flite.Flite (main) where
 
 import Flite.Syntax
@@ -9,8 +10,8 @@ import Flite.Inline
 import Flite.Compile
 import Flite.RedCompile
 import Data.List
-import System
 import System.IO
+import System.Environment
 import System.Console.GetOpt
 
 data Flag =
@@ -59,13 +60,13 @@ run flags fileName =
                           ++ [InlineSmall i | Inline (Just i) <- flags]
                           ++ [NoInline]
      case filter isDisjoint flags of
-       [] -> print (interp inlineFlag p)
+       [] -> print (interp (inlineFlag,inlineFlag) p)
        [Desugar] ->
-         putStrLn $ pretty $ frontend inlineFlag p
-       [CompileToC] -> putStrLn $ compile inlineFlag p
+         putStrLn $ pretty $ frontend (inlineFlag,inlineFlag) p
+       [CompileToC] -> putStrLn $ compile (inlineFlag,inlineFlag) p
        [CompileToRed slen alen napps nluts nregs] ->
         do let sa = StrictnessAnalysis `elem` flags
-           mapM_ print $ redCompile inlineFlag sa slen alen napps nluts nregs p
+           mapM_ print $ redCompile (inlineFlag,inlineFlag) sa slen alen napps nluts nregs p
        _ -> error (usageInfo header options)
 
 -- Auxiliary

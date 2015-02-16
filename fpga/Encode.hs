@@ -89,7 +89,7 @@ encodeTemp popN alts pushes app1 app2
   | otherwise = error "encodeTemp: invalid arguments"
   where
     app2' = maybe 0 encodeApp app2
-    pushes' = B.join B.atomWidth $ map encodeAtom $
+    pushes' = B.joinIntegers B.atomWidth $ map encodeAtom $
                 take 5 (tail pushes ++ repeat (INT 0))
     getHeader a = a .&. 31
     getAtoms a = a `shiftR` 5

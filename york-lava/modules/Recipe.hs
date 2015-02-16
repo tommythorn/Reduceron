@@ -49,6 +49,8 @@ module Recipe
 import Lava
 import Data.List
 import Data.Maybe
+import Control.Applicative (Applicative(..))
+import Control.Monad       (liftM, ap)
 
 type VarId = Int
 
@@ -248,11 +250,18 @@ call p = Seq [ p!procGo <== 1, While (p!procDone!inv) Tick ]
 
 data RWS r w s a = RWS { runRWS :: r -> s -> (s, [w], a) }
 
+instance Functor (RWS r w s) where
+  fmap = liftM
+
 instance Monad (RWS r w s) where
   return a = RWS (\r s -> (s, [], a))
   m >>= f = RWS (\r s -> let (s0, w0, a) = runRWS m r s
                              (s1, w1, b) = runRWS (f a) r s0
                          in  (s1, w0 ++ w1, b))
+
+instance Applicative (RWS r w s) where
+  pure  = return
+  (<*>) = ap
 
 get :: RWS r w s s
 get = RWS (\r s -> (s, [], s))
