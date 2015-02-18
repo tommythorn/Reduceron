@@ -1,4 +1,4 @@
-module Red.Translate where
+module GHC-Flite.Translate where
 
 import qualified Flite.Syntax as Flite
 
