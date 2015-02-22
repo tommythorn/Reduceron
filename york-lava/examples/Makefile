@@ -1,2 +1,4 @@
+subdirs=Avalon Cube HalfAdd Loopy MultExample Poly Stack Toggle LFSR
+
 all:
-	for d in Avalon Cube HalfAdd Loopy MultExample Poly Stack Toggle;do make -C $$d;done
+	for d in $(subdirs);do make -C $$d;done
