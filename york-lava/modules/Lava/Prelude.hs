@@ -339,9 +339,9 @@ instance N n => Num (Vec n Bit) where
   a - b = vec (velems a /-/ velems b)
   a * b = error "Multiplication of bit-vectors is not yet supported"
   abs a = a
-  signum v = vec (map (b <&>) xs)  -- signum as defined is just id, probably not the intention
+  -- just 0 or 1 as vectors are interpreted as unsigned
+  signum v = vec (orG xs : repeat 0)
     where xs = velems v
-          b  = orG xs
   fromInteger i = sized (\n -> Vec (fromInteger i `ofWidth` n))
 
 ofWidth :: Integral a => a -> Int -> [Bit]
