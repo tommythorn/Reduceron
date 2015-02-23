@@ -2,8 +2,8 @@ module Lava.Verilog(writeVerilog) where
 
 {-
 BUG:
-#1: using both writeVerilog and writeVhdl, or either twice, doesn't work.
-    Side-effects corrupting the netlist?
+#1: using both writeVerilog and writeVhdl, or either twice, doesn't work,
+    due to the dirty use of unsafePerformIO to implement Observable Sharing.
 
 Suggestions for improvements:
 - inline everything that isn't shared (drops the # of defined wires dramatically)
@@ -153,10 +153,10 @@ outputs named @sum@ and @carry@.
 >             (name "sum", name "carry")
 -}
 writeVerilog ::
-  Generic a => String -- ^ The name of VERILOG entity, which is also the
+  Generic a => String -- ^ The name of Verilog entity, which is also the
                       -- name of the directory that the output files
                       -- are written to.
-            -> a      -- ^ The Bit-structure that is turned into VERILOG.
+            -> a      -- ^ The Bit-structure that is turned into Verilog.
             -> a      -- ^ Names for the outputs of the circuit.
             -> IO ()
 writeVerilog name a b =
