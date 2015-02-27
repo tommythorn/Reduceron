@@ -9,18 +9,15 @@ data Mult n = Mult { a, b, result :: Reg n }
 newMult :: N n => New (Mult n)
 newMult = return Mult `ap` newReg `ap` newReg `ap` newReg
 
+shiftAndAdd :: N n => Mult (S n) -> Recipe
 shiftAndAdd s =
   While (s!b!val =/= 0) $
-    Seq [ s!a <== s!a!val!shr
-        , s!b <== s!b!val!shl
+    Seq [ s!a <== low `vshr` (s!a!val)
+        , s!b <== (s!b!val) `vshl` low
         , s!b!val!vhead |>
             s!result <== s!result!val + s!a!val
         , Tick
         ]
-
-shr x = low +> vinit x
-
-shl x = vtail x <+ low
 
 multiply x y s =
   Seq [ s!a <== x, s!b <== y, s!result <== 0, Tick, s!shiftAndAdd ]
