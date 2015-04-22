@@ -152,3 +152,5 @@ Q3: What happend to Memo 24?
 
 A3: "I'd like to say it was our best kept secret, but in reality it
 probably got trashed :)"
+
+[![tip for next commit](http://prime4commit.com/projects/273.svg)](http://prime4commit.com/projects/273)
