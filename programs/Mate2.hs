@@ -22,7 +22,7 @@ no Nothing = True ;
 no (Just x) = False ;
 
 maybe n j Nothing  = n ;
-maybe n j (Just x) = j x ; 
+maybe n j (Just x) = j x ;
 
 con True  q = q ;
 con False q = False ;
@@ -64,13 +64,13 @@ unzip (Cons (Pair x y) xys) =
   let { u = unzip xys ; } in  Pair (Cons x (fst u)) (Cons y (snd u)) ;
 
 kindToChar k =
-	case k of {
-	King	  -> 'K' ;
-	Queen	  -> 'Q' ;
-	Rook	  -> 'R' ;
-	Bishop	-> 'B' ;
-	Knight	-> 'N' ;
-	Pawn	  -> 'P' ;
+        case k of {
+        King      -> 'K' ;
+        Queen     -> 'Q' ;
+        Rook      -> 'R' ;
+        Bishop  -> 'B' ;
+        Knight  -> 'N' ;
+        Pawn      -> 'P' ;
   } ;
 
 isKing k = (==) (kindToChar k) 'K' ;
@@ -86,7 +86,7 @@ pieceAtWith sq c n (Map k s xs) =
   } ;
 
 emptyAtAll (Board wkss bkss) e =
-	emptyAtAllAnd e (emptyAtAllAnd e True bkss) wkss ;
+        emptyAtAllAnd e (emptyAtAllAnd e True bkss) wkss ;
 
 emptyAtAllAnd e b Empty                = b ;
 emptyAtAllAnd e b (Map k s xs) =
@@ -95,7 +95,7 @@ emptyAtAllAnd e b (Map k s xs) =
 rmPieceAt White sq (Board wkss bkss) = Board (rPa sq wkss) bkss ;
 rmPieceAt Black sq (Board wkss bkss) = Board wkss (rPa sq bkss) ;
 
-rPa sq (Map k s kss) = 
+rPa sq (Map k s kss) =
     case sameSquare s sq of { True -> kss ; False -> Map k s (rPa sq kss) ; } ;
 
 putPieceAt sq (Pair c k) (Board wkss bkss) =
@@ -142,58 +142,58 @@ movesForPiece c bd k s =
   concatMap (tryMove c bd k s) (rawmoves c k s bd) ;
 
 tryMove c bd k sqFrom (Move sqTo mcp mpp) =
-	let { p   = Pair c k ;
-        bd1 =	rmPieceAt c sqFrom bd ;
-        pp  =	maybe p id mpp ;
-        bd2 =	maybe (putPieceAt sqTo pp bd1)
-		                (const (putPieceAt sqTo pp
+        let { p   = Pair c k ;
+        bd1 =   rmPieceAt c sqFrom bd ;
+        pp  =   maybe p id mpp ;
+        bd2 =   maybe (putPieceAt sqTo pp bd1)
+                                (const (putPieceAt sqTo pp
                              (rmPieceAt (opponent c) sqTo bd1)))
-		                mcp ; }
- 	in case kingincheck c bd2 of {
+                                mcp ; }
+        in case kingincheck c bd2 of {
      False -> Cons (Pair (MoveInFull p sqFrom (Move sqTo mcp mpp)) bd2) Nil ;
-	   True  -> Nil ;
+           True  -> Nil ;
      } ;
 
-rawmoves c k sq bd = 
-	let { m = case k of {
-	          King   -> kingmoves   ;
-	          Queen  -> queenmoves  ;
-	          Rook   -> rookmoves   ;
-	          Bishop -> bishopmoves ;
-	          Knight -> knightmoves ;
-	          Pawn   -> pawnmoves   ;
+rawmoves c k sq bd =
+        let { m = case k of {
+                  King   -> kingmoves   ;
+                  Queen  -> queenmoves  ;
+                  Rook   -> rookmoves   ;
+                  Bishop -> bishopmoves ;
+                  Knight -> knightmoves ;
+                  Pawn   -> pawnmoves   ;
             } ; }
   in m c sq bd ;
 
 bishopmoves c sq bd =
-	append (moveLine bd c sq (cross (Pair dec inc))) (
-	append (moveLine bd c sq (cross (Pair inc inc))) (
-	append (moveLine bd c sq (cross (Pair dec dec)))
-	       (moveLine bd c sq (cross (Pair inc dec))) )) ;
+        append (moveLine bd c sq (cross (Pair dec inc))) (
+        append (moveLine bd c sq (cross (Pair inc inc))) (
+        append (moveLine bd c sq (cross (Pair dec dec)))
+               (moveLine bd c sq (cross (Pair inc dec))) )) ;
 
 rookmoves c sq bd =
-	append (moveLine bd c sq (cross (Pair dec id))) (
-	append (moveLine bd c sq (cross (Pair inc id))) (
-	append (moveLine bd c sq (cross (Pair id dec))) 
-	       (moveLine bd c sq (cross (Pair id inc))) )) ;
+        append (moveLine bd c sq (cross (Pair dec id))) (
+        append (moveLine bd c sq (cross (Pair inc id))) (
+        append (moveLine bd c sq (cross (Pair id dec)))
+               (moveLine bd c sq (cross (Pair id inc))) )) ;
 
-moveLine bd c sq inc = 
-	let { incsq = inc sq ; } in
-	case onboard incsq of {
+moveLine bd c sq inc =
+        let { incsq = inc sq ; } in
+        case onboard incsq of {
   True -> case pieceAt bd incsq of {
-		      Nothing -> Cons (Move incsq Nothing Nothing)
+                      Nothing -> Cons (Move incsq Nothing Nothing)
                           (moveLine bd c incsq inc) ;
-		      Just p  -> case sameColour (colourOf p) c of {
-				             False -> Cons (Move incsq (Just p) Nothing) Nil ;
+                      Just p  -> case sameColour (colourOf p) c of {
+                                             False -> Cons (Move incsq (Just p) Nothing) Nil ;
                      True  -> Nil ;
                      } ;
           } ;
-	False -> Nil ;
+        False -> Nil ;
   } ;
 
 kingmoves c (Pair p q) bd =
   let { pi = (+) p 1 ; pd = (-) p 1 ; qi = (+) q 1 ; qd = (-) q 1 ; }
-	in sift c bd Nil
+        in sift c bd Nil
        (Cons (Pair pd qi) (Cons (Pair p qi) (Cons (Pair pi qi)
        (Cons (Pair pd q )                   (Cons (Pair pi q )
        (Cons (Pair pd qd) (Cons (Pair p qd) (Cons (Pair pi qd)
@@ -202,7 +202,7 @@ kingmoves c (Pair p q) bd =
 knightmoves c (Pair p q) bd =
   let {pi  = (+) p 1 ; pd  = (-) p 1 ; qi  = (+) q 1 ; qd  = (-) q 1 ;
        pi2 = (+) p 2 ; pd2 = (-) p 2 ; qi2 = (+) q 2 ; qd2 = (-) q 2 ; }
-	in sift c bd Nil
+        in sift c bd Nil
                  (Cons (Pair pd qi2) (Cons (Pair pi qi2)
        (Cons (Pair pd2 qi)                     (Cons (Pair pi2 qi)
        (Cons (Pair pd2 qd)                     (Cons (Pair pi2 qd)
@@ -211,8 +211,8 @@ knightmoves c (Pair p q) bd =
 
 sift c bd ms Nil           = ms ;
 sift c bd ms (Cons sq sqs) =
-	case onboard sq of {
-	False -> sift c bd ms sqs ;
+        case onboard sq of {
+        False -> sift c bd ms sqs ;
   True  ->
     case pieceAt bd sq of {
     Nothing -> sift c bd (Cons (Move sq Nothing Nothing) ms) sqs ;
@@ -224,19 +224,19 @@ sift c bd ms (Cons sq sqs) =
   } ;
 
 pawnmoves c (Pair p q) bd =
-  let { fwd  = case c of {	White -> 1 ; Black -> (-) 0 1 ; } ; 
+  let { fwd  = case c of {      White -> 1 ; Black -> (-) 0 1 ; } ;
         on1  = Pair p ((+) q fwd) ;
         on2  = Pair p ((+) ((+) q fwd) fwd) ;
         mov2 = case con (secondRank c q) (no (pieceAt bd on2)) of {
-               True -> Cons (Move on2 Nothing Nothing) Nil ; 
-      			   False -> Nil ;
+               True -> Cons (Move on2 Nothing Nothing) Nil ;
+                           False -> Nil ;
                } ;
-      	movs = case no (pieceAt bd on1) of {
+        movs = case no (pieceAt bd on1) of {
                True ->
-            		 append
+                         append
                    (promote c on1 Nothing)
-        			     mov2 ;
-            	 False -> 
+                                     mov2 ;
+                 False ->
                  Nil ;
                } ;
         dii  = Pair ((+) p 1) ((+) q fwd) ;
@@ -254,14 +254,14 @@ promoteCap c sq bd =
               } ;
   } ;
 
-promote c sq mcp =  
-	case lastRank c (rank sq) of {
+promote c sq mcp =
+        case lastRank c (rank sq) of {
   True  -> map (Move sq mcp)
-		       (Cons (Just (Pair c Queen))
+                       (Cons (Just (Pair c Queen))
            (Cons (Just (Pair c Rook))
            (Cons (Just (Pair c Bishop))
            (Cons (Just (Pair c Knight)) Nil)))) ;
-	False -> Cons (Move sq mcp Nothing) Nil ;
+        False -> Cons (Move sq mcp Nothing) Nil ;
   } ;
 
 secondRank White r = (==) r 2 ;
@@ -276,28 +276,28 @@ any2 p Empty = False;
 any2 p (Map k s xs) = dis (p k s) (any2 p xs);
 
 kingincheck c bd =
-	any2 (kingInCheckFrom c bd) (forcesColoured (opponent c) bd) ;
+        any2 (kingInCheckFrom c bd) (forcesColoured (opponent c) bd) ;
 
 kingInCheckFrom c bd f (Pair x y) =
   case kingSquare c bd of {
-  Pair xk yk -> 
+  Pair xk yk ->
     case f of {
-		King   -> con ((<=) (abs ((-) x xk)) 1)
+                King   -> con ((<=) (abs ((-) x xk)) 1)
                   ((<=) (abs ((-) y yk)) 1) ;
-		Queen  -> dis (kingInCheckFrom c bd Rook   (Pair x y))
+                Queen  -> dis (kingInCheckFrom c bd Rook   (Pair x y))
                   (kingInCheckFrom c bd Bishop (Pair x y)) ;
-		Rook   -> dis (con ((==) x xk)
+                Rook   -> dis (con ((==) x xk)
                        (emptyAtAll bd (filePath xk y yk)))
                   (con ((==) y yk)
                        (emptyAtAll bd (rankPath yk x xk))) ;
-		Bishop -> dis (con ((==) ((-) x y) ((-) xk yk))
+                Bishop -> dis (con ((==) ((-) x y) ((-) xk yk))
                        (emptyAtAll bd (diagPath minus ((-) xk yk) x xk)))
                   (con ((==) ((+) x y) ((+) xk yk))
                        (emptyAtAll bd (diagPath plus ((+) xk yk) x xk))) ;
-		Knight -> dis (con ((==) (abs ((-) x xk)) 2) ((==) (abs ((-) y yk)) 1))
+                Knight -> dis (con ((==) (abs ((-) x xk)) 2) ((==) (abs ((-) y yk)) 1))
                   (con ((==) (abs ((-) x xk)) 1) ((==) (abs ((-) y yk)) 2)) ;
-		Pawn   -> con ((==) (abs ((-) x xk)) 1)
-			            ((==) yk (onFor c y )) ;
+                Pawn   -> con ((==) (abs ((-) x xk)) 1)
+                                    ((==) yk (onFor c y )) ;
     } ;
   } ;
 
@@ -306,29 +306,29 @@ onFor White = dec ;
 
 filePath xk yFrom yTo (Pair x y) =
   let { ylo = (+) (min yFrom yTo) 1 ; yhi = (-) (max yFrom yTo) 1 ; }
-  in  con ((==) x xk) (con ((<=) ylo y) ((<=) y yhi)) ; 
+  in  con ((==) x xk) (con ((<=) ylo y) ((<=) y yhi)) ;
 
 rankPath yk xFrom xTo (Pair x y) =
   let { xlo = (+) (min xFrom xTo) 1 ; xhi = (-) (max xFrom xTo) 1 ; }
-  in  con ((==) y yk) (con ((<=) xlo x) ((<=) x xhi)) ; 
+  in  con ((==) y yk) (con ((<=) xlo x) ((<=) x xhi)) ;
 
 diagPath op d xFrom xTo (Pair x y) =
   let { xlo = (+) (min xFrom xTo) 1 ; xhi = (-) (max xFrom xTo) 1 ; }
-  in  con ((==) (op x y) d) (con ((<=) xlo x) ((<=) x xhi)) ; 
+  in  con ((==) (op x y) d) (con ((<=) xlo x) ((<=) x xhi)) ;
 
 solve bd c n = showResult (solution bd c ((-) ((+) n n) 1)) ;
 
-solution bd c n  = 
+solution bd c n  =
   let { mds = moveDetailsFor c bd ; } in
-	foldr (solnOr c n) Nothing mds ;
+        foldr (solnOr c n) Nothing mds ;
 
 solnOr c n (Pair mif b) other =
-	case replies b (opponent c) ((-) n 1) of {
-	Nothing -> other ;
-	Just rs -> case null rs of {
+        case replies b (opponent c) ((-) n 1) of {
+        Nothing -> other ;
+        Just rs -> case null rs of {
              True -> case kingincheck (opponent c) b of {
                      True  -> Just (Solution mif Nil) ;
-		                 False -> other ;
+                                 False -> other ;
                      } ;
              False -> Just (Solution mif rs) ;
              } ;
@@ -338,15 +338,15 @@ replies bd c n =
   let { mds = moveDetailsFor c bd ; } in
   case (==) n 0 of {
   True  -> case null mds of { True -> Just Nil ; False -> Nothing ; } ;
-	False -> foldr (solnAnd c n) (Just Nil) mds ;
+        False -> foldr (solnAnd c n) (Just Nil) mds ;
   } ;
 
 solnAnd c n (Pair mif b) rest =
-	case solution b (opponent c) ((-) n 1) of {
-	Nothing -> Nothing ;
-	Just s  -> case rest of {
-			       Nothing -> Nothing ;
-			       Just ms -> Just (Cons (Pair mif s) ms) ;
+        case solution b (opponent c) ((-) n 1) of {
+        Nothing -> Nothing ;
+        Just s  -> case rest of {
+                               Nothing -> Nothing ;
+                               Just ms -> Just (Cons (Pair mif s) ms) ;
              } ;
   } ;
 

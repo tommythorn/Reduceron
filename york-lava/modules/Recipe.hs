@@ -46,6 +46,7 @@ module Recipe
   , simRecipe
   ) where
 
+import Prelude hiding (Word)
 import Lava
 import Data.List
 import Data.Maybe

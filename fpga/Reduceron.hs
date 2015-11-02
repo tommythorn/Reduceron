@@ -2,6 +2,7 @@
 
 module Reduceron where
 
+import Prelude hiding (Word)
 import Lava
 import Recipe
 import Bytecode

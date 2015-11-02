@@ -1,3 +1,4 @@
+import Prelude hiding (Word)
 import Lava
 import Recipe
 import Reduceron
@@ -12,7 +13,7 @@ import Collect
 
 import Heap
 
-data Flag = Simulate | Generate | GenVerilog | GenC | Mem deriving Eq
+data Flag = Simulate | Generate | GenVerilog | GenC deriving Eq
 
 options :: [OptDescr Flag]
 options =
@@ -20,7 +21,6 @@ options =
   , Option ['g'] [] (NoArg Generate) "generate VHDL"
   , Option ['v'] [] (NoArg GenVerilog) "generate Verilog"
   , Option ['c'] [] (NoArg GenC) "generate C"
-  , Option ['m'] [] (NoArg Mem) "generate .mem file "
   ]
 
 header = "Usage: Machine [OPTION...] FILE.red"
@@ -73,20 +73,3 @@ run flags fileName =
        in  writeC "Reduceron"
                      (r!result!val, fin)
                      (nameWord "result", name "done")
-     when (Mem `elem` flags) $
-       do putStr "@0 "
-          putStrLn $ unwords (mem code)
-
-mem :: [Integer] -> [String]
-mem = error "broekn" $ concatMap f
-  where
-    f = map (reverse . binToHex)
-      . map (++ [False, False])
-      . map fixParity
-      . groupN 18
-      . pad
-      . intToBin
-
-    pad xs = take 234 (xs ++ repeat False)
-
-    fixParity xs = take 8 xs ++ take 8 (drop 9 xs) ++ [xs !! 8, xs !! 17]

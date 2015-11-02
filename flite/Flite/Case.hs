@@ -86,7 +86,7 @@ elim cstk fams p = concatMap comp p
       return App `ap` compFun fun e `ap` calts fun as
     compFun fun e = descendM (compFun fun) e
 
-    calts fun as = 
+    calts fun as =
       do es' <- mapM (compFun fun) es
          let fvs = nub $ concat $ zipWith (freeVarsExcept) vss es'
          fs <- zipWithM (calt fun fvs) vss es'

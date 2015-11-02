@@ -2,6 +2,7 @@
 
 module Bytecode where
 
+import Prelude hiding (Word)
 import Lava
 import Data.Bits
 

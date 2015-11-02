@@ -134,22 +134,22 @@ fix :: Val -> Val
 fix f = let a = f @@ a in a
 
 forceInt :: Val -> (Int -> Val) -> Val
-forceInt (N i) 		f = f i
-forceInt (Emit s k)	f = Emit s (forceInt k f)
-forceInt (St32 a d k)	f = St32 a d (forceInt k f)
-forceInt a		f = Error $ "Integer expected. " ++ show a
+forceInt (N i)        f = f i
+forceInt (Emit s k)   f = Emit s (forceInt k f)
+forceInt (St32 a d k) f = St32 a d (forceInt k f)
+forceInt a            f = Error $ "Integer expected. " ++ show a
 
 arith2 :: (Int -> Int -> Int) -> Val
 arith2 op = Lam $ \a -> Lam $ \b ->
-	forceInt a $ \a' ->
-	forceInt b $ \b' ->
-		N (op a' b')
+    forceInt a $ \a' ->
+    forceInt b $ \b' ->
+        N (op a' b')
 
 logical2 :: (Int -> Int -> Bool) -> Val
 logical2 op = Lam $ \a -> Lam $ \b ->
-	forceInt a $ \a' ->
-	forceInt b $ \b' ->
-		if (op a' b') then true else false
+    forceInt a $ \a' ->
+    forceInt b $ \b' ->
+        if (op a' b') then true else false
 
 
 

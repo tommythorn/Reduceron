@@ -19,6 +19,7 @@ module CachingOctostack
 -- parameter to the 'update' operation quickly.  See Memo 27 for
 -- details.
 
+import Prelude hiding (Word)
 import Lava
 import Recipe
 import Data.List

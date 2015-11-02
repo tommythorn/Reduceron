@@ -3,7 +3,7 @@
 p n = length (partitions n) ;
 
 partitions n = partitionsWith n (countDown n) ;
- 
+
 partitionsWith n ns = case (==) n 0 of {
                         True  -> Cons Nil Nil ;
                         False -> concatMap (partitionsWith0 n ns) ns ;

@@ -6,6 +6,7 @@ module Code
 -- A value of type 'Code n m' is a read-only random-access memory
 -- storing '2^n' elements elements of type 'Word m'.
 
+import Prelude hiding (Word)
 import Lava
 import Recipe
 

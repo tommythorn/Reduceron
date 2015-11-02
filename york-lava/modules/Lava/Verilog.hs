@@ -239,9 +239,9 @@ instRam params comp (we1:sigs) =
   "   .data_a (" ++ vBus dbus1 ++ "),\n" ++
   "   .q_a (" ++ vBus outs1 ++ "),\n" ++
 
-  "   .address_b (1'b1),\n" ++
+  "   .address_b (),\n" ++
   "   .wren_b (1'b0),\n" ++
-  "   .data_b (1'b1),\n" ++
+  "   .data_b (),\n" ++
   "   .q_b (),\n" ++
 
   "   .aclr0 (1'b0),\n" ++
@@ -270,7 +270,9 @@ instRam params comp (we1:sigs) =
   c ++ ".power_up_uninitialized = \"FALSE\",\n" ++
   c ++ ".read_during_write_mode_port_a = \"NEW_DATA_NO_NBE_READ\",\n" ++
   c ++ ".widthad_a = " ++ show awidth ++ ",\n" ++
+  c ++ ".widthad_b = 0,\n" ++
   c ++ ".width_a = " ++ show dwidth ++ ",\n" ++
+  c ++ ".width_b = 0,\n" ++
   c ++ ".width_byteena_a = 1,\n" ++
   c ++ ".width_byteena_b = 1;\n"
 

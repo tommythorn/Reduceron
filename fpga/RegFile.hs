@@ -8,6 +8,7 @@ module RegFile
 -- A value of type 'RegFile n m' is a file of 'n' registers of type
 -- 'Word m'.  One register can be updated per clock-cycle.
 
+import Prelude hiding (Word)
 import Lava
 import Recipe
 

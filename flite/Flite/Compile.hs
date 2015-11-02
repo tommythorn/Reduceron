@@ -25,7 +25,7 @@ addBool cs =
     notDefined f cs = null [c | (c, _, _) <- cs, c == f]
     insertIf p x xs = if p xs then x:xs else xs
 
-toNode f p (Fun g) = 
+toNode f p (Fun g) =
   case arities of
     [] -> FUN 2 (funId g)
     n:_ -> FUN n (funId g)

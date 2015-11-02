@@ -72,7 +72,7 @@ null Nil         = True ;
 null (Cons x xs) = False;
 
 zip Nil         ys          = Nil ;
-zip (Cons x xs) Nil         = Nil ; 
+zip (Cons x xs) Nil         = Nil ;
 zip (Cons x xs) (Cons y ys) = Cons (Pair x y) (zip xs ys) ;
 
 foldr1 f (Cons x xs) = case null xs of {
@@ -94,4 +94,3 @@ main = case isTaut testProp of {
        } ;
 
 }
-

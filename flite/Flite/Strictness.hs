@@ -55,11 +55,11 @@ eval :: Strictness -> Exp -> Exp
 eval p (Int i) = Int i
 eval p (Fun f) = apply p f []
 eval p (Var v) = Var v
-eval p (App (Fun "&") [e0, e1]) = 
+eval p (App (Fun "&") [e0, e1]) =
   case eval' p e0 of { Int 0 -> Int 0 ; Int 1 -> eval p e1 ; Var v -> Var v }
-eval p (App (Fun "|") [e0, e1]) = 
+eval p (App (Fun "|") [e0, e1]) =
   case eval' p e0 of { Int 0 -> eval p e1 ; Int 1 -> Int 1 ; Var v -> Var v }
-eval p (App (Fun "=") [e0, e1]) = 
+eval p (App (Fun "=") [e0, e1]) =
   case eval' p e0 of { Int 0 -> inv (eval' p e1)
                      ; Int 1 -> eval' p e1
                      ; Var v -> Var v }
@@ -162,7 +162,7 @@ fp p xs d0 d1 =
     args1 = map (\(Var v) -> v) (funcArgs d1)
     lhs = substMany (funcRhs d0) (zip xs args0)
     rhs = substMany (funcRhs d1) (zip xs args1)
-    
+
 refine :: [Exp] -> Int -> [[Exp]]
 refine xs i = [replace bottom, replace mayTerminate]
   where replace x = [if i == j then x else y | (y, j) <- zip xs [0..]]

@@ -15,10 +15,10 @@ This defines the basic Reduceron machine.
 
 The source uses a style inspired by
 
-	Implementing functional languages
-	~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-	Simon Peyton Jones and David Lester
-	Prentice Hall 1992
+        Implementing functional languages
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        Simon Peyton Jones and David Lester
+        Prentice Hall 1992
 
 to include multiple variants in a single source.  The Bird marks (> )
 can be prefixed with the variant(s) in which it should be included

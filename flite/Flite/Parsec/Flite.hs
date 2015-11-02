@@ -53,7 +53,7 @@ options =
         _ -> error (usageInfo header options)
 
 header = "Usage: Flite [OPTION...] FILE.hs \n"
-	  ++ "Version " ++ showVersion version
+      ++ "Version " ++ showVersion version
 
 main =
   do args <- getArgs

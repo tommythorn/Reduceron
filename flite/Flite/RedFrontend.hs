@@ -42,7 +42,7 @@ frontendM strictAnan nregs (h, i) p =
              >>= return . concatApps
      return p1
 
-                 
+
 concApps :: Int -> Prog -> Prog
 concApps 0 = concatApps
 concApps nregs = concatNonPrims

@@ -18,6 +18,7 @@ module Unistack
 -- Pushing and popping can be done in parallel.  The maximum number of
 -- elements that can be stored on the stack is '2^n'.
 
+import Prelude hiding (Word)
 import Lava
 import Recipe
 

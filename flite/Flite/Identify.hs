@@ -14,7 +14,7 @@ identifyFuncs p =
 
     fun vs (Case e as) =
       Case (fun vs e) [(p, fun (vs ++ patVars p) e) | (p, e) <- as]
-    fun vs (Let bs e) = 
+    fun vs (Let bs e) =
       let ws = vs ++ map fst bs
       in  Let [(v, fun ws e) | (v, e) <- bs] (fun ws e)
     fun vs (Var v) | v `elem` fs && v `notElem` vs = Fun v

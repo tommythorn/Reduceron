@@ -1,2 +1,2 @@
 module Main (module Flite.Flite) where
-	import Flite.Flite
+    import Flite.Flite

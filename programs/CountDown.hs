@@ -12,7 +12,7 @@ apply Div x y  =  div x y ;
 
 subs Nil         =  Cons Nil Nil ;
 subs (Cons x xs) =  let { yss = subs xs } in append yss (map (Cons x) yss) ;
-                                 
+
 interleave x Nil         =  Cons (Cons x Nil) Nil ;
 interleave x (Cons y ys) =  Cons (Cons x (Cons y ys))
                                  (map (Cons y) (interleave x ys)) ;
@@ -40,14 +40,14 @@ combinedResults (Pair ls rs)  = concatProdWith combine (results ls) (results rs)
 concatProdWith f Nil         ys = Nil ;
 concatProdWith f (Cons x xs) ys = append (concatMap (f x) ys) (concatProdWith f xs ys) ;
 
-combine (Pair l x) (Pair r y) =  
+combine (Pair l x) (Pair r y) =
   let { ops = Cons Add (Cons Sub (Cons Mul (Cons Div Nil))) }
   in  concatMap (combi l x r y) ops ;
- 
+
 combi l x r y o = case valid o x y of {
                   True  -> Cons (Pair (App o l r) (apply o x y)) Nil ;
                   False -> Nil ;
-                  } ; 
+                  } ;
 
 solutions ns n = concatMap (solns n) (choices ns) ;
 

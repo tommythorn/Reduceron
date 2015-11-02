@@ -37,7 +37,7 @@ safe x d (Cons q l) =
   and ((/=) x q) (
   and ((/=) x ((+) q d)) (
   and ((/=) x ((-) q d)) (
-  safe x ((+) d 1) l)));       
+  safe x ((+) d 1) l)));
 
 toOne n = case (==) n 1 of {
             True -> Cons 1 Nil;

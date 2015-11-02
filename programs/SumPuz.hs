@@ -21,14 +21,14 @@ sum Nil = 0;
 sum (Cons x xs) = (+) x (sum xs);
 
 del x Nil = Nil;
-del x (Cons y ys) = 
+del x (Cons y ys) =
   case (==) x y of {
     False -> Cons y (del x ys);
     True  -> ys;
   };
 
 member x Nil = False;
-member x (Cons y ys) = 
+member x (Cons y ys) =
   case (==) x y of {
     False -> member x ys;
     True -> True;
@@ -53,7 +53,7 @@ map f (Cons x xs) = Cons (f x) (map f xs);
 bindings l ds lds =
   case lookup l lds of {
     Nothing -> map (flip Cons lds) (zip (repeat l) (diff ds (rng lds)));
-    Just d -> 
+    Just d ->
       case member d ds of {
         True -> Cons lds Nil;
         False -> Nil;
@@ -77,7 +77,7 @@ solutions Nil yys Nil clds =
     False -> Nil;
     True -> Cons (snd clds) Nil;
   };
-solutions Nil yys (Cons z Nil) clds = 
+solutions Nil yys (Cons z Nil) clds =
   case (==) (fst clds) 1 of {
     False -> Nil;
     True -> bindings z (Cons 1 Nil) (snd clds);
@@ -97,7 +97,7 @@ solns c x y z f s =
 divMod10 n =
   case (<=) n 9 of {
     True -> Pair 0 n;
-    False -> 
+    False ->
       case divMod10 ((-) n 10) of {
         Pair q r -> Pair ((+) q 1) r;
       };
@@ -115,7 +115,7 @@ isSingleton (Cons x (Cons y ys)) = False;
 and False x = False;
 and True x = x;
 
-valid x y z = 
+valid x y z =
   and ((==) (length x) (length y))
       (and ((==) (length x) (length z))
            (isSingleton (solutions x y z (Pair 0 Nil))));

@@ -26,6 +26,7 @@ module Heap
 -- occurs before the 'snocB'.  Currently, a 'snocB' must only ever be
 -- performed in parallel with a 'snocA', never alone.
 
+import Prelude hiding (Word)
 import Lava
 import Recipe
 

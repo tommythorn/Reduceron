@@ -65,7 +65,7 @@ ssos ss s = run (Inter ss s);
 
 id x = x;
 
-example = 
+example =
   let {
     divide = While (Le (V 1) (V 0))
                (Comp (Ass 0 (Sub (V 0) (V 1)))

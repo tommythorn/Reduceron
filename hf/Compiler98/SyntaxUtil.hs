@@ -1,7 +1,7 @@
 module SyntaxUtil(dropPatAs, infixFun, isCon
-	, isExpInt, isExpIrr, isExpVar, isVar, isNK
-	, isTypeVar
-	) where
+        , isExpInt, isExpIrr, isExpVar, isVar, isNK
+        , isTypeVar
+        ) where
 
 import Syntax
 import SyntaxPos

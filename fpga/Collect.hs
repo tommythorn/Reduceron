@@ -8,6 +8,7 @@ module Collect
   , gcCount
   ) where
 
+import Prelude hiding (Word)
 import Bytecode
 import Lava
 import Recipe

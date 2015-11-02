@@ -26,7 +26,7 @@ strictIntInfo p = map ub p
 
 retrieve :: String -> [(String, b)] -> b
 retrieve k m =
- case lookup k m of 
+ case lookup k m of
    Nothing -> error ("WorkerWrapper.retrieve: function does not exist: " ++ k)
    Just b -> b
 
@@ -49,7 +49,7 @@ wr [] args d n =
   [ Func { funcName = funcName d ++ "'" ++ show n
          , funcArgs = args
          , funcRhs  = App (Fun (funcName d)) (funcArgs d) } ]
-wr (e:es) args d n = 
+wr (e:es) args d n =
   Func
     { funcName = funcName d ++ "'" ++ show n
     , funcArgs = args

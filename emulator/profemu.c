@@ -504,7 +504,7 @@ void init()
   usp = lsp = hp = 0;
   stack[0] = mainAtom;
   swapCount = primCount = applyCount =
-    unwindCount = updateCount = selectCount = 
+    unwindCount = updateCount = selectCount =
       prsCandidateCount = prsSuccessCount = gcCount = caseCount = 0;
   initProfTable();
 }
@@ -546,7 +546,7 @@ void dispatch()
         case FUN: profTable[top.contents.fun.id].callCount++; applyCount++;
                   apply(&code[top.contents.fun.id]); break;
         case CON: selectCount++; caseSelect(top.contents.con.index); break;
-        default: error(printf("dispatch(): invalid tag.\n")); break; 
+        default: error(printf("dispatch(): invalid tag.\n")); break;
       }
     }
   }
@@ -618,7 +618,7 @@ Bool parseAtom(Atom* result)
     && perform(result->tag = PRI)
     && perform(strToPrim(str, &result->contents.pri.id,
                               &result->contents.pri.swap))
-    ) 
+    )
   );
 }
 
@@ -679,7 +679,7 @@ Bool parseString(Int n, Char *str)
   Int i;
   Char c;
   scanf(" \"");
-  
+
   for (i = 0; ; i++) {
     if (i >= n) return 0;
     scanf("%c", &c);

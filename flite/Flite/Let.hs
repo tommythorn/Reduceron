@@ -19,20 +19,20 @@ inlineLetWhen f p = onExpM freshen p >>= return . onExp inline
             (bs0, bs1) = partition (f bs e) bs
             (vs1, es1) = unzip bs1
             (e':es1') = foldr (\(v, e) -> map (subst e v)) (e:es1)
-            	(concat $ letGroups bs0)
+                (concat $ letGroups bs0)
     inline e = descend inline e
 
 inlineLinearLet :: Prog -> Fresh Prog
 inlineLinearLet = inlineLetWhen linear
   where
     linear bs e (v, x) = (nrefs == 0)
-    				  || (  ( (not . isPrs) x 
-    				  	   || (isSubject e && length bs == 1))
-    				  	&& nrefs == 1)
-    	where
-    		nrefs = refs v (e:map snd bs)
-    		isSubject (Case (Var v') _) = v == v'
-    		isSubject _ = False
+                      || (  ( (not . isPrs) x
+                           || (isSubject e && length bs == 1))
+                        && nrefs == 1)
+        where
+            nrefs = refs v (e:map snd bs)
+            isSubject (Case (Var v') _) = v == v'
+            isSubject _ = False
     refs v es = sum (map (varRefs v) es)
     isPrs (Fun f) = isPrimId f
     isPrs (App e _) = isPrs e

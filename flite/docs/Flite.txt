@@ -13,7 +13,7 @@ F-lite is untyped
 -----------------
 
 But as it is a subset of Haskell, you can use a Haskell implementation
-to type-check F-lite programs.  
+to type-check F-lite programs.
 
 EXAMPLE 0: F-lite definition of 'append'.  Definitions of 'Nil' and
 'Cons' are not required - there is no need to define algebraic data

@@ -18,7 +18,7 @@ fromTo n m = case (<=) n m of {
                False -> Nil;
              };
 
-cmp a b = 
+cmp a b =
   case (==) a b of {
     True -> EQ;
     False -> case (<=) a b of { True -> LT ; False -> GT };

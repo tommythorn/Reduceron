@@ -12,18 +12,18 @@ data DenseString
 
 decode :: DenseString -> String
 decode ds = case ds of
-     DS0			-> []
-     DS1 a			-> [a]
-     DS2 a b			-> [a, b]
-     DS3 a b c			-> [a, b, c]
-     DSn a b ds			-> a : b : decode ds
+     DS0                        -> []
+     DS1 a                      -> [a]
+     DS2 a b                    -> [a, b]
+     DS3 a b c                  -> [a, b, c]
+     DSn a b ds                 -> a : b : decode ds
 
 encode s = case s of
-     []               		-> DS0
-     [a]              		-> DS1 a
-     [a, b]           		-> DS2 a b
-     [a, b, c]        		-> DS3 a b c
-     a : b : s			-> DSn a b (encode s)
+     []                         -> DS0
+     [a]                        -> DS1 a
+     [a, b]                     -> DS2 a b
+     [a, b, c]                  -> DS3 a b c
+     a : b : s                  -> DSn a b (encode s)
 
 main = putStrLn $ show $ encode  "At vero eos et accusamus et iusto odio dignissimos ducimus qui blanditiis ..."
 

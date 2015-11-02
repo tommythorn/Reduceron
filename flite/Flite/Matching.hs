@@ -9,7 +9,7 @@ import Data.Maybe
 import Control.Monad
 
 desugarEqn :: Prog -> Fresh Prog
-desugarEqn p = mapM (\(f, arity, qs) -> 
+desugarEqn p = mapM (\(f, arity, qs) ->
                       do us <- mapM (\_ -> fresh) [1..arity]
                          rhs <- match us qs
                          return (Func f (map Var us) rhs)
