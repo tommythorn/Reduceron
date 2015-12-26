@@ -270,11 +270,8 @@ instRam params comp (we1:sigs) =
   c ++ ".power_up_uninitialized = \"FALSE\",\n" ++
   c ++ ".read_during_write_mode_port_a = \"NEW_DATA_NO_NBE_READ\",\n" ++
   c ++ ".widthad_a = " ++ show awidth ++ ",\n" ++
-  c ++ ".widthad_b = 0,\n" ++
   c ++ ".width_a = " ++ show dwidth ++ ",\n" ++
-  c ++ ".width_b = 0,\n" ++
-  c ++ ".width_byteena_a = 1,\n" ++
-  c ++ ".width_byteena_b = 1;\n"
+  c ++ ".width_byteena_a = 1;\n"
 
 
 instRam2 params comp (we1:we2:sigs) =
