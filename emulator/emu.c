@@ -308,15 +308,6 @@ void update(Atom top, Int saddr, Int haddr)
   }
 }
 
-/* Swapping */
-
-void swap()
-{
-  Atom tmp = stack[sp-1];
-  stack[sp-1] = stack[sp-2];
-  stack[sp-2] = tmp;
-}
-
 /* Primitive reduction */
 
 Atom prim_ld32(Num addr)
@@ -833,7 +824,7 @@ void dispatch()
     }
     else {
       switch (top.tag) {
-        case NUM: if (stack[sp-2].tag == PRI) applyPrim(); else swap();  break;
+        case NUM: assert(stack[sp-2].tag == PRI); applyPrim(); break;
         case FUN: profTable[top.contents.fun.id].callCount++; applyCount++;
                   apply(&code[top.contents.fun.id]); break;
         case CON: selectCount++; caseSelect(top.contents.con.index); break;

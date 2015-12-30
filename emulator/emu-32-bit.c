@@ -217,15 +217,6 @@ void update(Atom top, Int saddr, Int haddr)
   }
 }
 
-/* Swapping */
-
-void swap()
-{
-  Atom tmp = stack[sp-1];
-  stack[sp-1] = stack[sp-2];
-  stack[sp-2] = tmp;
-}
-
 /* Primitive reduction */
 
 Atom prim_ld32(Int addr)
@@ -567,10 +558,8 @@ void dispatch()
     }
     else {
         if (isINT(top)) {
-            if (isPRI(stack[sp-2]))
-                applyPrim();
-            else
-                swap();
+            assert(isPRI(stack[sp-2]));
+            applyPrim();
         }
         else if (isCON(top)) {
             selectCount++;
