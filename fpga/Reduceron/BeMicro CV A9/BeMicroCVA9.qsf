@@ -367,7 +367,6 @@ set_location_assignment PIN_T4 -to SDD[3]
 
 set_global_assignment -name VERILOG_FILE BeMicroCVA9.v
 set_global_assignment -name VERILOG_FILE ../Reduceron.v
-set_global_assignment -name VERILOG_FILE ../rs232out.v
 set_global_assignment -name SDC_FILE BeMicroCVA9.sdc
 set_global_assignment -name CDF_FILE BeMicroCVA9.cdf
 set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top

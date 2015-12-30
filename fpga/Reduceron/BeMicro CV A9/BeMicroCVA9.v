@@ -58,6 +58,8 @@ module BeMicroCVA9
 `endif
 );
 
+   wire        reset = 0;
+
    wire [17:0] r;
    wire [ 6:0] s;
    wire [13:0] h;
@@ -92,7 +94,7 @@ module BeMicroCVA9
        0: LEDn <= ~h;
      endcase
 
-   wire        clock      = CLK_24MHZ; // XXX we can almost certainly go faster with a PLL
+   wire clock = DDR3_CLK_50MHZ; // XXX we can almost certainly go faster with a PLL
 
    // This must match the writeVerilog line in fpga/Main.hs
    Reduceron Reduceron_inst
@@ -107,11 +109,34 @@ module BeMicroCVA9
 
        finish);
 
-   reg [ 7:0] rs232out_d = 65;
-   reg        rs232out_we = 0;
-   wire       rs232out_busy, rs232out_tx;
+  reg     [  7: 0] jtaguart_tx_data_r;
+  reg              jtaguart_tx_data_valid_r = 0;
+  wire             jtaguart_tx_data_ready_o;
 
-//   assign     UART_TXD = rs232out_tx;  We need to assign a pin for serial TX
+  wire    [  7: 0] jtaguart_rx_data_o;
+  wire             jtaguart_rx_data_valid_o;
+  wire             jtaguart_rx_data_ready_i = 1;
+
+  wire             jtaguart_idle_o;
+
+  alt_jtag_atlantic jtag_uart_0_alt_jtag_atlantic
+    ( .clk     (clock)
+    , .rst_n   (!reset)
+
+    , .r_dat   (jtaguart_tx_data_r)
+    , .r_val   (jtaguart_tx_data_valid_r)
+    , .r_ena   (jtaguart_tx_data_ready_o)
+
+    , .t_dat   (jtaguart_rx_data_o)
+    , .t_dav   (jtaguart_rx_data_ready_i)
+    , .t_ena   (jtaguart_rx_data_valid_o)
+    , .t_pause (jtaguart_idle_o)
+    );
+
+  defparam jtag_uart_0_alt_jtag_atlantic.INSTANCE_ID = 0,
+           jtag_uart_0_alt_jtag_atlantic.LOG2_RXFIFO_DEPTH = 6,
+           jtag_uart_0_alt_jtag_atlantic.LOG2_TXFIFO_DEPTH = 6,
+           jtag_uart_0_alt_jtag_atlantic.SLD_AUTO_INSTANCE_INDEX = "YES";
 
    reg [35:0] tx_word;
    reg [ 3:0] tx_nibbles = 2;
@@ -119,9 +144,6 @@ module BeMicroCVA9
    reg        old_gc = 0;
 
    always @(posedge clock) begin
-      if (iowrite)
-         wd <= iowd;
-
       if (finish) begin
          res <= r;
          finish_r <= 1;
@@ -129,7 +151,7 @@ module BeMicroCVA9
 
       old_gc <= s[5];
 
-      rs232out_we <= 0;
+      jtaguart_tx_data_valid_r <= 0;
 
       if (tx_nibbles == 0) begin
          if (finish_r) begin
@@ -143,31 +165,20 @@ module BeMicroCVA9
             tx_word[35:32] <= 9;
          end
 */
-      end
-      else begin
-         rs232out_we <= 1;
+      end else if (jtaguart_tx_data_ready_o) begin
+         jtaguart_tx_data_valid_r <= 1;
 
          if (tx_nibbles == 2)
-            rs232out_d <= 13;
+            jtaguart_tx_data_r <= 13;
          else if (tx_nibbles == 1)
-            rs232out_d <= 10;
+            jtaguart_tx_data_r <= 10;
          else
-            rs232out_d <= tx_word[35:32] < 10 ? tx_word[35:32] + 48 : tx_word[35:32] + 55;
+            jtaguart_tx_data_r <= tx_word[35:32] < 10 ? tx_word[35:32] + 48 : tx_word[35:32] + 55;
+      end
 
-         if (rs232out_we && !rs232out_busy) begin
-            tx_nibbles <= tx_nibbles - 1;
-            tx_word <= {tx_word[31:0],4'd0};
-         end
+      if (jtaguart_tx_data_valid_r) begin
+         tx_nibbles <= tx_nibbles - 1;
+         tx_word <= {tx_word[31:0],4'd0};
       end
    end
-
-   rs232out rs232out_inst
-      (.clock        (clock),
-       .serial_out   (rs232out_tx),
-       .transmit_data(rs232out_d),
-       .we           (rs232out_we),
-       .busy         (rs232out_busy));
-
-   defparam  rs232out_inst.frequency = 24_000_000,
-             rs232out_inst.bps       =    115_200;
 endmodule
