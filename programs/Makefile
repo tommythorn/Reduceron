@@ -12,13 +12,17 @@ FLITE=../flite/dist/build/flite/flite
 FLITE_OPTS=-r6:4:2:1:8 -i1 -s
 RED=../fpga/Red
 
-regress: regress-emu \
-         regress-flite-sim \
-         regress-flite-comp \
-         regress-red-sim \
-         regress-flite-c-comp \
-         regress-red-verilog-sim \
-         regress-red-verilog-run
+regress: regress-most regress-rtl
+
+regress-most: regress-emu \
+              regress-flite-sim \
+              regress-flite-comp \
+              regress-red-sim \
+              regress-flite-c-comp
+
+# Note, these can't be executed in parallel
+regress-rtl:  regress-red-verilog-sim \
+              regress-red-verilog-run
 
 bench: bench-flite-c-comp
 
@@ -57,9 +61,7 @@ regress-flite-c-comp: $(patsubst %,%.flite-c-comp-checked,$(WORKLOADS))
 	./$< | diff -u $(patsubst %.exe,gold/run/%.out,$<) - && touch $@
 
 regress-red-sim:
-	echo Not implemented, as simulation in York Lava very quickly runs out of memory.
-
-.NOTPARALLEL: regress-red-verilog-sim
+	@echo "regress-red-sim isn't implemented, as simulation in York Lava very quickly runs out of memory."
 
 regress-red-verilog-sim: $(patsubst %,%.red-verilog-sim-checked,$(WORKLOADS))
 
