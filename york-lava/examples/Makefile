@@ -1,6 +1,6 @@
-subdirs=Avalon Cube HalfAdd Loopy MultExample Poly Stack Toggle LFSR
+subdirs=Avalon Cube HalfAdd Loopy Mult Poly Stack Toggle LFSR
 
 regress-examples: $(patsubst %,%.checked,$(subdirs))
 
 %.checked: %
-	$(MAKE) -C $<
+	$(MAKE) -C $< && touch $@

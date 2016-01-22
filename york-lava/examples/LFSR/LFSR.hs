@@ -40,5 +40,5 @@ main :: IO ()
 main = do
   putStr $ unlines $ map showBits $ drop 990 $ simulateN 1000 lfsr
   putStr $ unlines $ map showBitsv $ drop 990 $ simulateN 1000 lfsrv
-  writeVerilog "rtl" (vecn n33 lfsr) (nameWord "out")
-  writeVerilog "rtlv" lfsrv (nameWord "out")
+  writeVerilog "LFSR" (vecn n33 lfsr) (nameWord "out")
+  writeVerilog "LFSRv2" lfsrv (nameWord "out")

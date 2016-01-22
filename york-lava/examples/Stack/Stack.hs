@@ -1,5 +1,5 @@
 module Stack(Stack, newStack, push, pop, top) where
-
+import Prelude hiding (Word)
 import Lava
 import Recipe
 import Control.Monad
@@ -49,7 +49,7 @@ server initial push pop input = (top, addr')
                  , ramWrite   = push <&> inv pop
                  }
 
-    ramOuts  = ram restInit Width18 ramIns
+    ramOuts  = ram restInit "stack" Width18 ramIns
 
     top      = delayEn topInit (push <|> pop) (push ? (input, ramOuts))
 

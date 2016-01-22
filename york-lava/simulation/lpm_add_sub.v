@@ -13,7 +13,7 @@ module lpm_add_sub (result, cout, overflow, add_sub, cin, dataa, datab, clock, c
    output [lpm_width-1:0] result;
    output                 cout, overflow;
 
-//   assign                 {cout,result} = add_sub ? dataa - datab - cin : dataa + datab + cin;
-   assign                 {cout,result} = dataa + datab + cin;
+// assign                 {cout,result} = add_sub ? dataa - datab - cin : dataa + datab + cin;
+   assign                 {cout,result} = (dataa + datab) + cin;
    assign                 overflow = 'h x;
 endmodule

@@ -1,6 +1,6 @@
-toggle: toggle.v main.v
+toggle: Toggle.v main.v
 	iverilog -o $@ $^
 	./toggle
 
-toggle.v: Toggle.hs
+Toggle.v: Toggle.hs
 	cd ..;runhaskell -i../modules/: Toggle/Toggle.hs

@@ -1,5 +1,5 @@
 a.out: Poly.v main.v
-	iverilog ../../simulation/altsyncram.v $^
+	iverilog ../../simulation/altsyncram.v ../../simulation/lpm_add_sub.v $^
 	./a.out
 
 Poly.v: Poly.hs

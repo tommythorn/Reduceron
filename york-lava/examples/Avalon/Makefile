@@ -1,6 +1,6 @@
-avalon: avalon.v main.v
-	iverilog -o $@ $^
+avalon: Avalon.v main.v
+	iverilog -o $@ $^ ../../simulation/lpm_add_sub.v
 	./avalon
 
-avalon.v: Main.hs
+Avalon.v: Main.hs
 	cd ..;runhaskell -i../modules/: Avalon/Main.hs
