@@ -1,4 +1,5 @@
 module Cube where
+import Prelude hiding (Word)
 import Lava
 import Recipe
 import Mult

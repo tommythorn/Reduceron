@@ -15,6 +15,7 @@ valid in the next cycle).
 -}
 
 module Avalon where
+import Prelude hiding (Word)
 import Lava
 import Recipe
 import Control.Monad
