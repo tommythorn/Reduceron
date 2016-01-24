@@ -37,7 +37,7 @@
 
 #define perform(action) (action, 1)
 
-#define error(msg ...) (fprintf(stderr,"At step #%d, ", stepno), fprintf(stderr,msg), assert(0), 0)
+#define error(msg ...) ({fprintf(stderr,"At step #%d, ", stepno); fprintf(stderr,msg); assert(0);})
 
 /* Types */
 
@@ -740,7 +740,7 @@ void showApp(int addr)
     printf("%d(", addr);
 
     switch (app.tag) {
-    case AP: printf(""); break;
+    case AP: break;
     case CASE: printf("CASE F%d ", app.details.lut); break;
     case PRIM: printf("r%d=", app.details.regId); break;
     case COLLECTED:printf("COLLECTED"); return;
@@ -986,11 +986,11 @@ Bool parseTemplate(FILE *f, Template *t)
   if (parseString(f, NAMELEN, t->name) == 0) return 0;
   if (fscanf(f, " ,%i,", &t->arity) != 1) return 0;
   t->numLuts = parseLuts(f, MAXLUTS, t->luts);
-  (fscanf(f, " %c", &c) == 1 && c == ',') || error("Parse error\n");
+  if (!(fscanf(f, " %c", &c) == 1 && c == ',')) error("Parse error\n");
   t->numPushs = parseAtoms(f, MAXPUSH, t->pushs);
-  (fscanf(f, " %c", &c) == 1 && c == ',') || error("Parse error\n");
+  if (!(fscanf(f, " %c", &c) == 1 && c == ',')) error("Parse error\n");
   t->numApps = parseApps(f, MAXAPS, t->apps);
-  (fscanf(f, " %c", &c) == 1 && c == ')') || error("Parse error\n");
+  if (!(fscanf(f, " %c", &c) == 1 && c == ')')) error("Parse error\n");
   return 1;
 }
 
