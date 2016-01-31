@@ -225,7 +225,7 @@ data RamInputs n m =
   , ramWrite   :: Bit
   }
 
--- | RAM of any width and size, with intialiser.
+-- | RAM of any width and size, with initialiser.
 ram :: (N n, N m) => [Integer] -> String -> RamAlgorithm -> RamInputs n m -> Word n
 ram init annotation pt inps = Vec $ primRam init annotation pt $
   RamInps {
@@ -234,7 +234,7 @@ ram init annotation pt inps = Vec $ primRam init annotation pt $
     , writeEnable = ramWrite inps
   }
 
--- | Dual-port RAM of any width and size, with intialiser.
+-- | Dual-port RAM of any width and size, with initialiser.
 dualRam :: (N n, N m) => [Integer] -> String -> RamAlgorithm
         -> (RamInputs n m, RamInputs n m) -> (Word n, Word n)
 dualRam init annotation pt (inps0, inps1) = (Vec out0, Vec out1)
