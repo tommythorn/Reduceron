@@ -17,51 +17,24 @@ Description:        The f-lite language is a subset of Haskell 98 and Clean cons
                     binary primitive operators and infix application of other functions using backticks.
                     Information is returned about syntax errors.
 
-                    'flite-pure' uses its own parser and, therefore, does not depend on an external libraries.
-                    It only supports the original language definition.
-
                     See README for more information. Example flite programs included in source distribution.
 Category:           Compiler
 Extra-Source-Files: README examples/*.hs
 
-Flag Pure
-    Description:   Use the pure parser instead of the Parsec
-    Default:       False
-
-Executable flite-pure
-    Main-is:       fl-pure.hs
-    Other-Modules:  Flite.CallGraph, Flite.Case, Flite.Compile, Flite.CompileBackend
-                    Flite.CompileFrontend, Flite.ConcatApp, Flite.Dependency,
-                    Flite.Descend, Flite.Flatten, Flite.Flite, Flite.Fresh, Flite.Identify,
-                    Flite.Identity, Flite.Inline, Flite.IntInfer,
-                    Flite.Interp, Flite.InterpFrontend, Flite.LambdaLift, Flite.Let,
-                    Flite.Matching, Flite.Parse, Flite.ParseLib, Flite.Predex, Flite.Pretty,
-                    Flite.RedCompile, Flite.RedFrontend, Flite.RedSyntax, Flite.Strictness
-                    Flite.State, Flite.Strictify, Flite.Syntax, Flite.Traversals, Flite.Writer,
-                    Flite.Writer, Flite.WriterState, Flite.WorkerWrapper
-    if flag(pure)
-        Build-Depends: base >= 3 && < 5,
-                       array >= 0 && < 1, containers >= 0 && < 1
-    else
-        buildable:     False
-
 Executable flite
     Main-is:       fl-parsec.hs
-    if flag(pure)
-        buildable:     False
-    else
-        Build-Depends: base >= 3 && < 5,
-                       array >= 0 && < 1, containers >= 0 && < 1,
-                       parsec >= 3
-        Other-Modules:  Flite.CallGraph, Flite.Case, Flite.Compile, Flite.CompileBackend
-                        Flite.CompileFrontend, Flite.ConcatApp, Flite.Descend, Flite.Flatten,
-                        Flite.Fresh, Flite.Identify, Flite.Identity, Flite.Inline, Flite.Interp,
-                        Flite.InterpFrontend, Flite.LambdaLift, Flite.Let, Flite.Matching,
-                        Flite.Predex, Flite.Pretty, Flite.RedCompile, Flite.RedFrontend,
-                        Flite.RedSyntax, Flite.State, Flite.Strictify, Flite.Syntax,
-                        Flite.Traversals, Flite.Writer, Flite.Writer, Flite.WriterState,
-                        Flite.Parsec.Parse, Flite.Parsec.Flite, Flite.Parsec.Prelude,
-                        Flite.Dependency, Flite.IntInfer, Flite.Strictness, Flite.WorkerWrapper
+    Build-Depends: base >= 3 && < 5,
+                   array >= 0 && < 1, containers >= 0 && < 1,
+                   parsec >= 3
+    Other-Modules:  Flite.CallGraph, Flite.Case, Flite.Compile, Flite.CompileBackend
+                    Flite.CompileFrontend, Flite.ConcatApp, Flite.Descend, Flite.Flatten,
+                    Flite.Fresh, Flite.Identify, Flite.Identity, Flite.Inline, Flite.Interp,
+                    Flite.InterpFrontend, Flite.LambdaLift, Flite.Let, Flite.Matching,
+                    Flite.Predex, Flite.Pretty, Flite.RedCompile, Flite.RedFrontend,
+                    Flite.RedSyntax, Flite.State, Flite.Strictify, Flite.Syntax,
+                    Flite.Traversals, Flite.Writer, Flite.Writer, Flite.WriterState,
+                    Flite.Parsec.Parse, Flite.Parsec.Flite, Flite.Parsec.Prelude,
+                    Flite.Dependency, Flite.IntInfer, Flite.Strictness, Flite.WorkerWrapper
 
 Library
     Build-Depends:   base >= 3 && < 5,
