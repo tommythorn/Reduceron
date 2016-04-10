@@ -1,13 +1,12 @@
-module toplevel;
-   reg clock = 0;
-   always #5 clock = ~clock;
+module toplevel
+  (input         clock,
+   output [17:0] r,
+   output        finish);
 
-   wire [17:0] r;
    wire [ 6:0] s;
    wire [13:0] h;
-   wire        finish;
 
-   wire        iowrite;
+   wire        iowrite, ioread;
    wire [14:0] ioaddr, iowd;
 
    // This must match the writeVerilog line in fpga/Main.hs
@@ -22,42 +21,4 @@ module toplevel;
        iowd[0], iowd[1], iowd[2], iowd[3], iowd[4], iowd[5], iowd[6], iowd[7], iowd[8], iowd[9], iowd[10], iowd[11], iowd[12], iowd[13], iowd[14],
 
        finish);
-
-   reg [12:0]  hp = 0;
-   reg         gc = 0;
-
-   always @(posedge clock) begin
-      if (iowrite)
-         $display("%05d  IO Write  [%d] <- %d", $time/10,
-                  ioaddr, iowd);
-/*
-      if (s[5] != gc)
-         if (s[5])
-            $display("%05d  start  GC", $time/10);
-         else
-            $display("%05d  finish GC", $time/10);
-
-      if (hp != h)
-         $display("%05d  hp = %d", $time/10, hp);
-*/
-
-      gc <= s[5];
-      hp <= h;
-
-      if (finish)
-/*         $display("%05d  res %d (tag %d) state %x heap %d finish %d", $time/10,
-                  r / 8, r[2:0], s, h, finish);*/
-         $display("%1d", r/8);
-
-      if (finish)
-         $finish;
-   end
-
-`ifdef VCD
-   initial
-      begin
-         $dumpfile("top.vcd");
-         $dumpvars(0,toplevel);
-      end
-`endif
 endmodule

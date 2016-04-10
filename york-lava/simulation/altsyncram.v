@@ -19,11 +19,11 @@ module altsyncram
      parameter read_during_write_mode_port_a = "NEW_DATA_NO_NBE_READ",
      parameter read_during_write_mode_port_b = "NEW_DATA_NO_NBE_READ",
      parameter widthad_a = 12,
-     parameter widthad_b = 12,
+     parameter widthad_b = 12,			// XXX ignored
      parameter width_a = 28,
-     parameter width_b = 28,
+     parameter width_b = 28,			// XXX ignored
      parameter width_byteena_a = 1,
-     parameter width_byteena_b = 1,
+     parameter width_byteena_b = 1,		// XXX ignored
      parameter wrcontrol_wraddress_reg_b = "CLOCK0")
       (input clock0,
 
@@ -32,10 +32,10 @@ module altsyncram
        input [width_a-1:0] data_a,
        output [width_a-1:0] q_a,
 
-       input [widthad_b-1:0] address_b,
+       input [widthad_a-1:0] address_b,
        input wren_b,
-       input [width_b-1:0] data_b,
-       output [width_b-1:0] q_b,
+       input [width_a-1:0] data_b,
+       output [width_a-1:0] q_b,
 
        input aclr0,
        input aclr1,
@@ -73,6 +73,6 @@ module altsyncram
    end
 
    initial
-      if (init_file != "")
+      if (init_file != 0)
          $readmemh({init_file,".txt"}, memory);
 endmodule
