@@ -20,7 +20,7 @@ module toplevel;
          readdata <= val[address];
    end
 
-   Avalon Avalon_inst(clock,
+   Avalon Avalon_inst(clock, 1'b 0,
                       waitrequest,
                       readdatavalid,
                       readdata[0],

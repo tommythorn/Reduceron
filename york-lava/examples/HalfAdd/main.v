@@ -7,7 +7,7 @@ module main;
 
    wire sum, carry;
 
-   HalfAdd HalfAdd_inst(clock, a, b, sum, carry);
+   HalfAdd HalfAdd_inst(clock, 1'b 0, a, b, sum, carry);
 
    always @(posedge clock) begin
       $display("%05d  %d+%d = %d", $time, a, b, {carry,sum});

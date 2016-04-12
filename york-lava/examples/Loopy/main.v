@@ -5,7 +5,7 @@ module main;
    reg i = 0;
    wire o;
 
-   Loopy Loopy_inst(clock, i, o);
+   Loopy Loopy_inst(clock, 1'b 0, i, o);
 
    always @(posedge clock)
       $display("%05d  o %d", $time, o);

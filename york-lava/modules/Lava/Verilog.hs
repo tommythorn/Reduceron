@@ -22,7 +22,7 @@ verilogModuleHeader :: String -> Netlist -> String
 verilogModuleHeader name nl =
   "module " ++ name ++ "(\n" ++
   consperse ",\n"
-       ([ "  input " ++ v | v <- "clock":inps, check v] ++
+       ([ "  input " ++ v | v <- "clock" : "reset" : inps, check v] ++
         [ "  output " ++ v | v <- outs, check v]) ++
   ");\n\n"
   where
@@ -204,19 +204,37 @@ assignName params comp inps =
 constant str params comp inps =
   "  assign " ++ wireStr (comp, 0) ++ " = " ++ str ++ ";\n"
 
-v_always_at_posedge_clock stmt = "  always @(posedge clock) " ++ stmt ++ "\n"
-v_assign dest source = dest ++ " <= " ++ source ++ ";"
+v_always_at_posedge_clock stmt =
+  "  always @(posedge clock or posedge reset) " ++ stmt ++ "\n"
+
+v_assign dest source =
+   dest ++ " <= " ++ source ++ ";"
+
 v_if_then cond stmt = "if (" ++ cond ++ ") " ++ stmt
+
+v_if_then_else cond stmt alt = v_if_then cond stmt ++ " else " ++ alt
+
 v_block stmts = "begin\n" ++
                 concat ["    " ++ s ++ "\n" | s <- stmts ] ++
                 "  end\n" -- Indents needs more cleverness, like a Doc
 
+-- XXX share more without making it unreadable
 delay :: Bool -> [Parameter] -> Int -> [Wire] -> String
 delay False params comp [_, d] =
-  v_always_at_posedge_clock (wireStr (comp, 0) `v_assign` wireStr d)
+  v_always_at_posedge_clock $
+    v_if_then_else "reset" (r `v_assign` v0) value
+  where
+  value = r `v_assign` wireStr d
+  r = wireStr (comp, 0)
+  v0 = lookupParam params "init"
 
 delay True params comp [_, ce, d] =
-  v_always_at_posedge_clock (v_if_then (wireStr ce) (wireStr (comp, 0) `v_assign` wireStr d))
+  v_always_at_posedge_clock $
+    v_if_then_else "reset" (r `v_assign` v0) value
+  where
+  value = v_if_then (wireStr ce) (r `v_assign` (wireStr d))
+  r = wireStr (comp, 0)
+  v0 = lookupParam params "init"
 
 vBus :: [Wire] -> String
 vBus bus = "{" ++ argList (map wireStr (reverse bus)) ++ "}"

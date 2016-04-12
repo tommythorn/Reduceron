@@ -6,7 +6,7 @@ module main;
    wire       done;
 
    Mult Mult_inst
-      (clock, r[0], r[1], r[2], r[3], r[4], r[5], r[6], r[7], done);
+      (clock, 1'b 0, r[0], r[1], r[2], r[3], r[4], r[5], r[6], r[7], done);
 
    always @(posedge clock) begin
       $display("%3d  res %d done %d", $time / 10, r, done);
