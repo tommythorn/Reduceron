@@ -11,7 +11,7 @@ cabal-version:       >=1.8
 executable Red
   main-is:            Main.hs
   hs-source-dirs:     src
-  ghc-options:        -j8 --make -O2 -fspec-constr-count=4
+  ghc-options:        -j8 -O2 -fspec-constr-count=4
   build-depends:      base < 5,
                       york-lava
   other-modules:      Bytecode,
