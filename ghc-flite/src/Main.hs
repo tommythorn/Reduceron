@@ -10,7 +10,7 @@ import CoreSyn
 import GHC.IO.Handle.FD (stdout)
 import Outputable (ppr, printForAsm)
 
-import GHC-Flite.Translate (translate)
+import GhcFlite.Translate (translate)
 
 import Flite.Pretty
 

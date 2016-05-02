@@ -22,10 +22,11 @@ Category:           Compiler
 Extra-Source-Files: README examples/*.hs
 
 Executable flite
-    Main-is:       fl-parsec.hs
-    Build-Depends: base >= 3 && < 5,
-                   array >= 0 && < 1, containers >= 0 && < 1,
-                   parsec >= 3
+    Main-is:        fl-parsec.hs
+    Build-Depends:  base >= 3 && < 5,
+                    array,
+                    containers,
+                    parsec
     Other-Modules:  Flite.CallGraph, Flite.Case, Flite.Compile, Flite.CompileBackend
                     Flite.CompileFrontend, Flite.ConcatApp, Flite.Descend, Flite.Flatten,
                     Flite.Fresh, Flite.Identify, Flite.Identity, Flite.Inline, Flite.Interp,
@@ -34,20 +35,23 @@ Executable flite
                     Flite.RedSyntax, Flite.State, Flite.Strictify, Flite.Syntax,
                     Flite.Traversals, Flite.Writer, Flite.Writer, Flite.WriterState,
                     Flite.Parsec.Parse, Flite.Parsec.Flite, Flite.Parsec.Prelude,
-                    Flite.Dependency, Flite.IntInfer, Flite.Strictness, Flite.WorkerWrapper
+                    Flite.Dependency, Flite.IntInfer, Flite.Strictness, Flite.WorkerWrapper,
+                    Paths_flite
 
 Library
     Build-Depends:   base >= 3 && < 5,
-                     array >= 0 && < 1, containers >= 0 && < 1,
-                     parsec >= 3
+                     array,
+                     containers,
+                     parsec
     Exposed-modules: Flite.CallGraph, Flite.Case, Flite.ConcatApp,
                      Flite.Descend, Flite.Fresh, Flite.Identify, Flite.Identity,
                      Flite.Inline, Flite.Let, Flite.Matching, Flite.Pretty, Flite.RedCompile,
                      Flite.Syntax, Flite.Traversals, Flite.Writer, Flite.Interp,
                      Flite.Parsec.Parse, Flite.Parsec.Prelude, Flite.Parsec.Flite
-    Other-Modules:  Flite.Compile, Flite.CompileBackend
-                    Flite.CompileFrontend, Flite.Flatten,
-                    Flite.InterpFrontend, Flite.LambdaLift, Flite.Predex,
-                    Flite.RedFrontend, Flite.RedSyntax,
-                    Flite.State, Flite.Strictify, Flite.WriterState,
-                    Flite.Dependency, Flite.IntInfer, Flite.Strictness, Flite.WorkerWrapper
+    Other-Modules:   Flite.Compile, Flite.CompileBackend
+                     Flite.CompileFrontend, Flite.Flatten,
+                     Flite.InterpFrontend, Flite.LambdaLift, Flite.Predex,
+                     Flite.RedFrontend, Flite.RedSyntax,
+                     Flite.State, Flite.Strictify, Flite.WriterState,
+                     Flite.Dependency, Flite.IntInfer, Flite.Strictness, Flite.WorkerWrapper,
+                     Paths_flite

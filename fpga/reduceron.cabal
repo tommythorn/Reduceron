@@ -1,0 +1,27 @@
+name:                reduceron
+version:             0.1.0.0
+synopsis:            Implementation of the Reduceron machine.
+
+homepage:            http://github.com/tommythorn/Reduceron
+
+category:            Hardware
+build-type:          Simple
+cabal-version:       >=1.8
+
+executable Red
+  main-is:            Main.hs
+  hs-source-dirs:     src
+  ghc-options:        -j8 -O2 -fspec-constr-count=4
+  build-depends:      base < 5,
+                      york-lava
+  other-modules:      Bytecode,
+                      CachingOctostack,
+                      Code,
+                      Collect,
+                      Encode,
+                      Heap,
+                      Hex,
+                      Reduceron,
+                      RegFile,
+                      Syntax,
+                      Unistack

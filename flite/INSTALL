@@ -7,3 +7,5 @@ Parsec parser.
 
 Use 'cabal install -f "pure"' to install the version of f-lite using the
 pure parser.
+
+Alternatively, and preferably, use 'stack install'.

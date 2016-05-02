@@ -12,7 +12,9 @@ Description:
   Lava, but omits some features and offers a few new ones.
   See the top-level module "Lava" for pointers to further information.
 Category:            Hardware
-Build-Depends:       base < 5, haskell98, containers
+Build-Depends:       base < 5,
+                     containers,
+                     process
 Build-Type:          Simple
 Stability:           provisional
 Homepage:            http://www.cs.york.ac.uk/fp/reduceron/
@@ -28,6 +30,9 @@ Exposed-modules:
   Lava.Prelude
   Lava.Vector
   Lava.Vhdl
+Other-modules:
+  Lava.C
+  Lava.Verilog
 Extra-Source-Files:
   examples/Cube.hs
   examples/HalfAdd.hs
