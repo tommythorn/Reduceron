@@ -7,7 +7,7 @@ EMUOPT=
 
 EMU=emu-32-bit
 
-all: emu profemu emu-32-bit #fast-sw-emu
+all: emu emu-32-bit #fast-sw-emu
 
 run: $(EMU)
 	$(MAKE) EMU=../emulator/$(EMU) -C ../programs regress-emu
@@ -27,7 +27,4 @@ emu-32-bit: emu-32-bit.c red_atom.h Makefile
 	$(CC) $(CFLAGS) $< -o $@
 
 fast-sw-emu: fast-sw-emu.c fast-sw-emu.h Makefile
-	$(CC) $(CFLAGS) $< -o $@
-
-profemu: profemu.c
 	$(CC) $(CFLAGS) $< -o $@

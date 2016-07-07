@@ -148,12 +148,12 @@ static inline Atom mkPTR(bool shared, Int id) {
     assert(getPTRShared(a) == shared);
     assert(getPTRId(a) == id);
     return a;}
-static inline Atom setPTRId(Atom a, Int id)   {return mkPTR(getPTRShared(a), id) | (a & ~(-1 << HT));}
+static inline Atom setPTRId(Atom a, Int id)   {return mkPTR(getPTRShared(a), id) | (a & ~(~0U << HT));}
 
 static inline UInt atomTag(Atom a)            {return (a >> 28);}
 static inline bool atomBool(Atom a)           {return (a >> 27) & 1;}
 static inline UInt atomArity(Atom a)          {return (a >> 24) & 7;}
-static inline UInt atomIndex(Atom a)          {return (a >> HT) & ~(-1 << (24-HT));}
+static inline UInt atomIndex(Atom a)          {return (a >> HT) & ~(~0U << (24-HT));}
 static inline Atom mkAtom(AtomTag t, bool b, UInt a, UInt i) {
     Atom r = (t << 28) + (b << 27) + (a << 24) + (i << HT);
     assert(atomTag(r) == t);
@@ -201,8 +201,8 @@ static inline bool isPRIM(Atom a)             {return atomTag(a) == INV && atomA
 static inline UInt getPRIMDest(Atom a)        {return atomIndex(a);}
 static inline Atom mkPRIM(UInt rd)            {return mkAtom(INV,0,1,rd);}
 
-static inline UInt getHT(Atom a)              {return a & ~(-1LL << HT);}
-static inline Atom setHT(Atom a, UInt ht)     {return (a & (-1LL << HT)) | ht;}
+static inline UInt getHT(Atom a)              {return a & ~(~0ULL << HT);}
+static inline Atom setHT(Atom a, UInt ht)     {return (a & (~0ULL << HT)) | ht;}
 
 /**** Apps ****/
 
@@ -280,7 +280,7 @@ static inline Atom   getAppAtom(App app, int i) {
 
 #ifndef NDEBUG
 static bool atomEq(Atom a, Atom b) {
-    return isINT(a) ? a == b : ((a & -1 << HT) == (b & -1 << HT)); }
+    return isINT(a) ? a == b : ((a & ~0U << HT) == (b & ~0U << HT)); }
 #endif
 
 static inline App mkApp(AppTag tag, Int size, bool nf, Int info, Atom *atom) {

@@ -6,6 +6,7 @@
 /* Tommy Thorn 2014-07-28              */
 /* =================================== */
 
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -29,8 +30,6 @@
 #define NAMELEN 128
 
 #define perform(action) (action, 1)
-
-#define error(action) (action, exit(-1), 0)
 
 #include "red_atom.h"
 
@@ -80,6 +79,23 @@ typedef struct
   } ProfEntry;
 
 ProfEntry *profTable;
+
+static const char *__restrict program_name;
+
+static void __attribute__ ((__noreturn__))
+    error(const char *__restrict fmt, ...)
+{
+    va_list ap;
+
+    fprintf(stderr, "%s: error: ", program_name);
+
+    va_start(ap, fmt);
+    (void) vfprintf(stderr, fmt, ap);
+    va_end(ap);
+    fputc('\n', stderr);
+
+    exit(EXIT_FAILURE);
+}
 
 /* Display profiling table */
 
@@ -169,7 +185,8 @@ static inline Int arity(Atom a)
     else if (isPRI(a))
         return getPRIArity(a);
     else
-        error(printf("arity(): invalid tag\n"));
+        error("arity(): invalid tag");
+    return 0;
 }
 
 Bool updateCheck(Atom top, Update utop)
@@ -192,29 +209,23 @@ void upd(Atom top, Int sp, Int len, Int hp)
 
 void update(Atom top, Int saddr, Int haddr)
 {
-  Int len = 1 + sp - saddr;
-  Int p = sp-2;
+    Int len = 1 + sp - saddr;
+    Int p = sp-2;
 
-  for (;;) {
-    if (len < APSIZE) {
-        if (len <= 0) {
-            static int warned = 1;
-            if (!warned)
-                printf("Strange, zero sized update. Hum. Ignored\n"),
-                    warned = 1;
+    for (;;) {
+        if (len < APSIZE) {
+            if (len <= 0)
+                error("zero sized app updated");
+            else
+                upd(top, p, len, haddr);
+            usp--;
+        } else {
+            upd(top, p, APSIZE, hp);
+            p -= APSIZE-1; len -= APSIZE-1;
+            top = mkPTR(1, hp);
+            hp++;
         }
-        else
-            upd(top, p, len, haddr);
-      usp--;
-      return;
     }
-    else {
-      upd(top, p, APSIZE, hp);
-      p -= APSIZE-1; len -= APSIZE-1;
-      top = mkPTR(1, hp);
-      hp++;
-    }
-  }
 }
 
 /* Primitive reduction */
@@ -532,13 +543,12 @@ static inline Bool canCollect()
     return !isFUN(stack[sp-1]) || getFUNOriginal(stack[sp-1]);
 }
 
-void stackOverflow()
+void stackOverflow(void)
 {
-  printf("Out of stack space.\n");
-  exit(-1);
+    error("Out of stack space.");
 }
 
-void dispatch()
+void dispatch(void)
 {
   Atom top;
 
@@ -571,7 +581,7 @@ void dispatch()
             apply(&code[getFUNId(top)]);
         }
         else
-            error(printf("dispatch(): invalid tag.\n"));
+            error("dispatch(): invalid tag.");
     }
   }
 }
@@ -582,7 +592,8 @@ Int strToBool(Char *s)
 {
   if (!strcmp(s, "True")) return 1;
   if (!strcmp(s, "False")) return 0;
-  error(printf("Parse error: boolean expected; got %s\n", s));
+  error("Parse error: boolean expected; got %s", s);
+  return 0;
 }
 
 void strToPrim(Char *s, Prim *p, Bool *b)
@@ -603,7 +614,7 @@ void strToPrim(Char *s, Prim *p, Bool *b)
   if (!strcmp(s, "(.&.)")) { *p = AND; return; }
   if (!strcmp(s, "st32")) { *p = ST32; return; }
   if (!strcmp(s, "ld32")) { *p = LD32; return; }
-  error(printf("Parse error: unknown primitive %s\n", s));
+  error("Parse error: unknown primitive %s", s);
 }
 
 Bool parseAtom(FILE *f, Atom* result)
@@ -654,15 +665,15 @@ Bool parseAtom(FILE *f, Atom* result)
       Char c;                                                               \
       Int i = 0;                                                            \
       if (! (fscanf(f, " %c", &c) == 1 && c == '['))                        \
-        error(printf("Parse error: expecting '['\n"));                      \
+        error("Parse error: expecting '['");                                \
       for (;;) {                                                            \
         if (i >= n)                                                         \
-          error(printf("Parse error: list contains too many elements\n"));  \
+          error("Parse error: list contains too many elements");            \
         if (p(f, &xs[i])) i++;                                              \
         if (fscanf(f, " %c", &c) == 1 && (c == ',' || c == ']')) {          \
           if (c == ']') return i;                                           \
         }                                                                   \
-        else error(printf("Parse error\n"));                                \
+        else error("Parse error");                                          \
       }                                                                     \
       return 0;                                                             \
     }
@@ -715,11 +726,11 @@ Bool parseString(FILE *f, Int n, Char *str)
 {
   Int i;
   Char c;
-  fscanf(f, " \"");
+  if (fscanf(f, " \"") != 0)
+      return 0;
 
   for (i = 0; ; i++) {
-    if (i >= n) return 0;
-    fscanf(f, "%c", &c);
+    if (i >= n || fscanf(f, "%c", &c) != 1) return 0;
     if (c == '"') {
       str[i] = '\0';
       return 1;
@@ -731,15 +742,16 @@ Bool parseString(FILE *f, Int n, Char *str)
 Bool parseTemplate(FILE *f, Template *t)
 {
   Char c;
-  fscanf(f, " (");
+  if (fscanf(f, " (") != 0)
+      return 0;
   if (parseString(f, NAMELEN, t->name) == 0) return 0;
   if (fscanf(f, " ,%i,", &t->arity) != 1) return 0;
   t->numLuts = parseLuts(f, MAXLUTS, t->luts);
-  (fscanf(f, " %c", &c) == 1 && c == ',') || error(printf("Parse error\n"));
+  if (!(fscanf(f, " %c", &c) == 1 && c == ',')) error("Parse error");
   t->numPushs = parseAtoms(f, MAXPUSH, t->pushs);
-  (fscanf(f, " %c", &c) == 1 && c == ',') || error(printf("Parse error\n"));
+  if (!(fscanf(f, " %c", &c) == 1 && c == ',')) error("Parse error");
   t->numApps = parseApps(f, MAXAPS, t->apps);
-  (fscanf(f, " %c", &c) == 1 && c == ')') || error(printf("Parse error\n"));
+  if (!(fscanf(f, " %c", &c) == 1 && c == ')')) error("Parse error");
   return 1;
 }
 
@@ -748,7 +760,7 @@ Int parse(FILE *f, Int n, Template *ts)
   Int i = 0;
 
   for (;;) {
-      if (i >= n) error(printf("Parse error: too many templates\n"));
+      if (i >= n) error("Parse error: too many templates");
     if (!parseTemplate(f, &ts[i])) return i;
     i++;
   }
@@ -772,7 +784,7 @@ int main(int argc, char **argv)
           tracingEnabled = 1;
           break;
       default:
-          error(printf("only options v, t and p supported\n"));
+          error("only options v, t and p supported");
           break;
       }
   }
@@ -781,7 +793,7 @@ int main(int argc, char **argv)
   argv += optind;
 
   if (argc != 1)
-      error(printf("Need .red file or - for stdin"));
+      error("Need .red file or - for stdin");
 
   if (strcmp(argv[0], "-") == 0)
       f = stdin;
@@ -795,7 +807,7 @@ int main(int argc, char **argv)
 
   alloc();
   numTemplates = parse(f, MAXTEMPLATES, code);
-  if (numTemplates <= 0) error(printf("No templates were parsed!\n"));
+  if (numTemplates <= 0) error("No templates were parsed!");
   init();
   dispatch();
 
