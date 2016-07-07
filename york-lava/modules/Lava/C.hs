@@ -20,7 +20,7 @@ writeC name a b = do
     Left error -> putStrLn error
     Right csource -> do
        putStrLn ("Creating directory '" ++ name ++ "/'")
-       system ("mkdir -p " ++ name)
+       callProcess "mkdir" ["-p", name]
        putStrLn $ "Writing to '" ++ name ++ "/" ++ file ++ "'"
        writeFile (name ++ "/" ++ file) csource
        putStrLn "Done."

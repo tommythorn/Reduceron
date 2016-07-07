@@ -161,7 +161,7 @@ writeVerilog ::
             -> IO ()
 writeVerilog name a b =
   do putStrLn ("Creating directory '" ++ name ++ "/'")
-     system ("mkdir -p " ++ name)
+     callProcess "mkdir" ["-p", name]
      nl <- netlist a b
      mapM_ gen (verilog name nl)
      putStrLn "Done."

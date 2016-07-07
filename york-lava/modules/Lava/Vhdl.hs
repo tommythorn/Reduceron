@@ -338,7 +338,7 @@ writeVhdlForPart ::
             -> IO ()
 writeVhdlForPart part name a b =
   do putStrLn ("Creating directory '" ++ name ++ "/'")
-     system ("mkdir -p " ++ name)
+     callProcess "mkdir" ["-p", name]
      nl <- netlist a b
      mapM_ gen (vhdl part name nl)
      putStrLn "Done."
