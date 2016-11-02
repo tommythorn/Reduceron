@@ -1,4 +1,4 @@
-{-# OPTIONS_GHC -fcontext-stack=1024 #-}
+{-# OPTIONS_GHC -freduction-depth=1024 #-}
 
 import Lava
 
