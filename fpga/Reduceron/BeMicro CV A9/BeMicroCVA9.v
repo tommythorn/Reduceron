@@ -58,7 +58,7 @@ module BeMicroCVA9
 `endif
 );
 
-   wire        reset = 0;
+   reg         reset = 0;
 
    wire [17:0] r;
    wire [ 6:0] s;
@@ -74,6 +74,13 @@ module BeMicroCVA9
    reg  [31:0] prescaler;
    reg  [ 8:0] counter;
 
+   reg [ 1:0]  KEYn_r0, KEYn_r;
+   always @(posedge clock) KEYn_r0 <= KEYn;
+   always @(posedge clock) KEYn_r  <= KEYn_r0;
+
+   always @(posedge clock)
+     reset <= KEYn_r == 1;
+
    always @(posedge CLK_24MHZ)
      if (prescaler == 0) begin
         prescaler <= 6000000 - 1;
@@ -87,7 +94,7 @@ module BeMicroCVA9
 `endif
 
    always @(posedge clock)
-     case (KEYn)
+     case (KEYn_r)
        3: LEDn <= ~res[10:3];
        2: LEDn <= /* wd */ ~counter; // Random recognizable pattern
        1: LEDn <= ~s;
@@ -99,6 +106,7 @@ module BeMicroCVA9
    // This must match the writeVerilog line in fpga/Main.hs
    Reduceron Reduceron_inst
       (clock,
+       reset,
        r[0], r[1], r[2], r[3], r[4], r[5], r[6], r[7], r[8], r[9], r[10], r[11], r[12], r[13], r[14], r[15], r[16], r[17],
        s[0], s[1], s[2], s[3], s[4], s[5], s[6],
        h[0], h[1], h[2], h[3], h[4], h[5], h[6], h[7], h[8], h[9], h[10], h[11], h[12], h[13],

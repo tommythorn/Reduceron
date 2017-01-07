@@ -3,7 +3,7 @@ set_global_assignment -name DEVICE 5CEFA9F23C8
 set_global_assignment -name TOP_LEVEL_ENTITY BeMicroCVA9
 set_global_assignment -name ORIGINAL_QUARTUS_VERSION 15.0.2
 set_global_assignment -name PROJECT_CREATION_TIME_DATE "17:18:29  AUGUST 27, 2015"
-set_global_assignment -name LAST_QUARTUS_VERSION 15.1.0
+set_global_assignment -name LAST_QUARTUS_VERSION 16.0.0
 set_global_assignment -name PROJECT_OUTPUT_DIRECTORY output_files
 set_global_assignment -name MIN_CORE_JUNCTION_TEMP 0
 set_global_assignment -name MAX_CORE_JUNCTION_TEMP 85

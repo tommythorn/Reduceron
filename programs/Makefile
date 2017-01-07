@@ -72,8 +72,8 @@ regress-red-verilog-sim: $(patsubst %,%.red-verilog-sim-checked,$(WORKLOADS))
 regress-red-verilog-run: $(patsubst %,%.red-verilog-run-checked,$(WORKLOADS))
 
 %.red-verilog-run-checked: gold/compiled/%.red $(RED)
-	cd ../fpga; ./Red -v ../programs/$< && cp Reduceron/*.mif Reduceron/DE2-115
-	make -C ../fpga/Reduceron/DE2-115
+	cd ../fpga; ./Red -v ../programs/$< && cp Reduceron/*.mif Reduceron/"BeMicro CV A9"
+	make -C ../fpga/Reduceron/"BeMicro CV A9"
 
 bench-flite-c-comp: $(patsubst %,%.bench-flite-c-comp,$(WORKLOADS))
 
