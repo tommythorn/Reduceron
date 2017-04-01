@@ -1,5 +1,3 @@
-{-# OPTIONS_GHC -freduction-depth=1024 #-}
-
 import Lava
 
 {-

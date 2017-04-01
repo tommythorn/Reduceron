@@ -1,4 +1,4 @@
-{-# OPTIONS_GHC -XFunctionalDependencies -XFlexibleInstances -XMultiParamTypeClasses -XUndecidableInstances -freduction-depth=1024 #-}
+{-# OPTIONS_GHC -XFunctionalDependencies -XFlexibleInstances -XMultiParamTypeClasses -XUndecidableInstances #-}
 
 {- |
 
