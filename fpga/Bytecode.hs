@@ -1,6 +1,6 @@
 module Bytecode where
 
-import Prelude hiding (Word)
+import Prelude hiding (Word, (.))
 import Lava
 import Data.Bits
 
@@ -82,16 +82,16 @@ isFUN a = inv (a `vat` n0) <&> inv (a `vat` n1)
 splitAtom :: Atom -> (Word N3, Number)
 splitAtom = vsplitAt n3
 
-splitFunAtom = vsplitAt n3 . snd . splitAtom
+splitFunAtom = vsplitAt n3 `o` snd `o` splitAtom
 
 funArity :: Atom -> Arity
-funArity = fst . splitFunAtom
+funArity = fst `o` splitFunAtom
 
 funAddr :: Atom -> FunAddr
-funAddr = vtake funAddrN . snd . splitFunAtom
+funAddr = vtake funAddrN `o` snd `o` splitFunAtom
 
 funFirst :: Atom -> Bit
-funFirst = vlast . snd . splitFunAtom
+funFirst = vlast `o` snd `o` splitFunAtom
 
 funTag = low +> low +> low +> vempty
 
@@ -141,7 +141,7 @@ isShared :: Atom -> Bit
 isShared a = a `vat` n2
 
 pointer :: Atom -> HeapAddr
-pointer = vtake heapAddrN . snd . splitAtom
+pointer = vtake heapAddrN `o` snd `o` splitAtom
 
 makeAP :: Bit -> HeapAddr -> Atom
 makeAP s a = low +> high +> s +> (a <++> low +> vempty)
@@ -158,7 +158,7 @@ isINT :: Atom -> Bit
 isINT a = (a `vat` n0) <&> inv (a `vat` n1) <&> inv (a `vat` n2)
 
 intValue :: Atom -> Number
-intValue = snd . splitAtom
+intValue = snd `o` splitAtom
 
 makeINT :: Number -> Atom
 makeINT a = high +> low +> low +> a
@@ -171,10 +171,10 @@ isCON :: Atom -> Bit
 isCON a = (a `vat` n0) <&> inv (a `vat` n1) <&> (a `vat` n2)
 
 conArity :: Atom -> Arity
-conArity = vtake n3 . vdrop n3
+conArity = vtake n3 `o` vdrop n3
 
 conIndex :: Atom -> FunAddr
-conIndex = vtake funAddrN . vdrop n6
+conIndex = vtake funAddrN `o` vdrop n6
 
 makeCON :: Arity -> FunAddr -> Atom
 makeCON n a = high +> low +> high +> (n <++> a <++> low +> low +> vempty) -- ew
@@ -191,7 +191,7 @@ isArgShared :: Atom -> Bit
 isArgShared a = a `vat` n3
 
 argIndex :: Atom -> Word N8
-argIndex = vtake n8 . vdrop n4
+argIndex = vtake n8 `o` vdrop n4
 
 makeARG :: Bit -> Word N8 -> Atom
 makeARG s n = high +> high +> low +> s +> (n <++> vreplicate n6 low) -- ew
@@ -208,7 +208,7 @@ isRegShared :: Atom -> Bit
 isRegShared a = a `vat` n3
 
 regIndex :: Atom -> Word N8
-regIndex = vtake n8 . vdrop n4
+regIndex = vtake n8 `o` vdrop n4
 
 makeREG :: Bit -> Word N8 -> Atom
 makeREG s n = high +> high +> high +> s +> (n <++> vreplicate n6 low) -- ew
@@ -263,10 +263,10 @@ isCollected app = app `vat` n4
 splitApp = vsplitAt n5
 
 atoms :: App -> Vec N4 Atom
-atoms = vrigid . vgroup atomN . snd . splitApp
+atoms = vrigid `o` vgroup atomN `o` snd `o` splitApp
 
 alts :: App -> FunAddr
-alts = vtake funAddrN . vdrop n3 . vlast . atoms
+alts = vtake funAddrN `o` vdrop n3 `o` vlast `o` atoms
 
 makeApp :: Word N2 -> Bit -> Bit -> Vec N4 Atom -> App
 makeApp arity n c as =
@@ -280,7 +280,7 @@ makeCollected addr =
   setCollected high (makeApp 0 low low (makeAP high addr +> vecOf 0))
 
 relocatedAddr :: App -> HeapAddr
-relocatedAddr = pointer . vhead . atoms
+relocatedAddr = pointer `o` vhead `o` atoms
 
 encodeApp :: Integer -> Bool -> Bool -> [Integer] -> Integer
 encodeApp arity n c as
@@ -341,74 +341,74 @@ type Template  = Word TemplateN
 tempOffset = vsplitAt n4
 
 templateOffset :: Template -> Word N4
-templateOffset = fst . tempOffset
+templateOffset = fst `o` tempOffset
 
-tempTop = vsplitAt atomN . snd . tempOffset
+tempTop = vsplitAt atomN `o` snd `o` tempOffset
 
 templateTop :: Template -> Atom
-templateTop = fst . tempTop
+templateTop = fst `o` tempTop
 
-tempPushAlts = vsplitAt n1 . snd . tempTop
+tempPushAlts = vsplitAt n1 `o` snd `o` tempTop
 
 templatePushAlts :: Template -> Bit
-templatePushAlts = vhead . fst . tempPushAlts
+templatePushAlts = vhead `o` fst `o` tempPushAlts
 
-tempAlts = vsplitAt funAddrN . snd . tempPushAlts
+tempAlts = vsplitAt funAddrN `o` snd `o` tempPushAlts
 
 templateAlts :: Template -> FunAddr
-templateAlts = fst . tempAlts
+templateAlts = fst `o` tempAlts
 
-tempInstAtoms2 = vsplitAt n1 . snd . tempAlts
+tempInstAtoms2 = vsplitAt n1 `o` snd `o` tempAlts
 
 templateInstAtoms2 :: Template -> Bit
-templateInstAtoms2 = vhead . fst . tempInstAtoms2
+templateInstAtoms2 = vhead `o` fst `o` tempInstAtoms2
 
-tempApp2Header = vsplitAt n5 . snd . tempInstAtoms2
+tempApp2Header = vsplitAt n5 `o` snd `o` tempInstAtoms2
 
 templateApp2Header :: Template -> Word N5
-templateApp2Header = fst . tempApp2Header
+templateApp2Header = fst `o` tempApp2Header
 
-tempPushMask = vsplitAt n5 . snd . tempApp2Header
+tempPushMask = vsplitAt n5 `o` snd `o` tempApp2Header
 
 templatePushMask :: Template -> Word N5
-templatePushMask = fst . tempPushMask
+templatePushMask = fst `o` tempPushMask
 
-tempApp2Atoms = vsplitAt atomWidth5 . snd . tempPushMask
+tempApp2Atoms = vsplitAt atomWidth5 `o` snd `o` tempPushMask
 
 templateApp2Atoms :: Template -> Vec N5 Atom
-templateApp2Atoms = vrigid . vgroup atomN . fst . tempApp2Atoms
+templateApp2Atoms = vrigid `o` vgroup atomN `o` fst `o` tempApp2Atoms
 
-tempInstApp1 = vsplitAt n1 . snd . tempApp2Atoms
+tempInstApp1 = vsplitAt n1 `o` snd `o` tempApp2Atoms
 
 templateInstApp1 :: Template -> Bit
-templateInstApp1 = vhead . fst . tempInstApp1
+templateInstApp1 = vhead `o` fst `o` tempInstApp1
 
-tempApp1 = vsplitAt appN . snd . tempInstApp1
+tempApp1 = vsplitAt appN `o` snd `o` tempInstApp1
 
 templateApp1 :: Template -> App
-templateApp1 = fst . tempApp1
+templateApp1 = fst `o` tempApp1
 
 templateApp2 :: Template -> App
 templateApp2 t =
   templateApp2Header t <++> vconcat (vtake n4 (templateApp2Atoms t))
 
-tempIsApp1Prim = vsplitAt n1 . snd . tempApp1
+tempIsApp1Prim = vsplitAt n1 `o` snd `o` tempApp1
 
 templateIsApp1Prim :: Template -> Bit
-templateIsApp1Prim = vhead . fst . tempIsApp1Prim
+templateIsApp1Prim = vhead `o` fst `o` tempIsApp1Prim
 
-tempIsApp2Prim = vsplitAt n1 . snd . tempIsApp1Prim
-tempDestReg1 = vsplitAt n4 . snd . tempIsApp2Prim
-tempDestReg2 = vsplitAt n4 . snd . tempDestReg1
+tempIsApp2Prim = vsplitAt n1 `o` snd `o` tempIsApp1Prim
+tempDestReg1 = vsplitAt n4 `o` snd `o` tempIsApp2Prim
+tempDestReg2 = vsplitAt n4 `o` snd `o` tempDestReg1
 
 templateIsApp2Prim :: Template -> Bit
-templateIsApp2Prim = vhead . fst . tempIsApp2Prim
+templateIsApp2Prim = vhead `o` fst `o` tempIsApp2Prim
 
 templateDestReg1 :: Template -> Word N4
-templateDestReg1 = vrigid . fst . tempDestReg1
+templateDestReg1 = vrigid `o` fst `o` tempDestReg1
 
 templateDestReg2 :: Template -> Word N4
-templateDestReg2 = vrigid . fst . tempDestReg2
+templateDestReg2 = vrigid `o` fst `o` tempDestReg2
 
 mapTemplate :: (Atom -> Atom) -> Template -> Template
 mapTemplate f t =

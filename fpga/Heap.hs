@@ -26,7 +26,7 @@ module Heap
 -- occurs before the 'snocB'.  Currently, a 'snocB' must only ever be
 -- performed in parallel with a 'snocA', never alone.
 
-import Prelude hiding (Word)
+import Prelude hiding (Word, (.))
 import Lava
 import Recipe
 
@@ -78,10 +78,10 @@ newHeap ramAlgorithm annotation =
      let incB = vhead (val sigIncB)
      let inc  = (incA <#> incB) +> (incA <&> incB) +> vecOf low
 
-     let sz   = zeroIf (sigReset!val!vhead) (sz' + inc)
+     let sz   = zeroIf (sigReset.val.vhead) (sz' + inc)
          sz'  = delay 0 sz
 
-     let sz1  = oneIf (sigReset!val!vhead) (sz1' + inc)
+     let sz1  = oneIf (sigReset.val.vhead) (sz1' + inc)
          sz1' = delay 1 sz1
 
      return $ Heap {
@@ -101,37 +101,37 @@ newHeap ramAlgorithm annotation =
               }
 
 lookupA :: Word n -> Heap n m -> Recipe
-lookupA a h = Seq [ h!addressA <== a ]
+lookupA a h = Seq [ h.addressA <== a ]
 
 lookupB :: Word n -> Heap n m -> Recipe
-lookupB a h = Seq [ h!addressB <== a ]
+lookupB a h = Seq [ h.addressB <== a ]
 
 updateA :: Word n -> Word m -> Heap n m -> Recipe
-updateA a x h = Seq [ h!addressA <== a, h!inputA <== x, h!writeA <== 1 ]
+updateA a x h = Seq [ h.addressA <== a, h.inputA <== x, h.writeA <== 1 ]
 
 updateB :: Word n -> Word m -> Heap n m -> Recipe
-updateB a x h = Seq [ h!addressB <== a, h!inputB <== x, h!writeB <== 1 ]
+updateB a x h = Seq [ h.addressB <== a, h.inputB <== x, h.writeB <== 1 ]
 
 snocA :: Word m -> Heap n m -> Recipe
-snocA x h = Seq [ h!incA <== 1, h!updateA (h!size) x ]
+snocA x h = Seq [ h.incA <== 1, h.updateA (h.size) x ]
 
 snocB :: Word m -> Heap n m -> Recipe
-snocB x h = Seq [ h!incB <== 1, h!updateB (h!size1) x ]
+snocB x h = Seq [ h.incB <== 1, h.updateB (h.size1) x ]
 
 snocA' :: Word m -> Heap n m -> Recipe
-snocA' x h = Seq [ h!updateA (h!size) x ]
+snocA' x h = Seq [ h.updateA (h.size) x ]
 
 snocB' :: Word m -> Heap n m -> Recipe
-snocB' x h = Seq [ h!updateB (h!size1) x ]
+snocB' x h = Seq [ h.updateB (h.size1) x ]
 
 advanceA :: Heap n m -> Recipe
-advanceA h = h!incA <== 1
+advanceA h = h.incA <== 1
 
 advanceB :: Heap n m -> Recipe
-advanceB h = h!incB <== 1
+advanceB h = h.incB <== 1
 
 reset :: Heap n m -> Recipe
-reset h = h!doReset <== 1
+reset h = h.doReset <== 1
 
 -- Axuliaries
 

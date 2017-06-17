@@ -1,5 +1,5 @@
 module Main where
-import Prelude hiding (Word)
+import Prelude hiding (Word, (.))
 import Lava
 import Recipe
 import Mult
@@ -84,26 +84,26 @@ newPoly code x =
 
 poly :: Poly -> Recipe
 poly s =
-  let instr = s!code!top in
+  let instr = s.code.top in
     Seq [ Tick
-        , While (instr!isHALT!inv) $
-            Seq [ isLIT instr |> s!rtop <== getLIT instr
-                , isDUP instr |> s!stack!push (s!rtop!val)
+        , While (instr.isHALT.inv) $
+            Seq [ isLIT instr |> s.rtop <== getLIT instr
+                , isDUP instr |> s.stack.push (s.rtop.val)
                 , isREV instr |>
-                    Seq [ s!rtop <== s!stack!top
-                        , s!stack!pop
-                        , s!stack!push (s!rtop!val)
+                    Seq [ s.rtop <== s.stack.top
+                        , s.stack.pop
+                        , s.stack.push (s.rtop.val)
                         ]
                 , isADD instr |>
-                    Seq [ s!rtop <== s!rtop!val + s!stack!top
-                        , s!stack!pop
+                    Seq [ s.rtop <== s.rtop.val + s.stack.top
+                        , s.stack.pop
                         ]
                 , isMUL instr |>
-                    Seq [ s!mult!multiply (s!rtop!val) (s!stack!top)
-                        , s!rtop <== s!mult!result!val
-                        , s!stack!pop
+                    Seq [ s.mult.multiply (s.rtop.val) (s.stack.top)
+                        , s.rtop <== s.mult.result.val
+                        , s.stack.pop
                         ]
-                , s!code!pop
+                , s.code.pop
                 , Tick
                 ]
         ]
@@ -112,7 +112,7 @@ expr :: Expr
 expr = (X :+: X) :+: (N 2 :*: X) :+: X
 
 simPoly :: Expr -> Integer -> Value
-simPoly e x = simRecipe (newPoly code x) poly (val . rtop)
+simPoly e x = simRecipe (newPoly code x) poly (val `o` rtop)
   where code = reverse $ map enc $ compile e
 
 prop_poly :: Expr -> Integer -> Bool
@@ -123,7 +123,7 @@ synPoly e x =
   do let code = reverse $ map enc $ compile e
      let (s, done) = recipe (newPoly code x) poly (delay high low)
      writeVerilog "Poly"
-               (s!rtop!val, done)
+               (s.rtop.val, done)
                (nameWord "result", name "done")
 
 cPoly :: Expr -> Integer -> IO ()
@@ -131,7 +131,7 @@ cPoly e x =
   do let code = reverse $ map enc $ compile e
      let (s, done) = recipe (newPoly code x) poly (delay high low)
      writeC "Poly"
-               (s!rtop!val, done)
+               (s.rtop.val, done)
                (nameWord "result", name "done")
 
 main = synPoly expr 7

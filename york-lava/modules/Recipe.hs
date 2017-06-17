@@ -21,7 +21,7 @@ module Recipe
   , (|>)
   , call
   , Var ( val, (<==) )
-  , (!)
+  , (.)
   , (-->)
 
     -- * The /New/ monad
@@ -46,7 +46,7 @@ module Recipe
   , simRecipe
   ) where
 
-import Prelude hiding (Word)
+import Prelude hiding (Word, (.))
 import Lava
 import Data.List
 import Data.Maybe
@@ -87,7 +87,7 @@ finite :: Recipe -> Bool
 finite r = isJust (time r)
 
 slowest :: [Recipe] -> Int
-slowest = snd . maximum . flip zip [0..] . map time
+slowest = snd `o` maximum `o` flip zip [0..] `o` map time
 
 type Schedule = [(Bit, VarId, [Bit])]
 
@@ -201,7 +201,7 @@ recipe :: New a          -- ^ A state creator
        -> (a, Bit)       -- ^ A finish pulse and the resulting state
 recipe n f go =
   let (_, rs, a) = runRWS n (s ++ concat ss) 0
-      ss = map (snd . uncurry sched) rs
+      ss = map (snd `o` uncurry sched) rs
       (done, s) = sched go (f a)
   in  (a, done)
 
@@ -212,16 +212,16 @@ simRecipe :: Generic b
           -> b              -- ^ The part of the state you selected
 simRecipe n f k = fst
                 $ head
-                $ dropWhile (not . bitToBool . snd)
+                $ dropWhile (not `o` bitToBool `o` snd)
                 $ simulate
                 $ first k
                 $ recipe n f (delay high low)
   where first f (a, b) = (f a, b)
 
-infixl 9 !
+infixl 9 .
 -- | Reverse function application.
-(!) :: a -> (a -> b) -> b
-x ! f = f x
+(.) :: a -> (a -> b) -> b
+x . f = f x
 
 infix 1 -->
 -- | Infix constructor for pairs.
@@ -239,13 +239,13 @@ newProc :: Recipe -> New Proc
 newProc r =
   do { go <- newSig
      ; done <- newSig
-     ; write (go!val!vhead, Seq [ r, done <== vsingle high ])
-     ; return (Proc go (done!val!vhead))
+     ; write (go.val.vhead, Seq [ r, done <== vsingle high ])
+     ; return (Proc go (done.val.vhead))
      }
 
 -- | Call a procedure.
 call :: Proc -> Recipe
-call p = Seq [ p!procGo <== 1, While (p!procDone!inv) Tick ]
+call p = Seq [ p.procGo <== 1, While (p.procDone.inv) Tick ]
 
 -- Standard reader/writer/state monad
 

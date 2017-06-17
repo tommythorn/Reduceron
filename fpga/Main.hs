@@ -1,4 +1,4 @@
-import Prelude hiding (Word)
+import Prelude hiding (Word, (.))
 import Lava
 import Recipe
 import Reduceron
@@ -38,21 +38,21 @@ run flags fileName =
      when (null flags) $ putStrLn (usageInfo header options)
      when (Simulate `elem` flags) $
 --     mapM_ print $ take 620 $ simRecipe2 (newReduceron code) dispatch
---                       (\s -> s!state)
+--                       (\s -> s.state)
 
        print $ simRecipe (newReduceron code) dispatch
-                         (\s -> ( s!result!val
-                                , s!heap!Heap.size ))
+                         (\s -> ( s.result.val
+                                , s.heap.Heap.size ))
 
-                                -- , s!collector!gcCount!val))
+                                -- , s.collector.gcCount.val))
        --print $ simRecipe (newReduceron code) dispatch (Heap.size . heap)
      when (Generate `elem` flags) $
        let (r, fin) = recipe (newReduceron code) dispatch (delay high low)
        in  writeVhdl "Reduceron"
-                     --(r!result!val, fin)
+                     --(r.result.val, fin)
                      --(nameWord "result", name "finish")
-                     (r!result!val, r!state, r!heap!Heap.size,
-                      r!ioWrite!val, r!ioAddr!val, r!ioWriteData!val,
+                     (r.result.val, r.state, r.heap.Heap.size,
+                      r.ioWrite.val, r.ioAddr.val, r.ioWriteData.val,
                       fin)
                      (nameWord "result", nameWord "state", nameWord "heapSize",
                       nameWord "ioWrite", nameWord "ioAddr", nameWord "ioWriteData",
@@ -60,9 +60,9 @@ run flags fileName =
      when (GenVerilog `elem` flags) $
        let (r, fin) = recipe (newReduceron code) dispatch (delay high low)
        in  writeVerilog "Reduceron"
-                     (r!result!val, r!state, r!heap!Heap.size,
-                      r!ioAddr!val, r!ioWrite!val, r!ioRead!val, r!ioWriteData!val,
-                      -- r!ioReadData!val, r!ioWait!val,
+                     (r.result.val, r.state, r.heap.Heap.size,
+                      r.ioAddr.val, r.ioWrite.val, r.ioRead.val, r.ioWriteData.val,
+                      -- r.ioReadData.val, r.ioWait.val,
                       fin)
                      (nameWord "result", nameWord "state", nameWord "heapSize",
                       nameWord "ioAddr", nameWord "ioWrite", nameWord "ioRead", nameWord "ioWriteData",
@@ -71,5 +71,5 @@ run flags fileName =
      when (GenC `elem` flags) $
        let (r, fin) = recipe (newReduceron code) dispatch (delay high low)
        in  writeC "Reduceron"
-                     (r!result!val, fin)
+                     (r.result.val, fin)
                      (nameWord "result", name "done")

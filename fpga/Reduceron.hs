@@ -1,7 +1,7 @@
 {-# OPTIONS_GHC -fcontext-stack=1024 #-}
 module Reduceron where
 
-import Prelude hiding (Word)
+import Prelude hiding (Word, (.))
 import Lava
 import Recipe
 import Bytecode
@@ -62,20 +62,20 @@ newReduceron :: [Integer] -> New Reduceron
 newReduceron program =
   do nt   <- newSig
      da   <- newSig
-     v    <- newOctostack "vstack_" (dashN (da!val))
+     v    <- newOctostack "vstack_" (dashN (da.val))
      u    <- newUnistack Width9
      a    <- newUnistack Width9
      h    <- newHeap Width1 ""
-     c    <- newCode program (fetch (nt!val) (a!newTopElem)) Width18
+     c    <- newCode program (fetch (nt.val) (a.newTopElem)) Width18
      res  <- newReg
      col  <- newCollect h u v nt
      rf1  <- newRegFile n4
      rf2  <- newRegFile n4
 
-     let du = updateCheck (nt!val) (v!OS.newSize) (u!newTopElem)
-                <&> (u!US.newSize!orG)
-     let next = nextState (nt!val) du (v!OS.newSize) (h!Heap.size)
-                  (col!collecting!val!vhead)
+     let du = updateCheck (nt.val) (v.OS.newSize) (u.newTopElem)
+                <&> (u.US.newSize.orG)
+     let next = nextState (nt.val) du (v.OS.newSize) (h.Heap.size)
+                  (col.collecting.val.vhead)
 
      ioAddr      <- newSig
      ioWrite     <- newSig
@@ -83,7 +83,7 @@ newReduceron program =
      ioRead      <- newSig
 
      return $ Reduceron {
-                top        = delay 0 (nt!val)
+                top        = delay 0 (nt.val)
               , newTop     = nt
               , state      = delay 0 next
               , dashTopN   = da
@@ -116,21 +116,21 @@ dispatch :: Reduceron -> Recipe
 dispatch r =
   Seq [
     Tick
-  , While (r!state!isHaltState!inv) $
+  , While (r.state.isHaltState.inv) $
       Seq [
-        r!unwind
-      , r!performUpdate
-      , r!prim
-      , r!unfold
-      , r!fetchApp
-      , isGCState (r!state) |> r!collector!collect (r!top)
+        r.unwind
+      , r.performUpdate
+      , r.prim
+      , r.unfold
+      , r.fetchApp
+      , isGCState (r.state) |> r.collector.collect (r.top)
       , Tick
       ]
-  , r!result <== r!top
+  , r.result <== r.top
   , Tick
   ]
   where
-    stop = r!state!orG!inv
+    stop = r.state.orG.inv
 
 {-
 
@@ -231,10 +231,10 @@ fetch top alts = isCON top ? (jump, funAddr top)
   where jump = alts + conIndex top
 
 fetchApp :: Reduceron -> Recipe
-fetchApp r = cond |> r!heap!lookupB (r!newTop!val!pointer)
-  where cond = isUnwindState (r!state)
-           <|> isSwapState (r!state)
-           <|> (isUnfoldState (r!state) <&> inv (r!code!templateInstAtoms2))
+fetchApp r = cond |> r.heap.lookupB (r.newTop.val.pointer)
+  where cond = isUnwindState (r.state)
+           <|> isSwapState (r.state)
+           <|> (isUnfoldState (r.state) <&> inv (r.code.templateInstAtoms2))
 
 {-
 
@@ -267,19 +267,19 @@ unwindMask n = (a <|> b) +> a +> (a <&> b) +> vecOf low
   where (a, b) = (n `vat` n1, n `vat` n0)
 
 unwind :: Reduceron -> Recipe
-unwind r = isUnwindState (r!state) |>
+unwind r = isUnwindState (r.state) |>
   Seq [
-    r!newTop <== vhead as
-  , r!vstack!update (n <+ low <+ low) (unwindMask n) (velems $ vtail as)
-  , app!hasAlts |> r!astack!push (app!alts)
-  , up |> r!ustack!push (makeUpdate (r!vstack!OS.size) (r!top!pointer))
+    r.newTop <== vhead as
+  , r.vstack.update (n <+ low <+ low) (unwindMask n) (velems $ vtail as)
+  , app.hasAlts |> r.astack.push (app.alts)
+  , up |> r.ustack.push (makeUpdate (r.vstack.OS.size) (r.top.pointer))
   ]
   where
-    app = r!heap!outputB
-    n   = app!appArity
-    as  = vmap (dash sh) (app!atoms)
-    sh  = r!top!isShared
-    up  = sh <&> inv (app!isNF)
+    app = r.heap.outputB
+    n   = app.appArity
+    as  = vmap (dash sh) (app.atoms)
+    sh  = r.top.isShared
+    up  = sh <&> inv (app.isNF)
 
 {-
 
@@ -341,25 +341,25 @@ Other tasks carried out by the update operation:
 -}
 
 performUpdate :: Reduceron -> Recipe
-performUpdate r = isUpdateState (r!state) |>
+performUpdate r = isUpdateState (r.state) |>
   Seq [
-    r!newTop <== r!top
-  , r!ustack!US.pop
-  , r!vstack!OS.size |>=| sa |>
+    r.newTop <== r.top
+  , r.ustack.US.pop
+  , r.vstack.OS.size |>=| sa |>
       Seq [
-        r!dashTopN <== n
-      , long |> r!heap!snocA (makeApp a1 high low app1)
-      , r!heap!updateB ha (long ? ( makeApp a2 high low app2
+        r.dashTopN <== n
+      , long |> r.heap.snocA (makeApp a1 high low app1)
+      , r.heap.updateB ha (long ? ( makeApp a2 high low app2
                                   , makeApp a1 high low app1
                                   ) )
       ]
   ]
   where
-    (sa, ha) = splitUpdate (r!ustack!topElem)
-    n        = vtake n3 (r!vstack!OS.size - sa)
-    ts       = vmap (dash high) (r!vstack!OS.tops)
-    app1     = r!top +> vtake n3 ts
-    app2     = makeAP low (r!heap!Heap.size) +> vtake n3 (vdrop n3 ts)
+    (sa, ha) = splitUpdate (r.ustack.topElem)
+    n        = vtake n3 (r.vstack.OS.size - sa)
+    ts       = vmap (dash high) (r.vstack.OS.tops)
+    app1     = r.top +> vtake n3 ts
+    app2     = makeAP low (r.heap.Heap.size) +> vtake n3 (vdrop n3 ts)
     (a1, a2) = splitArity n
     long     = n `vat` n2
 
@@ -384,10 +384,10 @@ Swaps the top two stack elements.
 -}
 
 swap :: Reduceron -> Recipe
-swap r = isSwapState (r!state) |>
+swap r = isSwapState (r.state) |>
   Seq [
-      r!newTop <== r!vstack!OS.tops!vhead
-    , r!vstack!OS.update 0 (high +> 0) [r!top]
+      r.newTop <== r.vstack.OS.tops.vhead
+    , r.vstack.OS.update 0 (high +> 0) [r.top]
   ]
 
 {-
@@ -403,31 +403,31 @@ according to Memo 40.
 -}
 
 prim :: Reduceron -> Recipe
-prim r = isSwapState (r!state) |>
+prim r = isSwapState (r.state) |>
   Seq [
     ready |>
-      Seq [ r!newTop <== result
-          , inv st32 |> r!vstack!update (-2) 0 []
+      Seq [ r.newTop <== result
+          , inv st32 |> r.vstack.update (-2) 0 []
 
           -- Handle IO primitives
-          , st32 |> Seq [ r!vstack!update (-3) 0 []
-                        , r!ioWrite     <== 1
-                        , r!ioAddr      <== sw ? (arg2!intValue, arg1!intValue)
-                        , r!ioWriteData <== sw ? (arg1!intValue, arg2!intValue) ]
+          , st32 |> Seq [ r.vstack.update (-3) 0 []
+                        , r.ioWrite     <== 1
+                        , r.ioAddr      <== sw ? (arg2.intValue, arg1.intValue)
+                        , r.ioWriteData <== sw ? (arg1.intValue, arg2.intValue) ]
           ]
   , inv ready |>
-      Seq [ r!newTop <== arg2, r!vstack!update 0 3 [pr!invSwapBit, arg1] ]
+      Seq [ r.newTop <== arg2, r.vstack.update 0 3 [pr.invSwapBit, arg1] ]
   ]
   where
-    pr = r!vstack!OS.tops `vat` n0
+    pr = r.vstack.OS.tops `vat` n0
     st32 = isST32 pr
-    sw = pr!getSwapBit
-    arg1 = r!top
-    arg2 = r!vstack!OS.tops `vat` n1
-    ready = arg2!isINT
-    result0 = alu pr (arg1!intValue) (arg2!intValue)
-    result1 = alu pr (arg2!intValue) (arg1!intValue)
-    result = st32 ? (r!vstack!OS.tops `vat` n2, sw ? (result1, result0))
+    sw = pr.getSwapBit
+    arg1 = r.top
+    arg2 = r.vstack.OS.tops `vat` n1
+    ready = arg2.isINT
+    result0 = alu pr (arg1.intValue) (arg2.intValue)
+    result1 = alu pr (arg2.intValue) (arg1.intValue)
+    result = st32 ? (r.vstack.OS.tops `vat` n2, sw ? (result1, result0))
 
 alu f a b =
   pickG
@@ -448,62 +448,62 @@ Instantiates a template from code memory onto the heap and stack.
 -}
 
 unfold :: Reduceron -> Recipe
-unfold r = isUnfoldState (r!state) |>
+unfold r = isUnfoldState (r.state) |>
   Seq [
-    r!newTop <== t!templateTop
-  , r!top!isCON |> r!astack!US.pop
-  , t!templateInstApp1 |> r!heap!snocA' (t!templateApp1)
-  , t!templateInstAtoms2 |> r!heap!snocB' (t!templateApp2)
-  , r!vstack!OS.update (t!templateOffset)
-                       (t!templatePushMask <+ low <+ low <+ low)
-                       (t!templateApp2Atoms!velems)
-  , t!templatePushAlts |> r!astack!US.push (t!templateAlts)
+    r.newTop <== t.templateTop
+  , r.top.isCON |> r.astack.US.pop
+  , t.templateInstApp1 |> r.heap.snocA' (t.templateApp1)
+  , t.templateInstAtoms2 |> r.heap.snocB' (t.templateApp2)
+  , r.vstack.OS.update (t.templateOffset)
+                       (t.templatePushMask <+ low <+ low <+ low)
+                       (t.templateApp2Atoms.velems)
+  , t.templatePushAlts |> r.astack.US.push (t.templateAlts)
 
-  , t!templateIsApp1Prim |> r!regFile1!assign (t!templateDestReg1) cand1
-  , t!templateIsApp2Prim |> r!regFile2!assign (t!templateDestReg2) cand2
+  , t.templateIsApp1Prim |> r.regFile1.assign (t.templateDestReg1) cand1
+  , t.templateIsApp2Prim |> r.regFile2.assign (t.templateDestReg2) cand2
 
-  , (hincA <|> hincB) |> r!heap!advanceA
-  , hincB |> r!heap!advanceB
+  , (hincA <|> hincB) |> r.heap.advanceA
+  , hincB |> r.heap.advanceB
 
   ]
   where
-    t = mapTemplate (inst r) (r!code)
+    t = mapTemplate (inst r) (r.code)
 
-    hincA = (t!templateIsApp1Prim) ? (inv valid1, t!templateInstApp1)
-    hincB = (t!templateIsApp2Prim) ? (inv valid2, t!templateInstAtoms2)
+    hincA = (t.templateIsApp1Prim) ? (inv valid1, t.templateInstApp1)
+    hincB = (t.templateIsApp2Prim) ? (inv valid2, t.templateInstAtoms2)
 
     -- PRS
     cand1 = valid1 ? (result1, ptr1)
     cand2 = valid2 ? (result2, ptr2)
-    ptr1 = makeAP low (r!heap!Heap.size)
-    ptr2 = makeAP low (r!heap!Heap.size1)
-    valid1 = arg1A!isINT <&> arg1B!isINT
-    valid2 = arg2A!isINT <&> arg2B!isINT
-    result1 = alu p1 (arg1A!intValue) (arg1B!intValue)
-    result2 = alu p2 (arg2A!intValue) (arg2B!intValue)
-    arg1A = t!templateApp1!atoms `vat` n0
-    arg1B = t!templateApp1!atoms `vat` n2
-    arg2A = t!templateApp2!atoms `vat` n0
-    arg2B = t!templateApp2!atoms `vat` n2
-    p1 = r!code!templateApp1!atoms `vat` n1
-    p2 = r!code!templateApp2!atoms `vat` n1
+    ptr1 = makeAP low (r.heap.Heap.size)
+    ptr2 = makeAP low (r.heap.Heap.size1)
+    valid1 = arg1A.isINT <&> arg1B.isINT
+    valid2 = arg2A.isINT <&> arg2B.isINT
+    result1 = alu p1 (arg1A.intValue) (arg1B.intValue)
+    result2 = alu p2 (arg2A.intValue) (arg2B.intValue)
+    arg1A = t.templateApp1.atoms `vat` n0
+    arg1B = t.templateApp1.atoms `vat` n2
+    arg2A = t.templateApp2.atoms `vat` n0
+    arg2B = t.templateApp2.atoms `vat` n2
+    p1 = r.code.templateApp1.atoms `vat` n1
+    p2 = r.code.templateApp2.atoms `vat` n1
 
 
 inst :: Reduceron -> Atom -> Atom
 inst r a =
   pickG
-    [ a!isARG   --> dash (a!isArgShared) x
-    , a!isREG   --> dash (a!isRegShared) y
-    , a!isAP    --> makeAP (a!isShared) (r!heap!Heap.size + a!pointer)
+    [ a.isARG   --> dash (a.isArgShared) x
+    , a.isREG   --> dash (a.isRegShared) y
+    , a.isAP    --> makeAP (a.isShared) (r.heap.Heap.size + a.pointer)
     , otherwise --> a
     ]
   where
-    otherwise = inv (a!isARG <|> a!isREG <|> a!isAP)
-    x         = selectG (a!argIndex!velems!take 7)
-                        (r!vstack!OS.tops!velems!take 7)
-    y         = selectG (a!regIndex!velems)
-                        (undeal (r!regFile1!elems!velems)
-                                (r!regFile2!elems!velems))
+    otherwise = inv (a.isARG <|> a.isREG <|> a.isAP)
+    x         = selectG (a.argIndex.velems.take 7)
+                        (r.vstack.OS.tops.velems.take 7)
+    y         = selectG (a.regIndex.velems)
+                        (undeal (r.regFile1.elems.velems)
+                                (r.regFile2.elems.velems))
 
 undeal xs [] = xs
 undeal [] ys = ys

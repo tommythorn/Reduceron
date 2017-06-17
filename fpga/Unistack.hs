@@ -18,7 +18,7 @@ module Unistack
 -- Pushing and popping can be done in parallel.  The maximum number of
 -- elements that can be stored on the stack is '2^n'.
 
-import Prelude hiding (Word)
+import Prelude hiding (Word, (.))
 import Lava
 import Recipe
 
@@ -54,14 +54,14 @@ newUnistack ramAlgorithm =
          dataSig   <- newSig
 
          let (nt, t, sz, nsz, out) = unistack ramAlgorithm
-                                              (push!val!vhead)
-                                              (pop!val!vhead)
-                                              (inp!val)
-                                              (writeSig!val!vhead)
-                                              (addressSig!val)
-                                              (dataSig!val)
-                                              (doSetSizeSig!val!vhead)
-                                              (setSizeValSig!val)
+                                              (push.val.vhead)
+                                              (pop.val.vhead)
+                                              (inp.val)
+                                              (writeSig.val.vhead)
+                                              (addressSig.val)
+                                              (dataSig.val)
+                                              (doSetSizeSig.val.vhead)
+                                              (setSizeValSig.val)
 
          return $ Unistack {
                     size        = sz
@@ -110,44 +110,44 @@ unistack ramAlgorithm push pop input ramWr ramAddr ramDatIn
     top      = delay 0 newTop
 
 push :: Word m -> Unistack n m -> Recipe
-push a s = Seq [ s!input <== a, s!pushTrigger <== 1 ]
+push a s = Seq [ s.input <== a, s.pushTrigger <== 1 ]
 
 pop :: Unistack n m -> Recipe
-pop s = s!popTrigger <== 1
+pop s = s.popTrigger <== 1
 
 index :: Word n -> Unistack n m -> Recipe
-index addr s = Seq [ s!address <== addr ]
+index addr s = Seq [ s.address <== addr ]
 
 modify :: Word n -> Word m -> Unistack n m -> Recipe
 modify addr val s =
-  Seq [ s!address <== addr, s!datIn <== val, s!write <== 1 ]
+  Seq [ s.address <== addr, s.datIn <== val, s.write <== 1 ]
 
 setSize :: Word n -> Unistack n m -> Recipe
-setSize sz s = Seq [ s!doSetSize <== 1, s!setSizeVal <== sz ]
+setSize sz s = Seq [ s.doSetSize <== 1, s.setSizeVal <== sz ]
 
 -- Example usage
 
 example :: Unistack N10 N18 -> Recipe
 example s =
-  Seq [ s!push 10
+  Seq [ s.push 10
       , Tick
       , Tick
-      , s!push 2
+      , s.push 2
       , Tick
       , Tick
       , Tick
-      , s!push 3
+      , s.push 3
       , Tick
       , Tick
-      , s!pop
+      , s.pop
       , Tick
       , Tick
-      , s!push 5
+      , s.push 5
       , Tick
       , Tick
-      , s!pop
+      , s.pop
       , Tick
-      , s!pop
+      , s.pop
       , Tick
       ]
 

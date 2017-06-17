@@ -1,5 +1,5 @@
 module Stack(Stack, newStack, push, pop, top) where
-import Prelude hiding (Word)
+import Prelude hiding (Word, (.))
 import Lava
 import Recipe
 import Control.Monad
@@ -19,9 +19,9 @@ newStack init =
      popSig <- newSig
      inputSig <- newSig
 
-     let (topElem, size) = server init (pushSig!val!vhead)
-                                       (popSig!val!vhead)
-                                       (inputSig!val)
+     let (topElem, size) = server init (pushSig.val.vhead)
+                                       (popSig.val.vhead)
+                                       (inputSig.val)
 
      return $ Stack {
                 top        = topElem
@@ -62,19 +62,19 @@ pop s = stackPop s <== 1
 example :: Stack N8 N10 -> Recipe
 example s =
   Seq [ Tick
-      , s!pop
+      , s.pop
       , Tick
-      , s!push 10
+      , s.push 10
       , Tick
-      , s!pop
+      , s.pop
       , Tick
-      , s!pop
+      , s.pop
       , Tick
-      , s!push 42
+      , s.push 42
       , Tick
-      , s!push 255
+      , s.push 255
       , Tick
-      , s!pop
+      , s.pop
       , Tick
       ]
 
@@ -83,5 +83,5 @@ simExample = simRecipe (newStack [7,9,2,3]) example top
 main =
   do let (s, done) = recipe (newStack [7,9,2,3]) example (delay high low)
      writeVerilog "Stack"
-                  (s!top, done)
+                  (s.top, done)
                   (nameWord "result", name "done")

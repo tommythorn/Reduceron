@@ -11,6 +11,8 @@ module Lava.Prelude
   ( -- * Bit-vectors
     Word
 
+  , o
+
     -- * Generalised primitives
   , andG
   , orG
@@ -68,11 +70,14 @@ module Lava.Prelude
   , halve
   ) where
 
-import Prelude hiding (Word)
+import Prelude hiding (Word, (.))
 import Lava.Bit
 import Lava.Vector
 import Lava.Binary
 import Data.List(transpose, inits, tails)
+
+infixl 9 `o`
+f `o` g = \x -> f (g x)
 
 -- | Parallel reduce for a commutative an associative operator.  Input
 -- list must be non-empty.
@@ -92,11 +97,11 @@ groupN n xs = take n xs : groupN n (drop n xs)
 
 -- | Logical AND of all bits in a structure.
 andG :: Generic a => a -> Bit
-andG = tree (<&>) high . bits
+andG = tree (<&>) high `o` bits
 
 -- | Logical OR of all bits in a structure.
 orG :: Generic a => a -> Bit
-orG = tree (<|>) low . bits
+orG = tree (<|>) low `o` bits
 
 infix 4 ===
 -- | Generic equality.
@@ -165,15 +170,15 @@ encode as  = zipWith (<|>) (encode ls) (encode rs) ++ [orG rs]
 
 -- | Binary to tally converter.
 tally :: [Bit] -> [Bit]
-tally = tal . decode
+tally = tal `o` decode
 
 -- | One-hot to tally converter.
 tal :: [Bit] -> [Bit]
-tal = map orG . tail . tails
+tal = map orG `o` tail `o` tails
 
 -- | Like 'tal'; specifically @tal\' n  =  tal (n+1)@.
 tal' :: [Bit] -> [Bit]
-tal' = map orG . init . tails
+tal' = map orG `o` init `o` tails
 
 split :: [a] -> [([a], [a])]
 split [] = []
@@ -192,7 +197,7 @@ rotr a b = map (dot a) (map tac (split b))
 
 -- | Like 'rotr', but lifted to a list of bit-lists.
 rotateRight :: [Bit] -> [[Bit]] -> [[Bit]]
-rotateRight n = transpose . map (rotr n) . transpose
+rotateRight n = transpose `o` map (rotr n) `o` transpose
 
 -- | Like 'rotr', except rotation is to the left.
 rotl :: [Bit] -> [Bit] -> [Bit]
@@ -200,7 +205,7 @@ rotl (a:as) b = rotr (a:reverse as) b
 
 -- | Like 'rotateRight' except rotation is to the left.
 rotateLeft :: [Bit] -> [[Bit]] -> [[Bit]]
-rotateLeft n = transpose . map (rotl n) . transpose
+rotateLeft n = transpose `o` map (rotl n) `o` transpose
 
 -- | Sign-extend a bit-vector.
 extend :: N n => Vec (S m) c -> Vec n c
@@ -214,7 +219,7 @@ intToOneHot i w
 
 -- | Convert a Haskell @Int@ to a one-hot bit-vector.
 oneHot :: N n => Int -> Word n
-oneHot i = sized (Vec . intToOneHot i)
+oneHot i = sized (Vec `o` intToOneHot i)
 
 ------------------------------------- RAMs ------------------------------------
 
@@ -329,7 +334,7 @@ type Unsigned n = Word n
 
 -- | Convert bit-vector to an integer.
 wordToInt :: Integral a => Word n -> a
-wordToInt = binToNat . map bitToBool . velems
+wordToInt = binToNat `o` map bitToBool `o` velems
 
 instance Eq (Vec n Bit) where
   a == b = error msg
@@ -402,7 +407,7 @@ ext1 xs = xs ++ take 1 (reverse xs)
 
 -- | Returns a list of N named bits with a given prefix.
 nameList :: Int -> String -> [Bit]
-nameList n s = map (name . (s ++) . show) [1..n]
+nameList n s = map (name `o` (s ++) `o` show) [1..n]
 
 -- | Returns a vector of N named bits with a given prefix.
 nameWord :: N n => String -> Word n
