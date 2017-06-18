@@ -1,0 +1,17 @@
+DONE #0 Hide Prelude.(.) and define `a . b = b a` so that `stack.top` reads
+   logically (HUGELY CONTROVERSIAL?)
+
+#1 Make Recipe a Monad (how?) so we can use `do` notation for sequences
+
+#3 Convert to use StableName and get rid of the horrible HORRIBLE
+   fragile hack that forces the use of -fno-cse -fno-full-laziness
+
+#5 Unify the Bit/[Bit]/Word n mess and replace with a single notion
+   "Word n", thus <&> operates on Word n rather than Bit and there's
+   no more "andG" (eventually).
+
+#5.1 Create a new `vat` which gives Word N1 rather than Bit
+#5.2 Rewrite some examples.
+
+#999.999 Give better syntax/names to everything
+

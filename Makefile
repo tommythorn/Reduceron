@@ -3,7 +3,7 @@ regress: examples.check regress-most.check
 	@echo SUCCESS
 
 examples.check:
-	$(MAKE) -C york-lava/examples && touch $@
+	$(MAKE) -C red-lava/examples && touch $@
 
 regress-most.check:
 	$(MAKE) -C programs regress-most && touch $@

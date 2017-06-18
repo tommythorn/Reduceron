@@ -1,22 +1,21 @@
-Name:                york-lava
-Version:             0.2
-Author:              Matthew Naylor
-Maintainer:          Matthew Naylor <mfn@cs.york.ac.uk>
+Name:                red-lava
+Version:             0.0
+Author:              Tommy Thorn
+Maintainer:          Tommy Thorn <tommy-reduceron@thorn.ws>
 License:             BSD3
 License-file:        LICENSE
 Synopsis:            A library for digital circuit description.
 Description:
-  York Lava is library for describing digital circuits. Descriptions
-  can be simulated in Hugs or GHC, and converted to VHDL compatible with
-  XST, the Xilinx Synthesis Tool.  It is similar to Chalmers
-  Lava, but omits some features and offers a few new ones.
-  See the top-level module "Lava" for pointers to further information.
+  Red Lava, a fork of York Lava, is library for describing digital
+  circuits.  Descriptions can be simulated and converted to Verilog.
+  It is similar to York and Chalmers Lava, but omits some features and
+  offers a few new ones.  See the top-level module "Lava" for pointers
+  to further information.
 Category:            Hardware
 Build-Depends:       base < 5, containers, process
 Build-Type:          Simple
 Stability:           provisional
-Homepage:            http://www.cs.york.ac.uk/fp/reduceron/
-Hugs-options:        -98 -c1024
+Homepage:            https://github.com/tommythorn/reduceron
 Ghc-options:         -fno-cse -fno-full-laziness
 Hs-source-dirs:      modules
 Exposed-modules:

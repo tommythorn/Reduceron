@@ -52,14 +52,12 @@ supported by
 
  - Flite: the F-lite to Red translator.
  - A Red emulator in C
- - York Lava: Reduceron is a York Lava program, which generate VHDL and
-   Verilog
- - Support for Verilog simulation and synthesis for various FPGA dev
-   kits.
+ - Red Lava: Reduceron is a Red Lava program, which generate Verilog
+ - Support for Verilog simulation and synthesis for various FPGA boards
 
 
-As much of the history as was available has been gathered and reduceron,
-york-lava, and the Flite distribution have been merged into one
+As much of the history as was available has been gathered and
+Reduceron, Lava, and the Flite distribution have been merged into one
 repository.
 
 

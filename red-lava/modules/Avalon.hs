@@ -15,7 +15,7 @@ valid in the next cycle).
 -}
 
 module Avalon where
-import Prelude hiding (Word)
+import Prelude hiding (Word, (.))
 import Lava
 import Recipe
 import Control.Monad
@@ -51,18 +51,18 @@ newAvalonMaster waitrequest readdatavalid readdata = do
 
 writeMaster :: N w => Word w -> Word w -> AvalonMaster w -> Recipe
 writeMaster addr value s =
-  Seq [ s!av_write <== 1
-      , s!av_address <== addr
-      , s!av_writedata <== value
-      , Do Tick (s!av_waitrequest)
-      , s!av_write <== 0
+  Seq [ s.av_write <== 1
+      , s.av_address <== addr
+      , s.av_writedata <== value
+      , Do Tick (s.av_waitrequest)
+      , s.av_write <== 0
       ]
 
 readMaster :: N w => Word w -> AvalonMaster w -> Recipe
 readMaster addr s =
-  Seq [ s!av_read <== 1
-      , s!av_address <== addr
-      , Do Tick (s!av_waitrequest)
-      , s!av_read <== 0
-      , While (inv (s!av_readdatavalid)) Tick
+  Seq [ s.av_read <== 1
+      , s.av_address <== addr
+      , Do Tick (s.av_waitrequest)
+      , s.av_read <== 0
+      , While (inv (s.av_readdatavalid)) Tick
       ]

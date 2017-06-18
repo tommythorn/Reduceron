@@ -1,5 +1,5 @@
 module Cube where
-import Prelude hiding (Word)
+import Prelude hiding (Word, (.))
 import Lava
 import Recipe
 import Mult
@@ -20,35 +20,35 @@ newCube =
   do { reg1 <- newReg
      ; reg2 <- newReg
      ; mul <- newMult
-     ; mproc <- newProc (mul!multiply (reg1!val) (reg2!val))
+     ; mproc <- newProc (mul.multiply (reg1.val) (reg2.val))
      ; return (Cube mul mproc reg1 reg2)
      }
 
 cube :: Word N8 -> Cube -> Recipe
 cube x c =
   Seq [
-    c!arg1 <== x
-  , c!arg2 <== x
+    c.arg1 <== x
+  , c.arg2 <== x
   , Tick
-  , c!mulProc!call
-  , c!arg1 <== c!mul!result!val
+  , c.mulProc.call
+  , c.arg1 <== c.mul.result.val
   , Tick
-  , c!mulProc!call
+  , c.mulProc.call
   ]
 
 fiveCubed :: Cube -> Recipe
-fiveCubed c = c!cube 5
+fiveCubed c = c.cube 5
 
-simFiveCubed = simRecipe newCube fiveCubed (result . mul)
+simFiveCubed = simRecipe newCube fiveCubed (result `o` mul)
 
 main =
   do let (s, done) = recipe newCube fiveCubed (delay high low)
      writeVerilog "Cube"
-                  (s!mul!result!val, done)
+                  (s.mul.result.val, done)
                   (nameWord "result", name "done")
 
 cFiveCubed =
   do let (s, done) = recipe newCube fiveCubed (delay high low)
      writeC "FiveCubedExample"
-            (s!mul!result!val, done)
+            (s.mul.result.val, done)
             (nameWord "result", name "done")

@@ -1,19 +1,26 @@
-======================
-REDUCERON MEMO 23
-York Lava, by example
+Red Lava, by example
 Matthew N, 22 May 2009
+Tommy Thorn, 2010+
 ======================
 
-York Lava is Haskell library for describing digital circuits.
-Descriptions can be simulated in Hugs or GHC, and converted to VHDL
-compatible with XST, the Xilinx Synthesis Tool.  It is largely
-compatible with Chalmers Lava, but omits some features and offers a
-few new ones.
+Red Lava is Haskell library for describing digital circuits.
+Descriptions can be simulated and converted to Verilog.  It is a fork
+of York Lava which was largely compatible with Chalmers Lava, but
+omits some features and offers a few new ones.
+
+Caveat
+------
+Red Lava uses '.' for reverse application (for more readable structure
+access) and provides 'o' for the now-hidden function composition.
+
+Red Lava is in flux and the documentation below may be out of date.
+We appologies.
+
 
 Simulation
 ----------
 
-York Lava provides an abstract data type 'Bit' and a set of primitive
+Red Lava provides an abstract data type 'Bit' and a set of primitive
 operators over values of this type.  For example, the operator for a
 two-input AND gate is written '<&>' and has type
 
@@ -187,7 +194,7 @@ example, here is the list instance:
 Memory
 ------
 
-York Lava supports primitive components that produce multiple output
+Red Lava supports primitive components that produce multiple output
 bits.  Random-access memories (RAMs), which have data-output buses,
 are a prime example.
 
@@ -229,7 +236,7 @@ using the Xilinx "WRITE_FIRST" semantics.
 Behavioural description
 -----------------------
 
-York Lava provides the following constructs for writing behavioural
+Red Lava provides the following constructs for writing behavioural
 descriptions.
 
   Skip  :: Recipe
@@ -242,7 +249,7 @@ descriptions.
 
 (For a precise semantics of this language, see Memo 24.)
 
-There are two steps to writing behavioural descriptions in York Lava.
+There are two steps to writing behavioural descriptions in Red Lava.
 The first is to define a state type (say 'State') that contains all
 the state variables to be used in the description.  And the second is
 to define a function of type 'State -> Recipe' which manipulates the
@@ -263,11 +270,11 @@ A value of type 'Mult n' is created by 'newMult'.
 The shift-and-add recipe takes a value of type 'Mult n'.
 
   shiftAndAdd s =
-    While (s!b!val =/= 0) $
-      Seq [ s!a <== s!a!val!shr
-          , s!b <== s!b!val!shl
-          , s!b!val!vhead |>
-              s!result <== s!result!val + s!a!val
+    While (s.b.val =/= 0) $
+      Seq [ s.a <== s.a.val.shr
+          , s.b <== s.b.val.shl
+          , s.b.val.vhead |>
+              s.result <== s.result.val + s.a.val
           , Tick
           ]
 
@@ -277,11 +284,11 @@ The shift-and-add recipe takes a value of type 'Mult n'.
 
 Three remarks are in order:
 
-  1. The '!' operator is flipped application with a high precedence.
+  1. The '.' operator is flipped application with a high precedence.
 
-       infixl 9 !
-       (!) :: a -> (a -> b) -> b
-       x!f = f x
+       infixl 9 .
+       (.) :: a -> (a -> b) -> b
+       x.f = f x
 
      This gives descriptions an appropriate object-oriented flavour.
 
@@ -298,12 +305,12 @@ Three remarks are in order:
 To actually perform a multiplication, the input variables need to be
 initialised.
 
-  multiply x y s = Seq [ s!a <== x, s!b <== y, Tick, s!shiftAndAdd ]
+  multiply x y s = Seq [ s.a <== x, s.b <== y, Tick, s.shiftAndAdd ]
 
 For example, an eight-bit multiplier that computes 5*5.
 
   example :: Mult N8 -> Recipe
-  example s = s!multiply 5 5
+  example s = s.multiply 5 5
 
 The example can simulated using 'simRecipe', which a value of type
 'New s' and passes the state (of type 's') to a function of type
@@ -321,13 +328,13 @@ performance (required for realistic applications)
   csimExample =
     do let (s, done) = recipe newMult example (delay high low)
        writeC "MultExample"
-              (s!result!val, done)
+              (s.result.val, done)
               (nameWord "result", name "done")
 
 XXX: The details of this are subject to change.
 
 MultExample.c then contains a single function MultExample() returning
-the result of s!result!val when done transitions high.
+the result of s.result.val when done transitions high.
 
 The example can be synthesised by calling 'recipe' which is similar to
 'simRecipe' but takes a single-cycle pulse indicating when to start,
@@ -337,7 +344,7 @@ finished.
   synExample =
     do let (s, done) = recipe newMult example (delay high low)
        writeVhdl "MultExample"
-                 (s!result!val, done)
+                 (s.result.val, done)
                  (nameWord "result", name "done")
 
 Poly: a simple stack processor
@@ -459,26 +466,26 @@ The behaviour of the processor is as follows.
 
   poly :: Poly -> Recipe
   poly s =
-    let instr = s!code!top in
+    let instr = s.code.top in
       Seq [ Tick
-          , While (instr!isHALT!inv) $
-              Seq [ isLIT instr |> s!rtop <== getLIT instr
-                  , isDUP instr |> s!stack!push (s!rtop!val)
+          , While (instr.isHALT.inv) $
+              Seq [ isLIT instr |> s.rtop <== getLIT instr
+                  , isDUP instr |> s.stack.push (s.rtop.val)
                   , isREV instr |>
-                      Seq [ s!rtop <== s!stack!top
-                          , s!stack!pop
-                          , s!stack!push (s!rtop!val)
+                      Seq [ s.rtop <== s.stack.top
+                          , s.stack.pop
+                          , s.stack.push (s.rtop.val)
                           ]
                   , isADD instr |>
-                      Seq [ s!rtop <== s!rtop!val + s!stack!top
-                          , s!stack!pop
+                      Seq [ s.rtop <== s.rtop.val + s.stack.top
+                          , s.stack.pop
                           ]
                   , isMUL instr |>
-                      Seq [ s!mult!multiply (s!rtop!val) (s!stack!top)
-                          , s!rtop <== s!mult!result!val
-                          , s!stack!pop
+                      Seq [ s.mult.multiply (s.rtop.val) (s.stack.top)
+                          , s.rtop <== s.mult.result.val
+                          , s.stack.pop
                           ]
-                  , s!code!pop
+                  , s.code.pop
                   , Tick
                   ]
           ]
