@@ -1,7 +1,7 @@
 DONE #0 Hide Prelude.(.) and define `a . b = b a` so that `stack.top` reads
    logically (HUGELY CONTROVERSIAL?)
 
-#1 Make Recipe a Monad (how?) so we can use `do` notation for sequences
+DONE #1 Make Recipe a Monad so we can use `do` notation for sequences
 
 #3 Convert to use StableName and get rid of the horrible HORRIBLE
    fragile hack that forces the use of -fno-cse -fno-full-laziness

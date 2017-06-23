@@ -110,45 +110,43 @@ unistack ramAlgorithm push pop input ramWr ramAddr ramDatIn
     top      = delay 0 newTop
 
 push :: Word m -> Unistack n m -> Recipe
-push a s = Seq [ s.input <== a, s.pushTrigger <== 1 ]
+push a s = do s.input <== a; s.pushTrigger <== 1
 
 pop :: Unistack n m -> Recipe
 pop s = s.popTrigger <== 1
 
 index :: Word n -> Unistack n m -> Recipe
-index addr s = Seq [ s.address <== addr ]
+index addr s = s.address <== addr
 
 modify :: Word n -> Word m -> Unistack n m -> Recipe
-modify addr val s =
-  Seq [ s.address <== addr, s.datIn <== val, s.write <== 1 ]
+modify addr val s = do s.address <== addr; s.datIn <== val; s.write <== 1
 
 setSize :: Word n -> Unistack n m -> Recipe
-setSize sz s = Seq [ s.doSetSize <== 1, s.setSizeVal <== sz ]
+setSize sz s = do s.doSetSize <== 1; s.setSizeVal <== sz
 
 -- Example usage
 
 example :: Unistack N10 N18 -> Recipe
-example s =
-  Seq [ s.push 10
-      , Tick
-      , Tick
-      , s.push 2
-      , Tick
-      , Tick
-      , Tick
-      , s.push 3
-      , Tick
-      , Tick
-      , s.pop
-      , Tick
-      , Tick
-      , s.push 5
-      , Tick
-      , Tick
-      , s.pop
-      , Tick
-      , s.pop
-      , Tick
-      ]
+example s = do s.push 10
+               tick
+               tick
+               s.push 2
+               tick
+               tick
+               tick
+               s.push 3
+               tick
+               tick
+               s.pop
+               tick
+               tick
+               s.push 5
+               tick
+               tick
+               s.pop
+               tick
+               s.pop
+               tick
+
 
 simExample = simRecipe (newUnistack Width18) example newTopElem

@@ -25,16 +25,14 @@ newCube =
      }
 
 cube :: Word N8 -> Cube -> Recipe
-cube x c =
-  Seq [
-    c.arg1 <== x
-  , c.arg2 <== x
-  , Tick
-  , c.mulProc.call
-  , c.arg1 <== c.mul.result.val
-  , Tick
-  , c.mulProc.call
-  ]
+cube x c = do
+  c.arg1 <== x
+  c.arg2 <== x
+  tick
+  c.mulProc.call
+  c.arg1 <== c.mul.result.val
+  tick
+  c.mulProc.call
 
 fiveCubed :: Cube -> Recipe
 fiveCubed c = c.cube 5

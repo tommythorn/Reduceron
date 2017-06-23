@@ -54,29 +54,29 @@ server initial push pop input = (top, addr')
     top      = delayEn topInit (push <|> pop) (push ? (input, ramOuts))
 
 push :: Word n -> Stack n m -> Recipe
-push a s = Seq [ stackInput s <== a, stackPush s <== 1 ]
+push a s = do stackInput s <== a; stackPush s <== 1
 
 pop :: Stack n m -> Recipe
 pop s = stackPop s <== 1
 
 example :: Stack N8 N10 -> Recipe
-example s =
-  Seq [ Tick
-      , s.pop
-      , Tick
-      , s.push 10
-      , Tick
-      , s.pop
-      , Tick
-      , s.pop
-      , Tick
-      , s.push 42
-      , Tick
-      , s.push 255
-      , Tick
-      , s.pop
-      , Tick
-      ]
+example s = do
+   tick
+   s.pop
+   tick
+   s.push 10
+   tick
+   s.pop
+   tick
+   s.pop
+   tick
+   s.push 42
+   tick
+   s.push 255
+   tick
+   s.pop
+   tick
+
 
 simExample = simRecipe (newStack [7,9,2,3]) example top
 

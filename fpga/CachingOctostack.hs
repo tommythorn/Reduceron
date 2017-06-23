@@ -24,6 +24,7 @@ import Lava
 import Recipe
 import Data.List
 import Bytecode
+import Control.Monad (zipWithM_)
 
 -- Parameters
 
@@ -125,33 +126,33 @@ rotLeft :: [Bit] -> [Word n] -> [Word n]
 rotLeft n xs = map Vec $ rotateLeft n $ map velems xs
 
 update :: Word N4 -> Word N8 -> [Word n] -> Octostack n -> Recipe
-update o en xs s = Seq ([s.offset <== o, s.writeEn <== en] ++ assigns)
-  where assigns = zipWith (<==) (s.dataIn.velems) xs
+update o en xs s = do s.offset <== o
+                      s.writeEn <== en
+                      zipWithM_ (<==) (s.dataIn.velems) xs
 
 -- Example usage
 
 example :: Octostack N18 -> Recipe
-example s =
-  Seq [ s.update 3 (high +> high +> high +> 0) [4, 5, 6]
-      , Tick -- PUSH [4, 5, 6]
-      , s.update 2 (high +> high +> 0) [8, 9]
-      , Tick -- PUSH [8, 9]
-      , s.update (-1) 0 []
-      , Tick -- POP 1
-      , s.update 4 (high +> high +> high +> high +> 0) [1, 2, 1, 2]
-      , Tick -- PUSH [1, 2, 1, 2]
-      , s.update 4 (high +> high +> high +> high +> 0) [6, 7, 6, 7]
-      , Tick -- PUSH [6, 7, 6, 7]
-      , s.update (-3) 0 []
-      , Tick -- POP 3
-      , s.update (-2) (high +> 0) [10]
-      , Tick -- POP 3, PUSH [10]
-      , s.update 2 (high +> high +> 0) [8, 9]
-      , Tick -- PUSH [8, 9]
-      , s.update 0 (high +> 0) [55]
-      , Tick -- PUSH [8, 9]
-      , Tick
-      , Tick
-      ]
+example s = do s.update 3 (high +> high +> high +> 0) [4, 5, 6]
+               tick -- PUSH [4, 5, 6]
+               s.update 2 (high +> high +> 0) [8, 9]
+               tick -- PUSH [8, 9]
+               s.update (-1) 0 []
+               tick -- POP 1
+               s.update 4 (high +> high +> high +> high +> 0) [1, 2, 1, 2]
+               tick -- PUSH [1, 2, 1, 2]
+               s.update 4 (high +> high +> high +> high +> 0) [6, 7, 6, 7]
+               tick -- PUSH [6, 7, 6, 7]
+               s.update (-3) 0 []
+               tick -- POP 3
+               s.update (-2) (high +> 0) [10]
+               tick -- POP 3, PUSH [10]
+               s.update 2 (high +> high +> 0) [8, 9]
+               tick -- PUSH [8, 9]
+               s.update 0 (high +> 0) [55]
+               tick -- PUSH [8, 9]
+               tick
+               tick
+
 
 simExample = simRecipe (newOctostack "example_" id) example tops

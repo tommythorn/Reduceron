@@ -38,30 +38,26 @@ regFile n en addr dat = vmap reg addr
   where reg hot = delayEn 0 (en <&> hot) dat
 
 assign :: Word n -> Word m -> RegFile n m -> Recipe
-assign addr dat s =
-  Seq [ s.writeTrigger <== 1
-      , s.writeAddr <== addr
-      , s.writeData <== dat
-      ]
+assign addr dat s = do s.writeTrigger <== 1
+                       s.writeAddr <== addr
+                       s.writeData <== dat
 
 
 -- Example usage
 
 example :: RegFile N8 N4 -> Recipe
-example s =
-  Seq [ s.assign (oneHot 0) 1
-      , Tick
-      , s.assign (oneHot 1) 2
-      , Tick
-      , Tick
-      , Tick
-      , s.assign (oneHot 2) 3
-      , Tick
-      , Tick
-      , s.assign (oneHot 3) 4
-      , Tick
-      , s.assign (oneHot 6) 5
-      , Tick
-      ]
+example s = do s.assign (oneHot 0) 1
+               tick
+               s.assign (oneHot 1) 2
+               tick
+               tick
+               tick
+               s.assign (oneHot 2) 3
+               tick
+               tick
+               s.assign (oneHot 3) 4
+               tick
+               s.assign (oneHot 6) 5
+               tick
 
 simExample = simRecipe (newRegFile n8) example elems

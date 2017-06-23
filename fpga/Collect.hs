@@ -94,37 +94,36 @@ Algorithm:
 
 -}
 
-collect top c =
-  Seq [
-    c.collecting <== 1 -- for profiling
-  , c.savedTop <== top
-  , Tick
-  , c.toSpace.reset   -- added
-  , c.gcCount <== c.gcCount.val + 1
-  , Tick
+collect top c = do c.collecting <== 1 -- for profiling
+                   c.savedTop <== top
+                   tick
 
-  , c.dumpStack       -- added
-  , Tick              -- added
+                   c.toSpace.reset   -- added
+                   c.gcCount <== c.gcCount.val + 1
+                   tick
 
-  , c.toSpace.snocA (c.root.val) -- added 2
-  , Tick                         -- added 2
+                   c.dumpStack       -- added
+                   tick              -- added
 
+                   c.toSpace.snocA (c.root.val) -- added 2
+                   tick                         -- added 2
 
-  , c.copy -- added 3
-  , Tick   -- added 3
+                   c.copy -- added 3
+                   tick   -- added 3
 
-  , c.updateUStack   -- added 5
-  , Tick             -- added 5
+                   c.updateUStack   -- added 5
+                   tick             -- added 5
 
-  , c.copyBack -- added 4
-  , Tick       -- added 4
+                   c.copyBack -- added 4
+                   tick       -- added 4
 
-  , c.collecting <== 0 -- for profiling
-  , Tick
-  --, c.newTop <== c.savedTop.val
-  , c.fromSpace.lookupB 0
-  , c.newTop <== makeAP low 0
-  ]
+                   c.collecting <== 0 -- for profiling
+                   tick
+
+                   -- c.newTop <== c.savedTop.val
+                   c.fromSpace.lookupB 0
+                   c.newTop <== makeAP low 0
+
 
 {-
 
@@ -135,16 +134,12 @@ Pops the stack onto the end of from-space.
 
 -}
 
-dumpStack c =
-  Do (
-    Seq [
-      c.savedTop <== makeAP low (c.fromSpace.Heap.size)
-    , c.root <== app
-    , c.fromSpace.snocA app
-    , c.stack.update (minus n) 0 []
-    , Tick
-    ]
-  ) (c.stack.OS.size =/= 0)
+dumpStack c = doWhile (do c.savedTop <== makeAP low (c.fromSpace.Heap.size)
+                          c.root <== app
+                          c.fromSpace.snocA app
+                          c.stack.update (minus n) 0 []
+                          tick)
+                      (c.stack.OS.size =/= 0)
   where
     n = (c.stack.OS.size |>=| 3) ? (3, c.stack.OS.size.vtake n2)
     app = makeApp n low low body
@@ -167,54 +162,56 @@ because we have to deal with up to 4 atoms at a time.
 
 -}
 
-copy c =
-  Seq [
-    c.tsp <== 0
-  , Tick
-  , While (c.tsp.val |<| c.toSpace.Heap.size) $
-      Seq [
-        c.toSpace.lookupB (c.tsp.val)
-      , Tick
-      , c.appToCopy <== c.toSpace.outputB
-      , c.child <== c.toSpace.outputB.atoms.vhead
-      , Tick
-      , c.copyChildProc.call
-      , c.newAtom0 <== c.child.val
-      , c.appToCopy.val.appArity |>=| 1 |>
-          Seq [
-            c.child <== c.appToCopy.val.atoms `vat` n1
-          , Tick
-          , c.copyChildProc.call
-          , c.newAtom1 <== c.child.val
-          ]
-      , c.appToCopy.val.appArity |>=| 2 |>
-          Seq [
-            c.child <== c.appToCopy.val.atoms `vat` n2
-          , Tick
-          , c.copyChildProc.call
-          , c.newAtom2 <== c.child.val
-          ]
-      , c.appToCopy.val.appArity |>=| 3 <|> c.appToCopy.val.hasAlts |>
-          Seq [
-            c.child <== c.appToCopy.val.atoms `vat` n3
-          , Tick
-          , c.copyChildProc.call
-          ]
-      , Tick
-      , c.tsp <== c.tsp.val + 1
-      , let newAtoms = c.newAtom0.val
-                    +> c.newAtom1.val
-                    +> c.newAtom2.val
-                    +> c.child.val
-                    +> vempty
-            newApp   = makeApp (c.appToCopy.val.appArity)
-                               (c.appToCopy.val.isNF)
-                               (c.appToCopy.val.hasAlts)
-                               newAtoms
-        in  c.toSpace.updateA (c.tsp.val) newApp
-      , Tick
-      ]
-  ]
+copy c = do c.tsp <== 0
+            tick
+
+            while (c.tsp.val |<| c.toSpace.Heap.size) $do
+                c.toSpace.lookupB (c.tsp.val)
+                tick
+
+                c.appToCopy <== c.toSpace.outputB
+                c.child <== c.toSpace.outputB.atoms.vhead
+                tick
+
+                c.copyChildProc.call
+                c.newAtom0 <== c.child.val
+
+                iff (c.appToCopy.val.appArity |>=| 1) $do
+                    c.child <== c.appToCopy.val.atoms `vat` n1
+                    tick
+
+                    c.copyChildProc.call
+                    c.newAtom1 <== c.child.val
+
+                iff (c.appToCopy.val.appArity |>=| 2) $do
+                    c.child <== c.appToCopy.val.atoms `vat` n2
+                    tick
+
+                    c.copyChildProc.call
+                    c.newAtom2 <== c.child.val
+
+                iff (c.appToCopy.val.appArity |>=| 3 <|> c.appToCopy.val.hasAlts) $do
+                    c.child <== c.appToCopy.val.atoms `vat` n3
+                    tick
+
+                    c.copyChildProc.call
+
+                tick
+
+                c.tsp <== c.tsp.val + 1
+                let newAtoms = c.newAtom0.val
+                            +> c.newAtom1.val
+                            +> c.newAtom2.val
+                            +> c.child.val
+                            +> vempty
+                    newApp   = makeApp (c.appToCopy.val.appArity)
+                                       (c.appToCopy.val.isNF)
+                                       (c.appToCopy.val.hasAlts)
+                                       newAtoms
+                 in
+                   c.toSpace.updateA (c.tsp.val) newApp
+                tick
+
 
 {-
 
@@ -233,20 +230,20 @@ possible new location in to-space.
 -}
 
 copyChild child fromSpace toSpace =
-  child.val.isAP |>
-    Seq [
+  iff (child.val.isAP) $do
       fromSpace.lookupB (child.val.pointer)
-    , Tick
-    , doCopy |>
-        Seq [
+      tick
+
+      iff (doCopy) $do
           child <== makeAP (child.val.isShared) newAddr
-        , toSpace.snocA app
-        , fromSpace.updateA (child.val.pointer) (makeCollected newAddr)
-        ]
-    , inv doCopy |>
+          toSpace.snocA app
+          fromSpace.updateA (child.val.pointer) (makeCollected newAddr)
+
+      iff (inv doCopy) $do
         child <== app.atoms.vhead
-    , Tick
-    ]
+
+      tick
+
   where
     app = fromSpace.outputB
     newAddr = toSpace.Heap.size <+ low
@@ -292,41 +289,48 @@ away.
 -}
 
 updateUStack c =
-  Seq [
-    c.usp <== 3
-  , c.uspNew <== 3
-  , c.ustack.push 0
-  , Tick
-  , c.ustack.push 0
-  , Tick
-  , c.ustackSize <== c.ustack.US.size
-  , Tick
-  , While (c.usp.val |<=| c.ustackSize.val) $
-      Seq [
-        Tick
-      , c.ustack.index (c.usp.val)
-      , Tick
-      , c.fromSpace.lookupA ha
-      , Tick
-      , c.usp <== c.usp.val + 1
-      , c.fromSpace.outputA.isCollected |>
-          Seq [
+ do c.usp <== 3
+    c.uspNew <== 3
+    c.ustack.push 0
+    tick
+
+    c.ustack.push 0
+    tick
+
+    c.ustackSize <== c.ustack.US.size
+    tick
+
+    while (c.usp.val |<=| c.ustackSize.val) $do
+
+        tick
+
+        c.ustack.index (c.usp.val)
+        tick
+
+        c.fromSpace.lookupA ha
+        tick
+
+        c.usp <== c.usp.val + 1
+        iff (c.fromSpace.outputA.isCollected) $do
             c.uspNew <== c.uspNew.val + 1
-          , let ha' = c.fromSpace.outputA.relocatedAddr in
+            let ha' = c.fromSpace.outputA.relocatedAddr in
               c.ustack.modify (c.uspNew.val) (makeUpdate sa' ha')
-          ]
-      , Tick
-      ]
-  , Tick
-  , c.ustack.setSize (c.uspNew.val - 1)
-  , Tick
-  , Tick
-  , Tick
-  , c.ustack.pop
-  , Tick
-  , c.ustack.pop
-  , Tick
-  ]
+
+        tick
+
+    tick
+
+    c.ustack.setSize (c.uspNew.val - 1)
+    tick
+    tick
+    tick
+
+    c.ustack.pop
+    tick
+
+    c.ustack.pop
+    tick
+
   where
     (sa, ha) = c.ustack.output.splitUpdate
     sa'      = delay 0 sa
@@ -379,16 +383,14 @@ Copies the compacted graph from to-space back to from-space.
 -}
 
 copyBack c =
-  Seq [
-    c.fromSpace.reset
-  , c.tsp <== 0
-  , Tick
-  , While (c.tsp.val |<| c.toSpace.Heap.size) $
-      Seq [
+  do c.fromSpace.reset
+     c.tsp <== 0
+     tick
+
+     while (c.tsp.val |<| c.toSpace.Heap.size) $do
         c.toSpace.lookupA (c.tsp.val)
-      , c.tsp <== c.tsp.val + 1
-      , Tick
-      , c.fromSpace.snocA (c.toSpace.outputA)
-      , Tick
-      ]
-  ]
+        c.tsp <== c.tsp.val + 1
+        tick
+
+        c.fromSpace.snocA (c.toSpace.outputA)
+        tick

@@ -50,19 +50,18 @@ newAvalonMaster waitrequest readdatavalid readdata = do
            }
 
 writeMaster :: N w => Word w -> Word w -> AvalonMaster w -> Recipe
-writeMaster addr value s =
-  Seq [ s.av_write <== 1
-      , s.av_address <== addr
-      , s.av_writedata <== value
-      , Do Tick (s.av_waitrequest)
-      , s.av_write <== 0
-      ]
+writeMaster addr value s = do
+  s.av_write <== 1
+  s.av_address <== addr
+  s.av_writedata <== value
+  doWhile tick (s.av_waitrequest)
+  s.av_write <== 0
 
 readMaster :: N w => Word w -> AvalonMaster w -> Recipe
-readMaster addr s =
-  Seq [ s.av_read <== 1
-      , s.av_address <== addr
-      , Do Tick (s.av_waitrequest)
-      , s.av_read <== 0
-      , While (inv (s.av_readdatavalid)) Tick
-      ]
+readMaster addr s = do
+  s.av_read <== 1
+  s.av_address <== addr
+  doWhile tick (s.av_waitrequest)
+  s.av_read <== 0
+  while (inv (s.av_readdatavalid)) tick
+

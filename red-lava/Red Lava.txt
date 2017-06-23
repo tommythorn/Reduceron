@@ -205,17 +205,7 @@ should be initialised to.  The list of initial values may have a
 length smaller than the number of locations in the RAM; any locations
 whose initial values are unspecified are initialised to 0.
 
-The 2nd argument specifies to the Xilinx Core Generator which
-cascading algorithm should be used when making big RAMs out of
-individual block-RAMs.
-
-  data RamAlgorithm =
-    MinArea | Width1 | Width2 | Width4 | Width9 | Width18 | Width36
-
-Choosing 'MinArea' causes the "Minimum Area" algorithm to be used; any
-other choice results in the "Fixed Primitives" algorithm being used.
-See the Xilinx Core Generator documentation for details on these
-algorithms.  This argument is ignored for the Verilog backend.
+The 2nd argument is legacy and should be left at MinArea
 
 The 3rd argument specifies the data-input and address buses, along with
 a write-enable signal.  The type parameters 'n' and 'm' are the widths
@@ -231,21 +221,21 @@ of the data and address buses respectively.
 True dual-port RAMs are also provided through the 'dualRam' primitive,
 the main difference being that it takes a pair of 'RamInputs' and
 produce a pair of data-output buses.  Memory collisions are resolved
-using the Xilinx "WRITE_FIRST" semantics.
+using the Xilinx "WRITE_FIRST" semantics. (XXX but we are not using
+Xilinx)
 
 Behavioural description
 -----------------------
 
 Red Lava provides the following constructs for writing behavioural
-descriptions.
+descriptions taking advantage of the Monadic "do" syntax
 
-  Skip  :: Recipe
-  Tick  :: Recipe
-  (<==) :: Var v => v n -> Word n -> Recipe
-  Seq   :: [Recipe] -> Recipe
-  Par   :: [Recipe] -> Recipe
-  (|>)  :: Bit -> Recipe -> Recipe
-  While :: Bit -> Recipe -> Recipe
+  tick    :: Recipe
+  (<==)   :: Var v => v n -> Word n -> Recipe
+  par     :: [Recipe] -> Recipe
+  iff     :: Bit -> Recipe -> Recipe
+  while   :: Bit -> Recipe -> Recipe
+  doWhile :: Recipe -> Bit -> Recipe
 
 (For a precise semantics of this language, see Memo 24.)
 
@@ -269,14 +259,13 @@ A value of type 'Mult n' is created by 'newMult'.
 
 The shift-and-add recipe takes a value of type 'Mult n'.
 
-  shiftAndAdd s =
-    While (s.b.val =/= 0) $
-      Seq [ s.a <== s.a.val.shr
-          , s.b <== s.b.val.shl
-          , s.b.val.vhead |>
+  shiftAndAdd s = do
+      while (s.b.val =/= 0) $do
+          s.a <== s.a.val.shr
+          s.b <== s.b.val.shl
+          iff (s.b.val.vhead) $do
               s.result <== s.result.val + s.a.val
-          , Tick
-          ]
+          tick
 
   shr x = low +> vinit x
 
@@ -305,7 +294,7 @@ Three remarks are in order:
 To actually perform a multiplication, the input variables need to be
 initialised.
 
-  multiply x y s = Seq [ s.a <== x, s.b <== y, Tick, s.shiftAndAdd ]
+  multiply x y s = do s.a <== x; s.b <== y; tick; s.shiftAndAdd
 
 For example, an eight-bit multiplier that computes 5*5.
 
@@ -466,29 +455,24 @@ The behaviour of the processor is as follows.
 
   poly :: Poly -> Recipe
   poly s =
-    let instr = s.code.top in
-      Seq [ Tick
-          , While (instr.isHALT.inv) $
-              Seq [ isLIT instr |> s.rtop <== getLIT instr
-                  , isDUP instr |> s.stack.push (s.rtop.val)
-                  , isREV instr |>
-                      Seq [ s.rtop <== s.stack.top
-                          , s.stack.pop
-                          , s.stack.push (s.rtop.val)
-                          ]
-                  , isADD instr |>
-                      Seq [ s.rtop <== s.rtop.val + s.stack.top
-                          , s.stack.pop
-                          ]
-                  , isMUL instr |>
-                      Seq [ s.mult.multiply (s.rtop.val) (s.stack.top)
-                          , s.rtop <== s.mult.result.val
-                          , s.stack.pop
-                          ]
-                  , s.code.pop
-                  , Tick
-                  ]
-          ]
+    let instr = s.code.top in do
+            tick
+            while (instr.isHALT.inv) $do
+                  iff (isLIT instr) $do s.rtop <== getLIT instr
+                  iff (isDUP instr) $do s.stack.push (s.rtop.val)
+                  iff (isREV instr) $do
+                      s.rtop <== s.stack.top
+                      s.stack.pop
+                      s.stack.push (s.rtop.val)
+                  iff (isADD instr) $do
+                      s.rtop <== s.rtop.val + s.stack.top
+                      s.stack.pop
+                  iff (isMUL instr) $do
+                      s.mult.multiply (s.rtop.val) (s.stack.top)
+                      s.rtop <== s.mult.result.val
+                      s.stack.pop
+                  s.code.pop
+                  tick
 
 Each instruction executes in one clock-cycle, apart from
 multiplication which may take up to 'DataWidth' clock-cycles.

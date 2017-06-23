@@ -11,17 +11,15 @@ newMult :: N n => New (Mult n)
 newMult = return Mult `ap` newReg `ap` newReg `ap` newReg
 
 shiftAndAdd :: N n => Mult (S n) -> Recipe
-shiftAndAdd s =
-  While (s.b.val =/= 0) $
-    Seq [ s.a <== low `vshr` (s.a.val)
-        , s.b <== (s.b.val) `vshl` low
-        , s.b.val.vhead |>
-            s.result <== s.result.val + s.a.val
-        , Tick
-        ]
+shiftAndAdd s = do
+    while (s.b.val =/= 0) $do
+       s.a <== low `vshr` (s.a.val)
+       s.b <== (s.b.val) `vshl` low
+       iff (s.b.val.vhead) $do
+           s.result <== s.result.val + s.a.val
+       tick
 
-multiply x y s =
-  Seq [ s.a <== x, s.b <== y, s.result <== 0, Tick, s.shiftAndAdd ]
+multiply x y s = do s.a <== x; s.b <== y; s.result <== 0; tick; s.shiftAndAdd
 
 example :: Mult N8 -> Recipe
 example s = s.multiply 5 25

@@ -6,13 +6,12 @@ import Control.Monad
 import Avalon
 
 test :: N w => AvalonMaster w -> Recipe
-test s = Seq [ writeMaster a1 v1 s
-             , Tick, Tick, Tick
-             , writeMaster a2 v2 s
-             , writeMaster a3 v3 s
-             , readMaster  a2 s
-             , writeMaster a2 (s.av_readdata + 1) s
-             ]
+test s = do writeMaster a1 v1 s
+            tick; tick; tick
+            writeMaster a2 v2 s
+            writeMaster a3 v3 s
+            readMaster  a2 s
+            writeMaster a2 (s.av_readdata + 1) s
   where
   [a1, a2, a3, v1, v2, v3] = map fromIntegral [1, 2, 3, 3, 1, 2]
 

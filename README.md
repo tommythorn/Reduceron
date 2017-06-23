@@ -86,44 +86,43 @@ To build a hardware version of a given test
     cd fpga; make && flite -r ../programs/$P | ./Red -v
 
 where $P is one of the programs (.hs).  Next, build a Reduceron system
-for DE2-115:
+for an FPGA board, fx the BeMicroCV A9:
 
-    make -C Reduceron/DE2-115
+    make -C Reduceron/BeMicroCV-A9
 
 Unfortunately programs can't currently be loaded dynamically but are
 baked into the FPGA image.  It's a high priority goal to change that.
 
 ## WHERE IS THIS GOING?
 
-Plan:
+### Plan ###
 
-  1. Port to Verilog and Altera. DONE!
+  1. Port to Verilog and remove Xilinx-isms. DONE!
 
-  2. Shrink to fit mid-sized FPGA kits (eg. DE2-115). DONE!
+  2. Shrink to fit mid-sized FPGA kits (eg. DE2-115 and BeMicroCV-A9).
+     DONE!
 
-  3. Support load/store to an external bus (the key difficulty is stalling while waiting on the bus).
+  3. Rework Lava and the Reduceron implementation to be more
+     composable and elastic; this means fewer or no global assumptions
+     about timing.  ONGOING!
+  
+  4. Support load/store to an external bus (the key difficulty is
+     stalling while waiting on the bus).
 
-  4. Use the program memory as a cache, making programs dynamically loadable and dramatically raise the size limits.
+  5. Use the program memory as a cache, making programs dynamically
+     loadable and dramatically raise the size limits.
 
-In some order:
-
-  - Add basic primitives (`(*)`, `(.&.)`, `(.|.)`, `(.^.)`, `(.<<.)`, `(.>>.)`, ...)
-    DONE: `(.&.)`
-
-  - Improve Lava simulation and RTL gen
-       - Add a C backend for much faster simulation
-       - Use names from the design
-       - generate busses where possible
-       - Make the design resettable
+### Eventual Plan ###
 
   - Move the heap [and tospace] to external memory
   - Add a heap cache/newspace memory
   - Implement the emu-32.c representation for the external heap
-
+  - Much richer primitives
   - Haskell front-end
 
-Finally: Performance improvements
+### Long Term Plan ###
 
+  - Research the design space; explore parallelism
 
 ## OPEN QUESTIONS, with answers from Matthew:
 

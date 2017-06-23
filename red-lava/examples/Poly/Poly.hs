@@ -84,29 +84,24 @@ newPoly code x =
 
 poly :: Poly -> Recipe
 poly s =
-  let instr = s.code.top in
-    Seq [ Tick
-        , While (instr.isHALT.inv) $
-            Seq [ isLIT instr |> s.rtop <== getLIT instr
-                , isDUP instr |> s.stack.push (s.rtop.val)
-                , isREV instr |>
-                    Seq [ s.rtop <== s.stack.top
-                        , s.stack.pop
-                        , s.stack.push (s.rtop.val)
-                        ]
-                , isADD instr |>
-                    Seq [ s.rtop <== s.rtop.val + s.stack.top
-                        , s.stack.pop
-                        ]
-                , isMUL instr |>
-                    Seq [ s.mult.multiply (s.rtop.val) (s.stack.top)
-                        , s.rtop <== s.mult.result.val
-                        , s.stack.pop
-                        ]
-                , s.code.pop
-                , Tick
-                ]
-        ]
+  let instr = s.code.top in do
+          tick
+          while (instr.isHALT.inv) $do
+             iff (isLIT instr) $do s.rtop <== getLIT instr
+             iff (isDUP instr) $do s.stack.push (s.rtop.val)
+             iff (isREV instr) $do
+                   s.rtop <== s.stack.top
+                   s.stack.pop
+                   s.stack.push (s.rtop.val)
+             iff (isADD instr) $do
+                   s.rtop <== s.rtop.val + s.stack.top
+                   s.stack.pop
+             iff (isMUL instr) $do
+                   s.mult.multiply (s.rtop.val) (s.stack.top)
+                   s.rtop <== s.mult.result.val
+                   s.stack.pop
+             s.code.pop
+             tick
 
 expr :: Expr
 expr = (X :+: X) :+: (N 2 :*: X) :+: X

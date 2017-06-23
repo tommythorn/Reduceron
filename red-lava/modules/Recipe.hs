@@ -1,6 +1,6 @@
 {- |
 
-A library for writing behavioural descriptions in York Lava, inspired
+A library for writing behavioural descriptions in Red Lava, inspired
 by Page and Luk's \"Compiling Occam into Field-Programmable Gate
 Arrays\", Oxford Workshop on Field Programmable Logic and
 Applications, 1991.  Features explicit clocking, signals as well as
@@ -17,8 +17,13 @@ examples.
 
 module Recipe
   ( -- * Recipe constructs
-    Recipe ( Skip, Tick, Seq, Par, While, Do )
-  , (|>)
+    Recipe
+  , tick
+  , par
+  , doWhile
+  , while
+  , repeat
+  , iff
   , call
   , Var ( val, (<==) )
   , (.)
@@ -55,62 +60,91 @@ import Control.Monad       (liftM, ap)
 
 type VarId = Int
 
-data Recipe
-  = Skip             -- ^ The most basic recipe; does nothing.
-  | Tick             -- ^ Does nothing, but takes one clock-cycle to do it.
+type Recipe = RecipeM ()
+data RecipeM a = RecipeM [Command] a
+
+instance Applicative RecipeM where
+    pure  = return
+    (<*>) = ap
+
+instance Functor RecipeM where
+    fmap f (RecipeM cs a) = RecipeM cs (f a)
+
+instance Monad RecipeM where
+    return x = RecipeM [] x
+    (RecipeM cs a) >>= f = let (RecipeM cs' a') = f a in RecipeM (cs ++ cs') a'
+
+data Command
+  = Tick             -- ^ Does nothing, but takes one clock-cycle to do it.
   | VarId := [Bit]
-  | Seq [Recipe]     -- ^ Sequential composition of recipes.
   | Par [Recipe]     -- ^ Fork-Join parallel composition of recipes.
   | Cond Bit Recipe
   | While Bit Recipe -- ^ Run a recipe while a condition holds.
   | Do Recipe Bit    -- ^ Like 'While', but condition is checked
                      --   at the end of each iteration.
 
-infixr 1 |>
--- | Run a recipe only if a condition holds.
-(|>) :: Bit -> Recipe -> Recipe
-b |> r = Cond b r
+iff     :: Bit -> Recipe -> Recipe
+while   :: Bit -> Recipe -> Recipe
+par     :: [Recipe]      -> Recipe
+doWhile :: Recipe -> Bit -> Recipe
 
-time :: Recipe -> Maybe Int
-time Skip = Just 0
+iff b r     = RecipeM [Cond b r] ()
+while b r   = RecipeM [While b r] ()
+par rs      = RecipeM [Par rs] ()
+doWhile r b = RecipeM [Do r b] ()
+tick        = RecipeM [Tick] ()
+
+commands (RecipeM cs _) = cs
+
+timeRecipe :: Recipe -> Maybe Int
+timeRecipe (RecipeM cs ()) = sum `fmap` mapM time cs
+
+time :: Command -> Maybe Int
 time Tick = Just 1
 time (v := e) = Just 0
-time (Seq rs) = sum `fmap` mapM time rs
-time (Par rs) = foldr max 0 `fmap` mapM time rs
+time (Par rs) = foldr max 0 `fmap` mapM timeRecipe rs
 time (Cond b r)
-  | time r == Just 0 = Just 0
+  | timeRecipe r == Just 0 = Just 0
   | otherwise = Nothing
 time (While b r) = Nothing
 time (Do r b) = Nothing
 
 finite :: Recipe -> Bool
-finite r = isJust (time r)
+finite r = isJust (timeRecipe r)
 
 slowest :: [Recipe] -> Int
-slowest = snd `o` maximum `o` flip zip [0..] `o` map time
+slowest = snd `o` maximum `o` flip zip [0..] `o` map timeRecipe
+
 
 type Schedule = [(Bit, VarId, [Bit])]
 
-sched :: Bit -> Recipe -> (Bit, Schedule)
-sched go Skip = (go, [])
+schedRecipe :: Bit -> Recipe -> (Bit, Schedule)
+schedRecipe go m = (done, concat ss)
+  where (done, ss) = mapAccumL sched go (commands m)
+
+sched :: Bit -> Command -> (Bit, Schedule)
+
 sched go Tick = (delay low go, [])
+
 sched go (v := e) = (go, [(go, v, e)])
-sched go (Seq rs) = (done, concat ss)
-  where (done, ss) = mapAccumL sched go rs
+
 sched go (Par rs)
   | all finite rs = (dones !! slowest rs, concat ss)
   | otherwise = (sync dones, concat ss)
-  where (dones, ss) = unzip (map (sched go) rs)
+  where (dones, ss) = unzip (map (sched go) (concatMap commands rs))
+
 sched go (Cond c r)
-  | time r == Just 0 = (go, s)
+  | timeRecipe r == Just 0 = (go, s)
   | otherwise = (done <|> (go <&> inv c), s)
-  where (done, s) = sched (go <&> c) r
+  where (done, s) = schedRecipe (go <&> c) r
+
 sched go (While c r) = (ready <&> inv c, s)
   where ready = go <|> done
-        (done, s) = sched (ready <&> c) r
+        (done, s) = schedRecipe (ready <&> c) r
+
 sched go (Do r c) = (done <&> inv c, s)
   where ready = go <|> (done <&> c)
-        (done, s) = sched ready r
+        (done, s) = schedRecipe ready r
 
 sync :: [Bit] -> Bit
 sync [x] = x
@@ -118,6 +152,7 @@ sync xs = let done = andG [setReset x done | x <- xs] in done
 
 setReset :: Bit -> Bit -> Bit
 setReset s r = let out = s <|> delay low (out <&> inv r) in out
+
 
 infix 5 <==
 
@@ -154,11 +189,11 @@ instance Show (Reg n) where
 
 instance Var Sig where
   val s = sigVal s
-  s <== x = sigId s := velems x
+  s <== x = RecipeM [sigId s := velems x] ()
 
 instance Var Reg where
   val r = regVal r
-  r <== x = regId r := velems x
+  r <== x = RecipeM [regId r := velems x] ()
 
 -- | It's a monad; that's all you need to know.
 type New a = RWS Schedule (Bit, Recipe) VarId a
@@ -201,8 +236,8 @@ recipe :: New a          -- ^ A state creator
        -> (a, Bit)       -- ^ A finish pulse and the resulting state
 recipe n f go =
   let (_, rs, a) = runRWS n (s ++ concat ss) 0
-      ss = map (snd `o` uncurry sched) rs
-      (done, s) = sched go (f a)
+      ss = map (snd `o` uncurry schedRecipe) rs
+      (done, s) = schedRecipe go (f a)
   in  (a, done)
 
 simRecipe :: Generic b
@@ -239,13 +274,14 @@ newProc :: Recipe -> New Proc
 newProc r =
   do { go <- newSig
      ; done <- newSig
-     ; write (go.val.vhead, Seq [ r, done <== vsingle high ])
+     ; write (go.val.vhead, do r; done <== vsingle high)
      ; return (Proc go (done.val.vhead))
      }
 
 -- | Call a procedure.
 call :: Proc -> Recipe
-call p = Seq [ p.procGo <== 1, While (p.procDone.inv) Tick ]
+call p = do p.procGo <== 1
+            while (p.procDone.inv) tick
 
 -- Standard reader/writer/state monad
 
