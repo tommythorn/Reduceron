@@ -1,30 +1,13 @@
-The status of the workloads on the DE2-115 board which allows half the
-original heap:
+All workloads are working correctly
 
-Test         Expected  Status
-name         result
-----------------------------
-And          0000000C  works
-Example      00000006  works
-SmallFib     0000000D  works
-Fib          00002AC2  works
-Parts        000015E4  works
-KnuthBendix  0000320F  works
-CountDown    00000000  works
-Adjoxo       00000044  works
-Cichelli     00000824  works
-Taut         00000001  works
-While        00000028  works
-Braun        00000001  works
-MSS          00000C30  works
-Clausify     00000000  works
-OrdList      00000001  works
-Queens       00000A78  works
-Queens2      00000A78  works
-PermSort     00000001  works
-SumPuz       00000003  works
-Mate2        000000BD  works
-Mate         000000BD  works
+Performance is limited by load-to-use latency (pointer chasing).
+Things that can be done:
+* A smaller cache can be faster
+* Directly mapped for ideal performance or 2-two for almost as good
+* Store the tag in the pointer!  Quite feasible for a subset of tags
+  but it doesn't help the nested closure case.
+
+
 
 
 The README list:
