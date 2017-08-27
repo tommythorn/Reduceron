@@ -55,7 +55,7 @@ regress-flite-c-comp: $(patsubst %,%.flite-c-comp-checked,$(WORKLOADS))
 	$(FLITE) $(FLITE_OPTS) $< | $(EMU) - | diff -u $(patsubst %.hs,gold/run/%.out,$<) - && touch $@
 
 %.exe: %.hs $(EMU) $(FLITE)
-	$(FLITE) -c $< | cc -O3 -DPRINT_RESULT -x c - -o $(patsubst %.hs,%.exe,$<)
+	$(FLITE) -c $< | cc -O2 -DPRINT_RESULT -x c - -o $(patsubst %.hs,%.exe,$<)
 
 %.flite-c-comp-checked: %.exe $(EMU) $(FLITE)
 	./$< | diff -u $(patsubst %.exe,gold/run/%.out,$<) - && touch $@
