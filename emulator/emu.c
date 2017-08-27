@@ -1025,6 +1025,19 @@ Int parse(FILE *f, Int n, Template *ts)
 
 /* Main function */
 
+static void usage(void)
+{
+    fprintf(stderr,
+            "Usage: %s [-v] [-t] [-p] {$redfile,-}\n"
+            "\n"
+            "       -v -- enable verbosity\n"
+            "       -t -- enable tracing\n"
+            "       -v -- enable profiling\n",
+            program_name);
+
+    exit(EXIT_FAILURE);
+}
+
 int main(int argc, char *argv[])
 {
   FILE *f;
@@ -1047,7 +1060,7 @@ int main(int argc, char *argv[])
           profiling = 1;
           break;
       default:
-          error("only options v, t and p supported");
+          usage();
           break;
       }
   }
