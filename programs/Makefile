@@ -7,7 +7,7 @@ WORKLOADS=And Example SmallFib Fib Parts KnuthBendix CountDown Adjoxo \
           Cichelli Taut While Braun MSS Clausify OrdList Queens Queens2 \
           PermSort SumPuz Mate2 Mate
 
-BENCHLOADS=OrdList Queens2 MSS Queens PermSort SumPuz Mate2 Mate
+BENCHLOADS=Cichelli Braun OrdList Queens2 MSS Queens PermSort SumPuz Mate2 Mate
 
 EMU=../emulator/emu
 FLITE=../flite/dist/build/flite/flite
@@ -61,7 +61,7 @@ regress-flite-c-comp: $(patsubst %,%.flite-c-comp-checked,$(WORKLOADS))
 	$(FLITE) $(FLITE_OPTS) -c $< > $@
 
 %.exe: %.c $(FLITE)
-	$(CC) -O2 -DPRINT_RESULT $< -o $@
+	@$(CC) -O2 -DPRINT_RESULT $< -o $@
 
 %.flite-c-comp-checked: %.exe $(EMU) $(FLITE)
 	./$< | diff -u $(patsubst %.exe,gold/run/%.out,$<) - && touch $@
