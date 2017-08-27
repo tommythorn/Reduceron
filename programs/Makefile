@@ -7,6 +7,8 @@ WORKLOADS=And Example SmallFib Fib Parts KnuthBendix CountDown Adjoxo \
           Cichelli Taut While Braun MSS Clausify OrdList Queens Queens2 \
           PermSort SumPuz Mate2 Mate
 
+BENCHLOADS=OrdList Queens2 MSS Queens PermSort SumPuz Mate2 Mate
+
 EMU=../emulator/emu
 FLITE=../flite/dist/build/flite/flite
 FLITE_OPTS=-r6:4:2:1:8 -i1 -s
@@ -75,7 +77,12 @@ regress-red-verilog-run: $(patsubst %,%.red-verilog-run-checked,$(WORKLOADS))
 	cd ../fpga; ./Red -v ../programs/$< && cp Reduceron/*.mif Reduceron/"BeMicro CV A9"
 	make -C ../fpga/Reduceron/"BeMicro CV A9"
 
-bench-flite-c-comp: $(patsubst %,%.bench-flite-c-comp,$(WORKLOADS))
+comma:= ,
+empty:=
+space:= $(empty) $(empty)
+
+bench-flite-c-comp: $(patsubst %,%.bench-flite-c-comp,$(BENCHLOADS))
+	@cat {$(subst $(space),$(comma),$(BENCHLOADS))}.bench-flite-c-comp|sed -e 's/.*m//' -e 's/s//'
 
 %.bench-flite-c-comp: %.exe
-	time ./$< | tee $@
+	@(time ./$<;time ./$<;time ./$<;time ./$<;time ./$<) 2>&1 | grep ^user | sort | head -1 | tee $@
