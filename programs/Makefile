@@ -11,7 +11,8 @@ BENCHLOADS=OrdList Queens2 MSS Queens PermSort SumPuz Mate2 Mate
 
 EMU=../emulator/emu
 FLITE=../flite/dist/build/flite/flite
-FLITE_OPTS=-r6:4:2:1:8 -i1 -s
+FLITE_RED=-r6:4:2:1:8
+FLITE_OPTS=-i1 -s
 RED=../fpga/Red
 
 regress: regress-most regress-rtl
@@ -54,10 +55,13 @@ regress-flite-comp: $(patsubst %,%.flite-comp-checked,$(WORKLOADS))
 regress-flite-c-comp: $(patsubst %,%.flite-c-comp-checked,$(WORKLOADS))
 
 %.flite-comp-checked: %.hs $(EMU) $(FLITE)
-	$(FLITE) $(FLITE_OPTS) $< | $(EMU) - | diff -u $(patsubst %.hs,gold/run/%.out,$<) - && touch $@
+	$(FLITE) $(FLITE_OPTS) $(FLITE_RED) $< | $(EMU) - | diff -u $(patsubst %.hs,gold/run/%.out,$<) - && touch $@
 
-%.exe: %.hs $(EMU) $(FLITE)
-	$(FLITE) -c $< | cc -O2 -DPRINT_RESULT -x c - -o $(patsubst %.hs,%.exe,$<)
+%.c: %.hs $(FLITE)
+	$(FLITE) $(FLITE_OPTS) -c $< > $@
+
+%.exe: %.c $(FLITE)
+	$(CC) -O2 -DPRINT_RESULT $< -o $@
 
 %.flite-c-comp-checked: %.exe $(EMU) $(FLITE)
 	./$< | diff -u $(patsubst %.exe,gold/run/%.out,$<) - && touch $@
