@@ -11,9 +11,13 @@ BENCHLOADS=Cichelli Braun OrdList Queens2 MSS Queens PermSort SumPuz Mate2 Mate
 
 EMU=../emulator/emu
 FLITE=../flite/dist/build/flite/flite
-FLITE_RED=-r6:4:2:1:8
-FLITE_OPTS=-i1 -s
+FLITE_RED=-r6:4:2:1:8 -i1 -s
+# Surprisingly there isn't a clear winner among h[0-3] i[0-3] s[0-1],
+# but this came out ahead
+FLITE_OPTS=-h3 -i1
 RED=../fpga/Red
+CC=gcc-7
+CFLAGS=-O2
 
 regress: regress-most regress-rtl
 
@@ -61,7 +65,7 @@ regress-flite-c-comp: $(patsubst %,%.flite-c-comp-checked,$(WORKLOADS))
 	$(FLITE) $(FLITE_OPTS) -c $< > $@
 
 %.exe: %.c $(FLITE)
-	@$(CC) -O2 -DPRINT_RESULT $< -o $@
+	@$(CC) $(CFLAGS) -DPRINT_RESULT $< -o $@
 
 %.flite-c-comp-checked: %.exe $(EMU) $(FLITE)
 	./$< | diff -u $(patsubst %.exe,gold/run/%.out,$<) - && touch $@
