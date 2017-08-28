@@ -3,6 +3,7 @@ REDUCERON MEMO 22'
 Compiling F-lite to C
 Matthew N, 30 April 2009
 Tommy T, 2014-12-12
+Tommy T, 2017-08-27
 ========================
 
 This memo defines a compiler from supercombinators to portable C.  It
@@ -66,7 +67,6 @@ More precisely:
 >   , "#define makeFUN(arity,f,final) " ++
 >              "(((f) << 9) | ((arity) << 3) | ((final) << 1) | 5)"
 >   , "#define arity(n) (isFUN(n) ? getARITY(n) : 1)"
->   , "#define isEMIT(n) (getFUN(n) - PRIM_EMIT < 4)"
 >   ]
 
 Update records
@@ -87,7 +87,6 @@ Registers
 >   , "Node *hp;"           {- heap pointer -}
 >   , "Node *tsp;"          {- to-space pointer -}
 >   , "Update *usp;"        {- update-stack pointer -}
->   , "Dest dest;"          {- destination address for computed jumps -}
 >   ]
 
 Swapping
@@ -115,8 +114,7 @@ pushes an update record onto the update stack.
 
 > unwindCode = unlines
 >   [ "{"
->   , "  Node *p;"
->   , "  p = getAP(top);"
+>   , "  Node *p = getAP(top);"
 >   , "  usp++; usp->s = sp; usp->h = p;"
 >   , "  for (;;) {"
 >   , "    top = *p++;"
@@ -134,21 +132,19 @@ if so, performs an update.
 
 > updateCode = unlines
 >   [ "{"
->   , "  unsigned int args, ari;"
->   , "  Node *base;"
->   , "  Node *p;"
->   , "  ari = arity(top);"
->   , "  if (sp - ari < stack) goto EXIT;"
->   , "  DO_UPDATE:"
->   , "  args = ((unsigned int) (sp - usp->s));"
->   , "  if (ari > args && usp > ustack) {"
->   , "    base = hp;"
->   , "    p = sp - args;"
+>   , "  unsigned ari = arity(top);"
+>   , "  if (sp - ari < stack)"
+>   , "    goto EXIT;"
+>   , "  for (;;) {"
+>   , "    unsigned args = (unsigned int) (sp - usp->s);"
+>   , "    if (ari <= args || usp <= ustack)"
+>   , "      break;"
+>   , "    Node *base = hp;"
+>   , "    Node *p = sp - args;"
 >   , "    while (p < sp) *hp++ = clearFinal(*p++);"
 >   , "    *hp++ = setFinal(top);"
->   , "    *(usp->h) = makeAP(base, 1);"
+>   , "    *usp->h = makeAP(base, 1);"
 >   , "    usp--;"
->   , "    goto DO_UPDATE;"
 >   , "  }"
 >   , "}"
 >   ]
@@ -160,25 +156,22 @@ Evalution proceeds depending on the element on top of the stack.
 
 > evalCode = unlines
 >   [ "EVAL:"
->   , "if (isAP(top)) {"
+>   , "while (isAP(top))"
 >   ,    unwindCode
->   , "  goto EVAL;"
->   , "}"
-
 >   , "EVAL_NO_AP:"
->   , "if (hp > heapFull) collect();"
->   ,  updateCode
 >   , "if (isFUN(top)) {"
->   , "    dest = getFUN(top);"
->   , "    goto CALL;"
->   , "}"
+>   , "    EVAL_FUN:"
+>   , "    if (hp > heapFull) collect();"
+>   ,      updateCode
+>   , "    goto *funEntry[getFUN(top)];"
+>   , "} else"
+>   ,  updateCode
 
-Invoke primitives (emit is unary is thus special)
+Invoke primitives
 
->   , "if (isINT(top) && (isINT(sp[-2]) || isEMIT(sp[-1]))) {"
->   , "    dest = getFUN(sp[-1]);"
->   , "    goto CALL;"
->   , "}"
+>   , "if (isINT(top) && isINT(sp[-2]))"
+>   , "    goto *funEntry[getFUN(sp[-1])];"
+>   , ""
 
 >   ,  swapCode
 >   , "goto EVAL;"
@@ -238,20 +231,16 @@ definitions.
 Function calling
 ----------------
 
-Each function body is implemented as a case alternative in a large
-switch statement.  To jump to the code for a function, place the
-function's identifier in the 'dest' register and then 'goto CALL'.
-This double jump is not very efficient, but its not obvious how to do
-any better in C.
+Each function body is implemented as a small block of code preceeded
+by a label.  The label is stored in a table 'funEntry'.  To jump to
+the code for a function, 'goto *funEntry[X]', where 'X' is the
+function's identifier.
 
 > switchCode (cs, ds) = unlines
->   [ "CALL:"
->   , "switch (dest)"
->   , "{"
+>   [ "{"
 >   , prims          -- primitive definitions
 >   , constrs cs     -- constructor definitions
 >   , defns ds       -- function definitions
->   , "default: assert(0);"
 >   , "}"
 >   ]
 
@@ -285,12 +274,11 @@ case expressions are treated.)
 
 > cons :: Cons -> String
 > cons (f, n, i) = unlines
->   [ "case " ++ fun f ++ ":"
+>   [ defLabel f
 >   , "{"
->   , "dest = getFUN(sp[-" ++ show (n+1) ++ "]) + " ++ show i ++ ";"
->   , "goto CALL;"
+>   , "goto *funEntry[getFUN(sp[-" ++ show (n+1) ++ "]) + " ++ show i ++ "];"
 >   , "}"
->   , "break;"
+>   , ""
 >   ]
 
 NB. No update is required because a case expression is not a normal form.
@@ -323,6 +311,14 @@ Map F-lite primitives to suitable C identifiers.
 > fun "_|_"      = "PRIM_UNDEFINED"
 > fun ('s':'w':'a':'p':':':f) = fun f ++ "_SWAPPED"
 > fun f          = "FUN_" ++ f
+
+We also want a label variant of this
+
+> label f       = "L_" ++ fun f
+
+A shorthand for a common case
+
+> defLabel f    = label f ++ ":"
 
 > declareArgs :: Int -> String
 > declareArgs n = unlines $ map save [1..n]
@@ -365,19 +361,22 @@ Map F-lite primitives to suitable C identifiers.
 > body s b = unlines
 >   [ concatMap (app vs . snd) b
 >   , spine vs s
->   , "goto EVAL;"
+>   , "goto " ++ eval ++ ";"
 >   ] where vs = varLocs b
+>           eval = case last s of
+>                  FUN _ _ -> "EVAL_FUN"
+>                  _       -> "EVAL"
 
 > defn :: Defn -> String
 > defn (f, n, bs) = unlines
->   [ "case " ++ fun f ++ ":"
+>   [ defLabel f
 >   , "{"
 >   , declareArgs n
 >   , declareLocals
 >   , "sp -= " ++ show n ++ ";"
 >   , body (snd s) b
 >   , "}"
->   , "break;"
+>   , ""
 >   ]
 >   where s:b = [(v, reverse a) | (v, a) <- bs]
 
@@ -398,13 +397,13 @@ transform one into the other.
 
 > arithPrim :: Id -> String -> String
 > arithPrim p op = unlines
->   [ "case " ++ fun p ++ ":"
+>   [ defLabel p
 >   , "{"
 >   , "top = makeINT(getINT("++a++") " ++ op ++ " getINT("++b++"),0);"
 >   , "sp -= 2;"
 >   , "goto EVAL_NO_AP;"
 >   , "}"
->   , "break;"
+>   , ""
 >   ]
 >   where (a,b) = case p of
 >                 's':_ -> ("sp[-2]","top")
@@ -414,7 +413,7 @@ Ditto for boolean operator.
 
 > boolPrim :: Id -> String -> String
 > boolPrim p op = unlines
->   [ "case " ++ fun p ++ ":"
+>   [ defLabel p
 >   , "{"
 >   , "top = (getINT("++a++") " ++ op ++ " getINT("++b++")) ? "
 >       ++ "makeFUN(1," ++ fun "True"  ++ ",0) "
@@ -422,7 +421,7 @@ Ditto for boolean operator.
 >   , "sp -= 2;"
 >   , "goto EVAL_NO_AP;"
 >   , "}"
->   , "break;"
+>   , ""
 >   ]
 >   where (a,b) = case p of
 >                 's':_ -> ("sp[-2]","top")
@@ -432,14 +431,14 @@ Print the top stack element.
 
 > emitPrim :: Id -> String -> String -> String
 > emitPrim p format cast = unlines
->   [ "case " ++ fun p ++ ":"
+>   [ defLabel p
 >   , "{"
 >   , "printf(\"" ++ format ++ "\", " ++ cast ++ "getINT(" ++ a ++ "));"
 >   , "top = " ++ b ++ ";"
 >   , "sp -= 2;"
 >   , "goto EVAL;"
 >   , "}"
->   , "break;"
+>   , ""
 >   ]
 >   where (a,b) = case p of
 >                 's':_ -> ("sp[-2]","top")
@@ -447,7 +446,7 @@ Print the top stack element.
 
 > st32Prim :: Id -> String
 > st32Prim p = unlines
->   [ "case " ++ fun p ++ ":"
+>   [ defLabel p
 >   , "{"
 >   , "int addr = getINT("++a++");"
 >   , "int value = getINT("++b++");"
@@ -456,7 +455,7 @@ Print the top stack element.
 >   , "sp -= 3;"
 >   , "goto EVAL;"
 >   , "}"
->   , "break;"
+>   , ""
 >   ]
 >   where (a,b) = case p of
 >                 's':'w':_ -> ("sp[-2]","top")
@@ -464,14 +463,14 @@ Print the top stack element.
 
 > ld32Prim :: Id -> String
 > ld32Prim p = unlines
->   [ "case " ++ fun p ++ ":"
+>   [ defLabel p
 >   , "{"
 >   , "int addr = getINT("++a++");"
 >   , "top = makeINT(getchar(),0);"
 >   , "sp -= 2;"
 >   , "goto EVAL_NO_AP;"
 >   , "}"
->   , "break;"
+>   , ""
 >   ]
 >   where (a,b) = case p of
 >                 's':_ -> ("sp[-2]","top")
@@ -479,12 +478,12 @@ Print the top stack element.
 
 > undefPrim :: String
 > undefPrim = unlines
->   [ "case " ++ fun "_|_" ++ ":"
+>   [ defLabel "_|_"
 >   , "{"
 >   , "printf(\"ERROR: bottom!\\n\");"
 >   , "goto EXIT;"
 >   , "}"
->   , "break;"
+>   , ""
 >   ]
 
 > prims :: String
@@ -638,8 +637,7 @@ Note: primitives comes first so we are guaranteed the first is even.
 
 > program :: Program -> String
 > program p = unlines
->   [ "// " ++ show p
->   , "#include <stdio.h>"
+>   [ "#include <stdio.h>"
 >   , "#include <stdlib.h>"
 >   , "#include <stdint.h>"
 >   , "#include <assert.h>"
@@ -653,9 +651,12 @@ Note: primitives comes first so we are guaranteed the first is even.
 >   , copyAPCode
 >   , copyCode
 >   , collectCode
->   , "int main(void) {"
+>   , "int main(int argc, char *argv[]) {"
+>   , "  static const void *funEntry[] = {"
+>   , unlines $ ["   &&" ++ label f ++ ","| f <- primIds ++ funIds p]
+>   , "};"
 >   , allocate 8000000 1000000
->   , "dest = " ++ fun "main" ++ ";"
+>   , "goto " ++ label "main" ++ ";"
 >   , switchCode p
 >   , evalCode
 >   , "EXIT:"
