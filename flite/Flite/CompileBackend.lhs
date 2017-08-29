@@ -82,11 +82,9 @@ Registers
 ---------
 
 > registers = unlines
->   [ "Node top;"           {- top of stack -}
->   , "Node *sp;"           {- stack pointer -}
->   , "Node *hp;"           {- heap pointer -}
->   , "Node *tsp;"          {- to-space pointer -}
->   , "Update *usp;"        {- update-stack pointer -}
+>   [ "register Node top;"           {- top of stack -}
+>   , "register Node *restrict sp;"  {- stack pointer -}
+>   , "register Node *hp;"           {- heap pointer -}
 >   ]
 
 Swapping
@@ -599,6 +597,8 @@ partition, to detect termination and exhaustion.
 >   , "Node *stackEnd;"
 >   , "Update *ustack;"
 >   , "Update *ustackEnd;"
+>   , "Node *tsp;"          {- to-space pointer -}
+>   , "Update *usp;"        {- update-stack pointer -}
 >   ]
 
 Memory allocation
@@ -646,15 +646,15 @@ Note: primitives comes first so we are guaranteed the first is even.
 >   , updateType
 >   , macros
 >   , declareFuns p
->   , registers
 >   , globals
->   , copyAPCode
->   , copyCode
->   , collectCode
 >   , "int main(int argc, char *argv[]) {"
 >   , "  static const void *funEntry[] = {"
 >   , unlines $ ["   &&" ++ label f ++ ","| f <- primIds ++ funIds p]
 >   , "};"
+>   , registers
+>   , copyAPCode
+>   , copyCode
+>   , collectCode
 >   , allocate 8000000 1000000
 >   , "goto " ++ label "main" ++ ";"
 >   , switchCode p
