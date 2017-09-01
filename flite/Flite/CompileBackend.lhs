@@ -27,7 +27,9 @@ on the heap, or an OTHER, containing something else.
   typedef enum {AP = 0, OTHER = 1} Tag;
 
 The 2nd least-significant bit of a node is a flag stating whether or
-not the node is the final node of an application.
+not the node is the final node of an application.  Note, the final bit
+is only allowed in the heap and must be stripped upon reading from the
+heap so that the rest of the code can assume it's cleared.
 
 > destType = "typedef enum dest Dest;"
 
@@ -35,12 +37,14 @@ not the node is the final node of an application.
 >   [ "#define isFinal(n) ((n) & 2)"
 >   , "#define clearFinal(n) ((n) & (~2))"
 >   , "#define setFinal(n) ((n) | 2)"
->   , "#define markFinal(n,final) ((final) ? setFinal(n) : clearFinal(n))"
+>   , "#define markFinal(n,final) (2 * (final) + (n))"
+>   , "#define copyFinal(n,from) (((from) & 2) + (n))"
 
 If a node is an AP, its remaining 30 bits is a word-aligned heap
-address.
+address.  Only use on a node that is known AP and has been stripped of
+the Final bit (true for all values outside of the heap).
 
->   , "#define getAP(n) ((Node *) ((n) & (~3)))"
+>   , "#define getAP(n) ((Node *) ((n)))"
 
 If the node is an OTHER, its 3rd least-significant bit contains a
 sub-tag stating whether the the node is an INT or a FUN.
@@ -55,17 +59,17 @@ If a node is a FUN, its remaining 29-bits contains a 6-bit arity and a
 23-bit function identifier.
 
 >   , "#define getARITY(n) (((n) >> 3) & 63)"
->   , "#define getFUN(n) (Dest) ((n) >> 9)"
+>   , "#define getFUN(n) ((n) >> 9)"
 
 More precisely:
 
 >   , "#define isAP(n) (((n) & 1) == 0)"
 >   , "#define isINT(n) (((n) & 5) == 1)"
 >   , "#define isFUN(n) (((n) & 5) == 5)"
->   , "#define makeAP(a,final) ((Node) (a) | ((final) << 1))"
->   , "#define makeINT(i,final) (((i) << 3) | ((final) << 1) | 1)"
+>   , "#define makeAP(a,final) ((Node) (a) + ((final) << 1))"
+>   , "#define makeINT(i,final) (((i) << 3) + ((final) << 1) + 1)"
 >   , "#define makeFUN(arity,f,final) " ++
->              "(((f) << 9) | ((arity) << 3) | ((final) << 1) | 5)"
+>              "(((f) << 9) + ((arity) << 3) + ((final) << 1) + 5)"
 >   , "#define arity(n) (isFUN(n) ? getARITY(n) : 1)"
 >   ]
 
@@ -116,9 +120,11 @@ pushes an update record onto the update stack.
 >   , "  usp++; usp->s = sp; usp->h = p;"
 >   , "  for (;;) {"
 >   , "    top = *p++;"
->   , "    if (isFinal(top)) break;"
+>   , "    if (isFinal(top))"
+>   , "        break;"
 >   , "    *sp++ = top;"
 >   , "  }"
+>   , "  top = clearFinal(top);"
 >   , "}"
 >   ]
 
@@ -139,7 +145,7 @@ if so, performs an update.
 >   , "      break;"
 >   , "    Node *base = hp;"
 >   , "    Node *p = sp - args;"
->   , "    while (p < sp) *hp++ = clearFinal(*p++);"
+>   , "    while (p < sp) *hp++ = *p++;"
 >   , "    *hp++ = setFinal(top);"
 >   , "    *usp->h = makeAP(base, 1);"
 >   , "    usp--;"
@@ -532,15 +538,12 @@ Garbage collection
 
 > copyCode = unlines
 >   [ "void copy() {"
->   , "  Node n;"
->   , "  Node *low = toSpace;"
->   , "  while (low < tsp) {"
->   , "    n = *low;"
+>   , "  for (Node *low = toSpace; low < tsp; ++low) {"
+>   , "    Node n = *low;"
 >   , "    if (isAP(n)) {"
->   , "      Node *loc = copyAP(getAP(n));"
->   , "      *low = markFinal((Node) loc, isFinal(n));"
+>   , "      Node *loc = copyAP(getAP(clearFinal(n)));"
+>   , "      *low = copyFinal((Node) loc, n);"
 >   , "    }"
->   , "    low++;"
 >   , "  }"
 >   , "}"
 >   ]
