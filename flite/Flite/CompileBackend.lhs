@@ -56,7 +56,12 @@ If a node is a FUN, its remaining 29-bits contains a 6-bit arity and a
 >   , "const Node APTAG      = 1;"
 >   , "const Node INTTAG     = 0;"
 >   , "const Node FUNTAG     = 4/*SUBTAGMASK*/;"
->   , "const Node FUNPOS     = 9;"
+
+In order to get faster dispatch, we pre-scale the index by the index
+by the table stride and create a complicated macro gotoFUN to avoid
+the scaling twice.
+
+>   , "const Node FUNPOS     =12;"
 >   , ""
 >   , "static bool isAP(Node n)             {return (n&TAGMASK) == APTAG; }"
 >   , "static Node *getAP(Node n)           {return(Node*)(n - APTAG);}"
@@ -75,6 +80,8 @@ If a node is a FUN, its remaining 29-bits contains a 6-bit arity and a
 >   , "static bool isFUN(Node n)            {return (n&SUBTAGMASK) == FUNTAG;}"
 >   , "static Node getARITY(Node n)         {return (n >> 3) & 63;}"
 >   , "static Node getFUN(Node n)           {return n >> FUNPOS;}"
+>   , "const int LOGW = sizeof(uintptr_t) == 8 ? 3 : 2;"
+>   , "#define gotoFUN(n,o) goto **(void **)((void *)funEntry + ((n) >> (FUNPOS-LOGW)) + ((o) << LOGW))"
 >   , "static Node makeFUN(int arity, unsigned fun, int f)"
 >   , "                                     {return (fun << FUNPOS) + (arity << 3) + f*FINALMASK + FUNTAG;}"
 
@@ -177,7 +184,7 @@ Evalution proceeds depending on the element on top of the stack.
 >   , "    if (hp > heapFull) collect();"
 >   ,      updateCode
 >   , "    assert(isFUN(top));"
->   , "    goto *funEntry[getFUN(top)];"
+>   , "    gotoFUN(top, 0);"
 >   , "} else"
 >   ,  updateCode
 
@@ -186,7 +193,7 @@ FUN, so it must be an INT.
 
 >   , "if (isINT(sp[-2])) {"
 >   , "    assert(isFUN(sp[-1]));"
->   , "    goto *funEntry[getFUN(sp[-1])];"
+>   , "    gotoFUN(sp[-1], 0);"
 >   , "}"
 
 >   ,  swapCode
@@ -293,7 +300,7 @@ case expressions are treated.)
 >   [ defLabel f
 >   , "{"
 >   , "  assert(isFUN(sp[-" ++ show (n+1) ++ "]));"
->   , "  goto *funEntry[getFUN(sp[-" ++ show (n+1) ++ "]) + " ++ show i ++ "];"
+>   , "  gotoFUN(sp[-" ++ show (n+1) ++ "], " ++ show i ++ ");"
 >   , "}"
 >   , ""
 >   ]
