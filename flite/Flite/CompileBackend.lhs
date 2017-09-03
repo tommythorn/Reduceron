@@ -33,19 +33,9 @@ heap so that the rest of the code can assume it's cleared.
 
 > destType = "typedef enum dest Dest;"
 
-> macros = unlines
->   [ "const Node FINALMASK = 2;"
->   , "static bool isFinal(Node n)    { return n &  FINALMASK; }"
->   , "static Node clearFinal(Node n) { return n & ~FINALMASK; }"
->   , "static Node setFinal(Node n)   { return n |  FINALMASK; }"
->   , "static Node markFinal(Node n, int final){ return n + final * FINALMASK; }"
->   , "static Node copyFinal(Node n, Node from){ return n + (from & FINALMASK); }"
-
 If a node is an AP, its remaining 30 bits is a word-aligned heap
 address.  Only use on a node that is known AP and has been stripped of
 the Final bit (true for all values outside of the heap).
-
->   , "#define getAP(n) ((Node *) ((n)))"
 
 If the node is an OTHER, its 3rd least-significant bit contains a
 sub-tag stating whether the the node is an INT or a FUN.
@@ -54,23 +44,40 @@ sub-tag stating whether the the node is an INT or a FUN.
 
 If a node is an INT, its remaining 29-bits is an unboxed integer.
 
->   , "#define getINT(n) (((signed long) n) >> 3)"
-
 If a node is a FUN, its remaining 29-bits contains a 6-bit arity and a
 23-bit function identifier.
 
->   , "#define getARITY(n) (((n) >> 3) & 63)"
->   , "#define getFUN(n) ((n) >> 9)"
+> macros = unlines
+>   [ ""
+>   , "const Node TAGMASK    = 1;"
+>   , "const Node FINALMASK  = 2;"
+>   , "const Node SUBTAGMASK = 4 + 1/*TAGMASK*/;"
+>   , ""
+>   , "const Node APTAG      = 0;"
+>   , "const Node INTTAG     = 1;"
+>   , "const Node FUNTAG     = 5/*SUBTAGMASK*/;"
+>   , "const Node FUNPOS     = 9;"
+>   , ""
+>   , "static bool isAP(Node n)             {return (n&TAGMASK) == APTAG; }"
+>   , "static Node *getAP(Node n)           {return(Node*)(n - APTAG);}"
+>   , "static Node makeAP(Node *p,int f)    {return (Node)p + f*FINALMASK + APTAG;}"
+>   , ""
+>   , "static bool isFinal(Node n)          {return n &  FINALMASK; }"
+>   , "static Node clearFinal(Node n)       {return n & ~FINALMASK; }"
+>   , "static Node setFinal(Node n)         {return n |  FINALMASK; }"
+>   , "static Node markFinal(Node n,int f)  {return n + f*FINALMASK; }"
+>   , "static Node copyFinal(Node n,Node m) {return n + (m&FINALMASK); }"
 
-More precisely:
+>   , "static bool isINT(Node n)            {return (n&SUBTAGMASK) == INTTAG;}"
+>   , "static long getINT(Node n)           {return (long)n >> 3;}"
+>   , "static Node makeINT(long i,int f)    {return (i << 3) + f*FINALMASK + INTTAG;}"
 
->   , "#define isAP(n) (((n) & 1) == 0)"
->   , "#define isINT(n) (((n) & 5) == 1)"
->   , "#define isFUN(n) (((n) & 5) == 5)"
->   , "#define makeAP(a,final) ((Node) (a) + ((final) << 1))"
->   , "#define makeINT(i,final) (((i) << 3) + ((final) << 1) + 1)"
->   , "#define makeFUN(arity,f,final) " ++
->              "(((f) << 9) + ((arity) << 3) + ((final) << 1) + 5)"
+>   , "static bool isFUN(Node n)            {return (n&SUBTAGMASK) == FUNTAG;}"
+>   , "static Node getARITY(Node n)         {return (n >> 3) & 63;}"
+>   , "static Node getFUN(Node n)           {return n >> FUNPOS;}"
+>   , "static Node makeFUN(int arity, unsigned fun, int f)"
+>   , "                                     {return (fun << FUNPOS) + (arity << 3) + f*FINALMASK + FUNTAG;}"
+
 >   , "#define arity(n) (isFUN(n) ? getARITY(n) : 1)"
 >   ]
 
@@ -105,7 +112,7 @@ evaluation of strict primitive functions.
 >   , "  tmp = top;"
 >   , "  top = sp[-2];"
 >   , "  sp[-2] = tmp;"
->   , "  sp[-1] ^= 1 << 9;"
+>   , "  sp[-1] ^= 1 << FUNPOS;"
 >   , "}"
 >   ]
 
