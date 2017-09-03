@@ -34,11 +34,12 @@ heap so that the rest of the code can assume it's cleared.
 > destType = "typedef enum dest Dest;"
 
 > macros = unlines
->   [ "#define isFinal(n) ((n) & 2)"
->   , "#define clearFinal(n) ((n) & (~2))"
->   , "#define setFinal(n) ((n) | 2)"
->   , "#define markFinal(n,final) (2 * (final) + (n))"
->   , "#define copyFinal(n,from) (((from) & 2) + (n))"
+>   [ "const Node FINALMASK = 2;"
+>   , "static bool isFinal(Node n)    { return n &  FINALMASK; }"
+>   , "static Node clearFinal(Node n) { return n & ~FINALMASK; }"
+>   , "static Node setFinal(Node n)   { return n |  FINALMASK; }"
+>   , "static Node markFinal(Node n, int final){ return n + final * FINALMASK; }"
+>   , "static Node copyFinal(Node n, Node from){ return n + (from & FINALMASK); }"
 
 If a node is an AP, its remaining 30 bits is a word-aligned heap
 address.  Only use on a node that is known AP and has been stripped of
@@ -173,9 +174,10 @@ Evalution proceeds depending on the element on top of the stack.
 >   , "} else"
 >   ,  updateCode
 
-Invoke primitives
+Invoke primitives.  At this point we know that top isn't an AP nor a
+FUN, so it must be an INT.
 
->   , "if (isINT(top) && isINT(sp[-2])) {"
+>   , "if (isINT(sp[-2])) {"
 >   , "    assert(isFUN(sp[-1]));"
 >   , "    goto *funEntry[getFUN(sp[-1])];"
 >   , "}"
@@ -570,10 +572,12 @@ Garbage collection
 >   , "  p1 = stack;"
 >   , "  while (p1 < sp) {"
 >   , "    n = *p1;"
->   , "    if (isAP(n)) *p1 = (Node) copyAP(getAP(n));"
+>   , "    if (isAP(n))"
+>   , "       *p1 = (Node) copyAP(getAP(n));"
 >   , "    p1++;"
 >   , "  }"
->   , "  if (isAP(top)) top = (Node) copyAP(getAP(top));"
+>   , "  if (isAP(top))"
+>   , "       top = (Node) copyAP(getAP(top));"
 >   , "  copy();"
 >   , "  p2 = ustack+1;"
 >   , "  p3 = ustack;"
@@ -655,6 +659,7 @@ Note: primitives comes first so we are guaranteed the first is even.
 >   [ "#include <stdio.h>"
 >   , "#include <stdlib.h>"
 >   , "#include <stdint.h>"
+>   , "#include <stdbool.h>"
 >   , "#include <assert.h>"
 >   , nodeType
 >   , destType
