@@ -116,6 +116,7 @@ pushes an update record onto the update stack.
 
 > unwindCode = unlines
 >   [ "{"
+>   , "  assert(isAP(top));"
 >   , "  Node *p = getAP(top);"
 >   , "  usp++; usp->s = sp; usp->h = p;"
 >   , "  for (;;) {"
@@ -167,15 +168,17 @@ Evalution proceeds depending on the element on top of the stack.
 >   , "    EVAL_FUN:"
 >   , "    if (hp > heapFull) collect();"
 >   ,      updateCode
+>   , "    assert(isFUN(top));"
 >   , "    goto *funEntry[getFUN(top)];"
 >   , "} else"
 >   ,  updateCode
 
 Invoke primitives
 
->   , "if (isINT(top) && isINT(sp[-2]))"
+>   , "if (isINT(top) && isINT(sp[-2])) {"
+>   , "    assert(isFUN(sp[-1]));"
 >   , "    goto *funEntry[getFUN(sp[-1])];"
->   , ""
+>   , "}"
 
 >   ,  swapCode
 >   , "goto EVAL;"
@@ -280,7 +283,8 @@ case expressions are treated.)
 > cons (f, n, i) = unlines
 >   [ defLabel f
 >   , "{"
->   , "goto *funEntry[getFUN(sp[-" ++ show (n+1) ++ "]) + " ++ show i ++ "];"
+>   , "  assert(isFUN(sp[-" ++ show (n+1) ++ "]));"
+>   , "  goto *funEntry[getFUN(sp[-" ++ show (n+1) ++ "]) + " ++ show i ++ "];"
 >   , "}"
 >   , ""
 >   ]
@@ -403,6 +407,8 @@ transform one into the other.
 > arithPrim p op = unlines
 >   [ defLabel p
 >   , "{"
+>   , "assert(isINT("++a++"));"
+>   , "assert(isINT("++b++"));"
 >   , "top = makeINT(getINT("++a++") " ++ op ++ " getINT("++b++"),0);"
 >   , "sp -= 2;"
 >   , "goto EVAL_NO_AP;"
@@ -419,6 +425,8 @@ Ditto for boolean operator.
 > boolPrim p op = unlines
 >   [ defLabel p
 >   , "{"
+>   , "assert(isINT("++a++"));"
+>   , "assert(isINT("++b++"));"
 >   , "top = (getINT("++a++") " ++ op ++ " getINT("++b++")) ? "
 >       ++ "makeFUN(1," ++ fun "True"  ++ ",0) "
 >       ++ ": makeFUN(1," ++ fun "False" ++ ",0);"
@@ -437,6 +445,7 @@ Print the top stack element.
 > emitPrim p format cast = unlines
 >   [ defLabel p
 >   , "{"
+>   , "assert(isINT("++a++"));"
 >   , "printf(\"" ++ format ++ "\", " ++ cast ++ "getINT(" ++ a ++ "));"
 >   , "top = " ++ b ++ ";"
 >   , "sp -= 2;"
@@ -452,6 +461,8 @@ Print the top stack element.
 > st32Prim p = unlines
 >   [ defLabel p
 >   , "{"
+>   , "assert(isINT("++a++"));"
+>   , "assert(isINT("++b++"));"
 >   , "int addr = getINT("++a++");"
 >   , "int value = getINT("++b++");"
 >   , "if (addr == 0) putchar(value);"
@@ -469,6 +480,7 @@ Print the top stack element.
 > ld32Prim p = unlines
 >   [ defLabel p
 >   , "{"
+>   , "assert(isINT("++a++"));"
 >   , "int addr = getINT("++a++");"
 >   , "top = makeINT(getchar(),0);"
 >   , "sp -= 2;"
@@ -664,6 +676,7 @@ Note: primitives comes first so we are guaranteed the first is even.
 >   , evalCode
 >   , "EXIT:"
 >   , "#ifdef PRINT_RESULT"
+>   , "assert(isINT(top));"
 >   , "printf(\"%ld\\n\", getINT(top));"
 >   , "#endif"
 >   , "return 0;"
