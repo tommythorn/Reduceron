@@ -431,7 +431,7 @@ Ditto for boolean operator.
 >       ++ "makeFUN(1," ++ fun "True"  ++ ",0) "
 >       ++ ": makeFUN(1," ++ fun "False" ++ ",0);"
 >   , "sp -= 2;"
->   , "goto EVAL_NO_AP;"
+>   , "goto EVAL_FUN;"
 >   , "}"
 >   , ""
 >   ]
