@@ -1,6 +1,6 @@
 Name:               flite
 Version:            0.6.1
-Synopsis:           f-lite compiler, interpreter and libraries
+Synopsis:           f-lite compiler and interpreter
 License:            BSD3
 License-file:       LICENSE
 Author:             Matthew Naylor
@@ -34,20 +34,5 @@ Executable flite
                     Flite.RedSyntax, Flite.State, Flite.Strictify, Flite.Syntax,
                     Flite.Traversals, Flite.Writer, Flite.Writer, Flite.WriterState,
                     Flite.Parsec.Parse, Flite.Parsec.Flite, Flite.Parsec.Prelude,
-                    Flite.Dependency, Flite.IntInfer, Flite.Strictness, Flite.WorkerWrapper
-
-Library
-    Build-Depends:   base >= 3 && < 5,
-                     array >= 0 && < 1, containers >= 0 && < 1,
-                     parsec >= 3
-    Exposed-modules: Flite.CallGraph, Flite.Case, Flite.ConcatApp,
-                     Flite.Descend, Flite.Fresh, Flite.Identify, Flite.Identity,
-                     Flite.Inline, Flite.Let, Flite.Matching, Flite.Pretty, Flite.RedCompile,
-                     Flite.Syntax, Flite.Traversals, Flite.Writer, Flite.Interp,
-                     Flite.Parsec.Parse, Flite.Parsec.Prelude, Flite.Parsec.Flite
-    Other-Modules:  Flite.Compile, Flite.CompileBackend
-                    Flite.CompileFrontend, Flite.Flatten,
-                    Flite.InterpFrontend, Flite.LambdaLift, Flite.Predex,
-                    Flite.RedFrontend, Flite.RedSyntax,
-                    Flite.State, Flite.Strictify, Flite.WriterState,
-                    Flite.Dependency, Flite.IntInfer, Flite.Strictness, Flite.WorkerWrapper
+                    Flite.Dependency, Flite.IntInfer, Flite.Strictness, Flite.WorkerWrapper,
+                    Paths_flite
