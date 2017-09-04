@@ -1,3 +1,40 @@
+TODO:
+
+- Now that Integers have a zero tag, they are effectively just scaled
+  by 8 and *all* the primitives can operate directly on the tagged
+  version with absolutely no overhead.  Implement this.
+
+- The exit check code can be eliminated by added a special exit
+  primitive and placing a sentinel call on the stack before evaluation
+  starts.
+
+- Similarily, it ought to be possible to eliminate the "|| usp <=
+  ustack" part of the check in the updateCode by placing a sentinel
+  entry that can never be fullfilled.  Needs investigation.
+
+- Instead of the tag bit, have APs be prefixed with a size field.
+  This trades off additional memory and AP creation for more efficient
+  unwinding, update, and GC as well as giving bigger range to integers
+  etc.  It may might also be possible to use that to update-in-place
+  when the value is small than the original redex (AP).
+
+  After that, use tags like INT x0 (31-/63-bit ints), AP 11, FUN 01.
+  (11 allows x86 is use test 3, ..)
+
+- All non-constructors can replace the function index with a direct
+  code pointer for much faster dispatch.  Constructors still need to
+  be indices due to how case-of is implemented (currently).  Changing
+  the constructors would require significant changes to the model, but
+  would move Flite-C closer to the STG.
+
+- Speaking of STG, the evaluator has some inefficiencies as it has to
+  examine every object with no knowledge of the object.  STG embeds a
+  pointer to a specialized evaluator into every AP.  This way we save
+  the tag checking, the arity lookup, we can unroll the unwinding loop
+  (as the size is known).  The update code should also be possible to
+  integrate.
+
+
 ========================
 REDUCERON MEMO 22'
 Compiling F-lite to C
@@ -49,13 +86,13 @@ If a node is a FUN, its remaining 29-bits contains a 6-bit arity and a
 
 > macros = unlines
 >   [ ""
->   , "const Node TAGMASK    = 1;"
->   , "const Node FINALMASK  = 2;"
->   , "const Node SUBTAGMASK = 4 + 1/*TAGMASK*/;"
+>   , "static const Node TAGMASK    = 1;"
+>   , "static const Node FINALMASK  = 2;"
+>   , "static const Node SUBTAGMASK = 4 + 1/*TAGMASK*/;"
 >   , ""
->   , "const Node APTAG      = 1;"
->   , "const Node INTTAG     = 0;"
->   , "const Node FUNTAG     = 4/*SUBTAGMASK*/;"
+>   , "static const Node APTAG      = 1;"
+>   , "static const Node INTTAG     = 0;"
+>   , "static const Node FUNTAG     = 4/*SUBTAGMASK*/;"
 
 In order to get faster dispatch, we pre-scale the index by the index
 by the table stride and create a complicated macro gotoFUN to avoid
@@ -65,24 +102,24 @@ the scaling twice.
 >   , ""
 >   , "static bool isAP(Node n)             {return (n&TAGMASK) == APTAG; }"
 >   , "static Node *getAP(Node n)           {return(Node*)(n - APTAG);}"
->   , "static Node makeAP(Node *p,int f)    {return (Node)p + f*FINALMASK + APTAG;}"
+>   , "static Node makeAP(Node *p,long f)   {return (Node)p + f*FINALMASK + APTAG;}"
 >   , ""
 >   , "static bool isFinal(Node n)          {return n &  FINALMASK; }"
 >   , "static Node clearFinal(Node n)       {return n & ~FINALMASK; }"
 >   , "static Node setFinal(Node n)         {return n |  FINALMASK; }"
->   , "static Node markFinal(Node n,int f)  {return n + f*FINALMASK; }"
+>   , "static Node markFinal(Node n,long f) {return n + f*FINALMASK; }"
 >   , "static Node copyFinal(Node n,Node m) {return n + (m&FINALMASK); }"
 
 >   , "static bool isINT(Node n)            {return (n&SUBTAGMASK) == INTTAG;}"
 >   , "static long getINT(Node n)           {return (long)n >> 3;}"
->   , "static Node makeINT(long i,int f)    {return (i << 3) + f*FINALMASK + INTTAG;}"
+>   , "static Node makeINT(long i,long f)   {return (i << 3) + f*FINALMASK + INTTAG;}"
 
 >   , "static bool isFUN(Node n)            {return (n&SUBTAGMASK) == FUNTAG;}"
 >   , "static Node getARITY(Node n)         {return (n >> 3) & 63;}"
 >   , "static Node getFUN(Node n)           {return n >> FUNPOS;}"
->   , "const int LOGW = sizeof(uintptr_t) == 8 ? 3 : 2;"
+>   , "static const long LOGW = sizeof(uintptr_t) == 8 ? 3 : 2;"
 >   , "#define gotoFUN(n,o) goto **(void **)((void *)funEntry + ((n) >> (FUNPOS-LOGW)) + ((o) << LOGW))"
->   , "static Node makeFUN(int arity, unsigned fun, int f)"
+>   , "static Node makeFUN(long arity, long fun, long f)"
 >   , "                                     {return (fun << FUNPOS) + (arity << 3) + f*FINALMASK + FUNTAG;}"
 
 >   , "#define arity(n) (isFUN(n) ? getARITY(n) : 1)"
@@ -104,6 +141,7 @@ Registers
 >   [ "register Node top;"           {- top of stack -}
 >   , "register Node *restrict sp;"  {- stack pointer -}
 >   , "register Node *hp;"           {- heap pointer -}
+>   , "Update *usp;"                 {- update-stack pointer -}
 >   ]
 
 Swapping
@@ -152,11 +190,11 @@ if so, performs an update.
 
 > updateCode = unlines
 >   [ "{"
->   , "  unsigned ari = arity(top);"
+>   , "  unsigned long ari = arity(top);"
 >   , "  if (sp - ari < stack)"
 >   , "    goto EXIT;"
 >   , "  for (;;) {"
->   , "    unsigned args = (unsigned int) (sp - usp->s);"
+>   , "    unsigned long args = (unsigned long) (sp - usp->s);"
 >   , "    if (ari <= args || usp <= ustack)"
 >   , "      break;"
 >   , "    Node *base = hp;"
@@ -631,7 +669,6 @@ partition, to detect termination and exhaustion.
 >   , "Update *ustack;"
 >   , "Update *ustackEnd;"
 >   , "Node *tsp;"          {- to-space pointer -}
->   , "Update *usp;"        {- update-stack pointer -}
 >   ]
 
 Memory allocation

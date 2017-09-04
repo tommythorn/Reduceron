@@ -17,7 +17,7 @@ FLITE_RED=-r6:4:2:1:8 -i1 -s
 FLITE_OPTS=-h3 -i1
 RED=../fpga/Red
 CC=gcc-7
-CFLAGS=-O2
+CFLAGS=-O2 -DNDEBUG
 
 regress: regress-most regress-rtl
 
