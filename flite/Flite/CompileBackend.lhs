@@ -1,9 +1,5 @@
 TODO:
 
-- Now that Integers have a zero tag, they are effectively just scaled
-  by 8 and *all* the primitives can operate directly on the tagged
-  version with absolutely no overhead.  Implement this.
-
 - The exit check code can be eliminated by added a special exit
   primitive and placing a sentinel call on the stack before evaluation
   starts.
@@ -463,7 +459,7 @@ transform one into the other.
 >   , "{"
 >   , "assert(isINT("++a++"));"
 >   , "assert(isINT("++b++"));"
->   , "top = makeINT(getINT("++a++") " ++ op ++ " getINT("++b++"),0);"
+>   , "top = "++a++" " ++ op ++ " "++b++";"
 >   , "sp -= 2;"
 >   , "goto EVAL_NO_AP;"
 >   , "}"
@@ -481,7 +477,7 @@ Ditto for boolean operator.
 >   , "{"
 >   , "assert(isINT("++a++"));"
 >   , "assert(isINT("++b++"));"
->   , "top = (getINT("++a++") " ++ op ++ " getINT("++b++")) ? "
+>   , "top = (long)"++a++" " ++ op ++ " (long)"++b++" ? "
 >       ++ "makeFUN(1," ++ fun "True"  ++ ",0) "
 >       ++ ": makeFUN(1," ++ fun "False" ++ ",0);"
 >   , "sp -= 2;"
