@@ -1,9 +1,5 @@
 TODO:
 
-- The exit check code can be eliminated by added a special exit
-  primitive and placing a sentinel call on the stack before evaluation
-  starts.
-
 - Similarily, it ought to be possible to eliminate the "|| usp <=
   ustack" part of the check in the updateCode by placing a sentinel
   entry that can never be fullfilled.  Needs investigation.
@@ -187,8 +183,7 @@ if so, performs an update.
 > updateCode = unlines
 >   [ "{"
 >   , "  unsigned long ari = arity(top);"
->   , "  if (sp - ari < stack)"
->   , "    goto EXIT;"
+>   , "  assert(sp - ari >= stack);"
 >   , "  for (;;) {"
 >   , "    unsigned long args = (unsigned long) (sp - usp->s);"
 >   , "    if (ari <= args || usp <= ustack)"
@@ -366,6 +361,7 @@ Map F-lite primitives to suitable C identifiers.
 > fun "ld32"     = "PRIM_LD32"
 > fun "emit"     = "PRIM_EMIT"
 > fun "emitInt"  = "PRIM_EMITINT"
+> fun " exit "   = "PRIM_EXIT"
 > fun "_|_"      = "PRIM_UNDEFINED"
 > fun ('s':'w':'a':'p':':':f) = fun f ++ "_SWAPPED"
 > fun f          = "FUN_" ++ f
@@ -451,7 +447,8 @@ transform one into the other.
 > primIds :: [Id]
 > primIds = concatMap (\p -> [p,  "swap:" ++ p]) l ++ ["_|_"]
 >   where l = [ "(+)" , "(-)" , "(<=)" , "(==)", "(/=)",
->               "(.&.)", "st32", "ld32", "emit", "emitInt" ]
+>               "(.&.)", "st32", "ld32", "emit", "emitInt",
+>               " exit " ]
 
 > arithPrim :: Id -> String -> String
 > arithPrim p op = unlines
@@ -506,6 +503,23 @@ Print the top stack element.
 >   where (a,b) = case p of
 >                 's':_ -> ("sp[-2]","top")
 >                 _     -> ("top","sp[-2]")
+
+Sential Exit primitive, to save us from special-cases the empty stack
+case.
+
+> exitPrim :: Id -> String
+> exitPrim p = unlines
+>   [ defLabel p
+>   , "{"
+>   , case p of
+>       's':_ -> "assert(0);" -- execution should never get here
+>       _     -> "assert(sp[-2] == makeINT(42,0));"
+>   , "sp -= 2;"
+>   , "goto EXIT;"
+>   , "}"
+>   , ""
+>   ]
+
 
 > st32Prim :: Id -> String
 > st32Prim p = unlines
@@ -570,6 +584,8 @@ Print the top stack element.
 >   , emitPrim "swap:emit" "%c" "(char)"
 >   , emitPrim "emitInt" "%ld" ""
 >   , emitPrim "swap:emitInt" "%ld" ""
+>   , exitPrim " exit "
+>   , exitPrim "swap: exit "
 >   , st32Prim "st32"
 >   , st32Prim "swap:st32"
 >   , ld32Prim "ld32"
@@ -688,6 +704,14 @@ Memory allocation
 >   , "ustackEnd = ustack + " ++ show stackSize ++ ";"
 >   ]
 
+Push the sentinel exit on the stack
+
+> pushSentinelExit :: String
+> pushSentinelExit = unlines
+>   [ "*sp++ = makeINT(42,0);"
+>   , "*sp++ = makeFUN(2," ++ fun " exit " ++ ",0);"
+>   ]
+
 Program compilation
 -------------------
 
@@ -723,6 +747,7 @@ Note: primitives comes first so we are guaranteed the first is even.
 >   , copyCode
 >   , collectCode
 >   , allocate 8000000 1000000
+>   , pushSentinelExit
 >   , "goto " ++ label "main" ++ ";"
 >   , switchCode p
 >   , evalCode
