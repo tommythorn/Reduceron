@@ -1,9 +1,5 @@
 TODO:
 
-- Similarily, it ought to be possible to eliminate the "|| usp <=
-  ustack" part of the check in the updateCode by placing a sentinel
-  entry that can never be fullfilled.  Needs investigation.
-
 - Instead of the tag bit, have APs be prefixed with a size field.
   This trades off additional memory and AP creation for more efficient
   unwinding, update, and GC as well as giving bigger range to integers
@@ -182,14 +178,15 @@ if so, performs an update.
 
 > updateCode = unlines
 >   [ "{"
->   , "  unsigned long ari = arity(top);"
+>   , "  long ari = arity(top);"
 >   , "  assert(sp - ari >= stack);"
 >   , "  for (;;) {"
->   , "    unsigned long args = (unsigned long) (sp - usp->s);"
->   , "    if (ari <= args || usp <= ustack)"
+>   , "    long args = sp - usp->s;"
+>   , "    if (ari <= args)"
 >   , "      break;"
+>   , "    assert(usp != ustack);"
 >   , "    Node *base = hp;"
->   , "    Node *p = sp - args;"
+>   , "    Node *p = usp->s;"
 >   , "    while (p < sp) *hp++ = *p++;"
 >   , "    *hp++ = setFinal(top);"
 >   , "    *usp->h = makeAP(base, 1);"
@@ -214,7 +211,7 @@ Evalution proceeds depending on the element on top of the stack.
 >   ,      updateCode
 >   , "    assert(isFUN(top));"
 >   , "    gotoFUN(top, 0);"
->   , "} else"
+>   , "}"
 >   ,  updateCode
 
 Invoke primitives.  At this point we know that top isn't an AP nor a
@@ -643,8 +640,8 @@ Garbage collection
 >   , "  if (isAP(top))"
 >   , "       top = makeAP(copyAP(getAP(top)), 0);"
 >   , "  copy();"
->   , "  p2 = ustack+1;"
->   , "  p3 = ustack;"
+>   , "  p2 = ustack+2;"
+>   , "  p3 = ustack+1;"
 >   , "  while (p2 <= usp) {"
 >   , "    n = *(p2->h);"
 >   , "    if (isAP(n) && getAP(n) >= toSpace && getAP(n) <= toSpaceEnd) {"
@@ -712,6 +709,15 @@ Push the sentinel exit on the stack
 >   , "*sp++ = makeFUN(2," ++ fun " exit " ++ ",0);"
 >   ]
 
+Push sentinel update record which will never satishfy the "ari > args"
+check.
+
+> pushSentinelUpdate :: String
+> pushSentinelUpdate = unlines
+>   [ "usp->s = stack - 99999;"
+>   , "usp->h = 0;"
+>   ]
+
 Program compilation
 -------------------
 
@@ -731,6 +737,7 @@ Note: primitives comes first so we are guaranteed the first is even.
 >   , "#include <stdlib.h>"
 >   , "#include <stdint.h>"
 >   , "#include <stdbool.h>"
+>   , "#include <string.h>"
 >   , "#include <assert.h>"
 >   , nodeType
 >   , destType
@@ -748,6 +755,7 @@ Note: primitives comes first so we are guaranteed the first is even.
 >   , collectCode
 >   , allocate 8000000 1000000
 >   , pushSentinelExit
+>   , pushSentinelUpdate
 >   , "goto " ++ label "main" ++ ";"
 >   , switchCode p
 >   , evalCode
