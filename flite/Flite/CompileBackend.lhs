@@ -1,14 +1,5 @@
 TODO:
 
-- Instead of the tag bit, have APs be prefixed with a size field.
-  This trades off additional memory and AP creation for more efficient
-  unwinding, update, and GC as well as giving bigger range to integers
-  etc.  It may might also be possible to use that to update-in-place
-  when the value is small than the original redex (AP).
-
-  After that, use tags like INT x0 (31-/63-bit ints), AP 11, FUN 01.
-  (11 allows x86 is use test 3, ..)
-
 - All non-constructors can replace the function index with a direct
   code pointer for much faster dispatch.  Constructors still need to
   be indices due to how case-of is implemented (currently).  Changing
@@ -45,42 +36,34 @@ A node is a tagged pointer, storable in a single word of memory.
 
 > nodeType = "typedef uintptr_t Node;"
 
+
 The least-significant bit of a node is a tag stating whether the node
-is an AP, containing a pointer to an application (a sequence of nodes)
-on the heap, or an OTHER, containing something else.
+is an INT or non-INT (AP or FUN).
 
-  typedef enum {AP = 0, OTHER = 1} Tag;
+  typedef enum {INT = 0, NON_INT} IntTag;
 
-The 2nd least-significant bit of a node is a flag stating whether or
-not the node is the final node of an application.  Note, the final bit
-is only allowed in the heap and must be stripped upon reading from the
-heap so that the rest of the code can assume it's cleared.
+If a node is an INT, its remaining 31-bits is an unboxed integer.
+
+The 2nd least-significant bit of a node distinguishes between AP and FUN, however
+it's more efficient to consider both bits together:
+
+  typedef enum {AP = 1, FUN = 3, } Tag;
+
+If a node is an AP, its remaining 30 bits is a word-aligned heap
+address.  Heap objects have their payload length in the first word, as
+a tagged int.
+
+If a node is a FUN, its remaining 30-bits contains a 6-bit arity and a
+23-bit function identifier.
 
 > destType = "typedef enum dest Dest;"
 
-If a node is an AP, its remaining 30 bits is a word-aligned heap
-address.  Only use on a node that is known AP and has been stripped of
-the Final bit (true for all values outside of the heap).
-
-If the node is an OTHER, its 3rd least-significant bit contains a
-sub-tag stating whether the the node is an INT or a FUN.
-
-  typedef enum {INT = 0, FUN = 1} Subtag;
-
-If a node is an INT, its remaining 29-bits is an unboxed integer.
-
-If a node is a FUN, its remaining 29-bits contains a 6-bit arity and a
-23-bit function identifier.
-
 > macros = unlines
 >   [ ""
->   , "static const Node TAGMASK    = 1;"
->   , "static const Node FINALMASK  = 2;"
->   , "static const Node SUBTAGMASK = 4 + 1/*TAGMASK*/;"
+>   , "static const Node TAGMASK    = 3;"
 >   , ""
 >   , "static const Node APTAG      = 1;"
->   , "static const Node INTTAG     = 0;"
->   , "static const Node FUNTAG     = 4/*SUBTAGMASK*/;"
+>   , "static const Node FUNTAG     = 3;"
 
 In order to get faster dispatch, we pre-scale the index by the index
 by the table stride and create a complicated macro gotoFUN to avoid
@@ -88,27 +71,22 @@ the scaling twice.
 
 >   , "const Node FUNPOS     =12;"
 >   , ""
->   , "static bool isAP(Node n)             {return (n&TAGMASK) == APTAG; }"
->   , "static Node *getAP(Node n)           {return(Node*)(n - APTAG);}"
->   , "static Node makeAP(Node *p,long f)   {return (Node)p + f*FINALMASK + APTAG;}"
+>   , "static bool isAP(Node n)             {return (n & TAGMASK) == APTAG; }"
+>   , "static Node *getAP(Node n)           {return (Node*)(n - APTAG);}"
+>   , "static Node makeAP(Node *p)          {return (Node)p + APTAG;}"
 >   , ""
->   , "static bool isFinal(Node n)          {return n &  FINALMASK; }"
->   , "static Node clearFinal(Node n)       {return n & ~FINALMASK; }"
->   , "static Node setFinal(Node n)         {return n |  FINALMASK; }"
->   , "static Node markFinal(Node n,long f) {return n + f*FINALMASK; }"
->   , "static Node copyFinal(Node n,Node m) {return n + (m&FINALMASK); }"
 
->   , "static bool isINT(Node n)            {return (n&SUBTAGMASK) == INTTAG;}"
->   , "static long getINT(Node n)           {return (long)n >> 3;}"
->   , "static Node makeINT(long i,long f)   {return (i << 3) + f*FINALMASK + INTTAG;}"
+>   , "static bool isINT(Node n)            {return (n & 1) == 0;}"
+>   , "static long getINT(Node n)           {return (long)n >> 1;}"
+>   , "static Node makeINT(long i)          {return i << 1;}"
 
->   , "static bool isFUN(Node n)            {return (n&SUBTAGMASK) == FUNTAG;}"
->   , "static Node getARITY(Node n)         {return (n >> 3) & 63;}"
+>   , "static bool isFUN(Node n)            {return (n & TAGMASK) == FUNTAG;}"
+>   , "static Node getARITY(Node n)         {return (n >> 2) & 63;}"
 >   , "static Node getFUN(Node n)           {return n >> FUNPOS;}"
 >   , "static const long LOGW = sizeof(uintptr_t) == 8 ? 3 : 2;"
 >   , "#define gotoFUN(n,o) goto **(void **)((void *)funEntry + ((n) >> (FUNPOS-LOGW)) + ((o) << LOGW))"
->   , "static Node makeFUN(long arity, long fun, long f)"
->   , "                                     {return (fun << FUNPOS) + (arity << 3) + f*FINALMASK + FUNTAG;}"
+>   , "static Node makeFUN(long arity, long fun)"
+>   , "                                     {return (fun << FUNPOS) + (arity << 2) + FUNTAG;}"
 
 >   , "#define arity(n) (isFUN(n) ? getARITY(n) : 1)"
 >   ]
@@ -160,13 +138,15 @@ pushes an update record onto the update stack.
 >   , "  assert(isAP(top));"
 >   , "  Node *p = getAP(top);"
 >   , "  usp++; usp->s = sp; usp->h = p;"
+>   , "  assert(isINT(*p));"
+>   , "  long n = getINT(*p++);"
 >   , "  for (;;) {"
 >   , "    top = *p++;"
->   , "    if (isFinal(top))"
+>   , "    --n;"
+>   , "    if (n == 0)"
 >   , "        break;"
 >   , "    *sp++ = top;"
 >   , "  }"
->   , "  top = clearFinal(top);"
 >   , "}"
 >   ]
 
@@ -187,9 +167,22 @@ if so, performs an update.
 >   , "    assert(usp != ustack);"
 >   , "    Node *base = hp;"
 >   , "    Node *p = usp->s;"
+>   , "    *hp++ = makeINT(args + 1);"
 >   , "    while (p < sp) *hp++ = *p++;"
->   , "    *hp++ = setFinal(top);"
->   , "    *usp->h = makeAP(base, 1);"
+>   , "    *hp++ = top;"
+
+Install a forwarding pointer to the updated value
+
+>   , "    assert(isINT(usp->h[0]));"
+>   , "    long origSize = getINT(usp->h[0]);"
+>   , "    usp->h[0] = makeINT(1);"
+>   , "    usp->h[1] = makeAP(base);"
+
+XXX This is a little annoying, but I want to keep objects complete.
+However now we can potentially have a zero-sized object.
+
+>   , "    if (origSize > 1)"
+>   , "       usp->h[2] = makeINT(origSize - 2);"
 >   , "    usp--;"
 >   , "  }"
 >   , "}"
@@ -380,33 +373,30 @@ A shorthand for a common case
 
 > type Locs = [(Id, Int)]
 
-> node :: String -> Locs -> String -> Node -> String
-> node r vs final (INT i) =
->   r ++ " = makeINT(" ++ show i ++ "," ++ final ++ ");"
-> node r vs final (ARG i) =
->   r ++ " = markFinal(" ++ arg (i+1) ++ "," ++ final ++ ");"
-> node r vs final (VAR v) =
->   r ++ " = makeAP(base+" ++ offset ++ "," ++ final ++ ");"
+> node :: String -> Locs -> Node -> String
+> node r vs (INT i)   = r ++ " = makeINT(" ++ show i ++ ");"
+> node r vs (ARG i)   = r ++ " = " ++ arg (i+1) ++ ";"
+> node r vs (FUN n f) = r ++ " = makeFUN(" ++ show n ++ "," ++ fun f ++ ");"
+> node r vs (VAR v)   = r ++ " = makeAP(base+" ++ offset ++ ");"
 >   where offset = show $ lookupVar v vs
-> node r vs final (FUN n f) =
->   r ++ " = makeFUN(" ++ show n ++ "," ++ fun f ++ "," ++ final ++ ");"
 
 > lookupVar v vs = case lookup v vs of { Nothing -> error msg ; Just i -> i }
 >   where msg = error ("Unknown identifier '" ++ v ++ "'")
 
 > app :: Locs -> App -> String
-> app vs app = unlines $ zipWith (node "*hp++" vs) finals app
->   where finals = map (const "0") (init app) ++ ["1"]
+> app vs app = unlines $ header : map (node "*hp++" vs) app
+>   where header = "*hp++ = makeINT (" ++ show (length app) ++ ");"
 
 > spine :: Locs -> App -> String
 > spine vs ns = unlines
->   [ unlines $ map (node "*sp++" vs "0") (init ns)
->   , node "top" vs "0" (last ns)
+>   [ unlines $ map (node "*sp++" vs) (init ns)
+>   , node "top" vs (last ns)
 >   ]
 
 > varLocs :: Body -> Locs
-> varLocs body = zip vs (scanl (+) 0 (map length apps))
+> varLocs body = zip vs (scanl (+) 0 $ map length appsWithHeader)
 >   where (vs, apps) = unzip body
+>         appsWithHeader = map (undefined:) apps
 
 > body :: App -> Body -> String
 > body s b = unlines
@@ -472,8 +462,8 @@ Ditto for boolean operator.
 >   , "assert(isINT("++a++"));"
 >   , "assert(isINT("++b++"));"
 >   , "top = (long)"++a++" " ++ op ++ " (long)"++b++" ? "
->       ++ "makeFUN(1," ++ fun "True"  ++ ",0) "
->       ++ ": makeFUN(1," ++ fun "False" ++ ",0);"
+>       ++ "makeFUN(1," ++ fun "True"  ++ ") "
+>       ++ ": makeFUN(1," ++ fun "False" ++ ");"
 >   , "sp -= 2;"
 >   , "goto EVAL_FUN;"
 >   , "}"
@@ -510,7 +500,7 @@ case.
 >   , "{"
 >   , case p of
 >       's':_ -> "assert(0);" -- execution should never get here
->       _     -> "assert(sp[-2] == makeINT(42,0));"
+>       _     -> "assert(sp[-2] == makeINT(42));"
 >   , "sp -= 2;"
 >   , "goto EXIT;"
 >   , "}"
@@ -543,7 +533,7 @@ case.
 >   , "{"
 >   , "assert(isINT("++a++"));"
 >   , "int addr = getINT("++a++");"
->   , "top = makeINT(getchar(),0);"
+>   , "top = makeINT(getchar());"
 >   , "sp -= 2;"
 >   , "goto EVAL_NO_AP;"
 >   , "}"
@@ -594,66 +584,56 @@ Garbage collection
 ------------------
 
 > copyAPCode = unlines
->   [ "Node *copyAP(Node *src) {"
->   , "  Node n;"
->   , "  Node *from = src;"
->   , "  Node *dst = tsp;"
->   , "  n = *from;"
->   , "  if (isAP(n)) {"
->   , "    Node *loc = getAP(n);"
->   , "    if (loc >= toSpace && loc < toSpaceEnd) return loc;"
->   , "  }"
->   , "  do {"
->   , "    n = *from++; *tsp++ = n;"
->   , "  } while (! isFinal(n));"
->   , "  *src = makeAP(dst,0);"
->   , "  return dst;"
+>   [ "Node copyAP(Node src) {"
+
+If the AP has been copied already, a forwarding pointer pointing to
+toSpace would have been left in the 1st word.
+
+>   , "  Node *from = getAP(src);"
+>   , "  assert(isINT(from[0]));"
+>   , "  if (isAP(from[1]) && toSpace <= getAP(from[1]) && getAP(from[1]) < toSpaceEnd)"
+>   , "      return from[1];"
+
+Else, copy the AP to toSpace and leave a forwarding pointer
+
+>   , "  Node new = makeAP(tsp);"
+>   , "  for (long n = getINT(from[0]); n >= 0; --n)"
+>   , "    *tsp++ = *from++;"
+>   , "  return getAP(src)[1] = new;"
 >   , "}"
 >   ]
 
 > copyCode = unlines
->   [ "void copy() {"
->   , "  for (Node *low = toSpace; low < tsp; ++low) {"
->   , "    Node n = *low;"
->   , "    if (isAP(n)) {"
->   , "      Node *loc = copyAP(getAP(clearFinal(n)));"
->   , "      *low = makeAP(loc, isFinal(n));"
->   , "    }"
->   , "  }"
+>   [ "void copy(void) {"
+>   , "  for (Node *low = toSpace; low < tsp; ++low)"
+>   , "    if (isAP(*low))"
+>   , "      *low = copyAP(*low);"
 >   , "}"
 >   ]
 
 > collectCode = unlines
->   [ "void collect () {"
->   , "  Node n;"
->   , "  Node *p1;"
->   , "  Update *p2;"
->   , "  Update *p3;"
+>   [ "void collect (void) {"
 >   , "  tsp = toSpace;"
->   , "  p1 = stack;"
->   , "  while (p1 < sp) {"
->   , "    n = *p1;"
->   , "    if (isAP(n))"
->   , "       *p1 = makeAP(copyAP(getAP(n)), 0);"
->   , "    p1++;"
->   , "  }"
+>   , "  for (Node *p1 = stack; p1 < sp; ++p1)"
+>   , "    if (isAP(*p1))"
+>   , "       *p1 = copyAP(*p1);"
 >   , "  if (isAP(top))"
->   , "       top = makeAP(copyAP(getAP(top)), 0);"
+>   , "       top = copyAP(top);"
 >   , "  copy();"
->   , "  p2 = ustack+2;"
->   , "  p3 = ustack+1;"
->   , "  while (p2 <= usp) {"
->   , "    n = *(p2->h);"
->   , "    if (isAP(n) && getAP(n) >= toSpace && getAP(n) <= toSpaceEnd) {"
+>   , ""
+>   , "  Update *p3 = ustack;"
+>   , "  for (Update *p2 = ustack+1; p2 <= usp; ++p2) {"
+>   , "    Node n = *p2->h;"
+>   , "    if (isAP(n) && toSpace <= getAP(n) && getAP(n) <= toSpaceEnd) {"
 >   , "      p3++;"
 >   , "      p3->s = p2->s;"
 >   , "      p3->h = getAP(n);"
 >   , "    }"
->   , "    p2++;"
 >   , "  }"
+>   , ""
 >   , "  usp = p3;"
 >   , "  hp = tsp;"
->   , "  p1 = toSpace; toSpace = heap; heap = p1;"
+>   , "  Node *p1 = toSpace; toSpace = heap; heap = p1;"
 >   , "  p1 = toSpaceEnd; toSpaceEnd = heapEnd; heapEnd = p1;"
 >   , "  p1 = toSpaceFull; toSpaceFull = heapFull; heapFull = p1;"
 >   , "}"
@@ -705,11 +685,11 @@ Push the sentinel exit on the stack
 
 > pushSentinelExit :: String
 > pushSentinelExit = unlines
->   [ "*sp++ = makeINT(42,0);"
->   , "*sp++ = makeFUN(2," ++ fun " exit " ++ ",0);"
+>   [ "*sp++ = makeINT(42);"
+>   , "*sp++ = makeFUN(2," ++ fun " exit " ++ ");"
 >   ]
 
-Push sentinel update record which will never satishfy the "ari > args"
+Push sentinel update record which will never satisfy the "ari > args"
 check.
 
 > pushSentinelUpdate :: String
