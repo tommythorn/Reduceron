@@ -1,4 +1,4 @@
-module Lava.Verilog(writeVerilog) where
+module Lava.Verilog(writeVerilog,writeVerilog2) where
 
 {-
 BUG:
@@ -152,23 +152,25 @@ outputs named @sum@ and @carry@.
 >             (halfAdd (name "a") (name "b"))
 >             (name "sum", name "carry")
 -}
-writeVerilog ::
-  Generic a => String -- ^ The name of Verilog entity, which is also the
-                      -- name of the directory that the output files
+writeVerilog name = writeVerilog2 name name
+
+writeVerilog2 ::
+  Generic a => String -- ^ The name of the directory that the output files
                       -- are written to.
+            -> String -- ^ The name of Verilog entity.
             -> a      -- ^ The Bit-structure that is turned into Verilog.
             -> a      -- ^ Names for the outputs of the circuit.
             -> IO ()
-writeVerilog name a b =
-  do putStrLn ("Creating directory '" ++ name ++ "/'")
-     callProcess "mkdir" ["-p", name]
+writeVerilog2 dir name a b =
+  do putStrLn ("Creating directory '" ++ dir ++ "/'")
+     callProcess "mkdir" ["-p", dir]
      nl <- netlist a b
      mapM_ gen (verilog name nl)
      putStrLn "Done."
   where
     gen (file, content) =
-      do putStrLn $ "Writing to '" ++ name ++ "/" ++ file ++ "'"
-         writeFile (name ++ "/" ++ file) content
+      do putStrLn $ "Writing to '" ++ dir ++ "/" ++ file ++ "'"
+         writeFile (dir ++ "/" ++ file) content
 
 -- Auxiliary functions
 

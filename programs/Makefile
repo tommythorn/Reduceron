@@ -18,18 +18,20 @@ FLITE_OPTS=-h3 -i1
 RED=../fpga/Red
 CC=gcc-7
 CFLAGS=-O2 -DNDEBUG
+# set to your decired level of parallism or nothing at all
+#J=
+J=-j5
 
-regress: regress-most regress-rtl
+regress:
+	$(MAKE) $(J) regress-emu
+	$(MAKE) $(J) regress-flite-sim
+	$(MAKE) $(J) regress-flite-comp
+	$(MAKE) $(J) regress-red-sim
+	$(MAKE) $(J) regress-flite-c-comp
+	$(MAKE) $(J) regress-red-verilog-sim
 
-regress-most: regress-emu \
-              regress-flite-sim \
-              regress-flite-comp \
-              regress-red-sim \
-              regress-flite-c-comp
-
-# Note, these can't be executed in parallel
-regress-rtl:  regress-red-verilog-sim \
-              regress-red-verilog-run
+regress-hw: \
+         regress-red-verilog-run
 
 bench: bench-flite-c-comp
 
@@ -76,8 +78,8 @@ regress-red-sim:
 regress-red-verilog-sim: $(patsubst %,%.red-verilog-sim-checked,$(WORKLOADS))
 
 %.red-verilog-sim-checked: gold/compiled/%.red $(RED)
-	cd ../fpga; ./Red -v ../programs/$<
-	time $(MAKE) --no-print-directory -C ../fpga/Reduceron sim | diff -u $(patsubst gold/compiled/%.red,gold/run/%.out,$<) - && touch $@
+	@cd verilog-sim;../$(RED) --output-name=$(patsubst gold/compiled/%.red,%,$<) --verilog ../$< > /dev/null
+	@time -f "%Us for $@" $(MAKE) --no-print-directory -C verilog-sim/$(patsubst gold/compiled/%.red,%,$<) sim | diff -u $(patsubst gold/compiled/%.red,gold/run/%.out,$<) - && touch $@
 
 regress-red-verilog-run: $(patsubst %,%.red-verilog-run-checked,$(WORKLOADS))
 

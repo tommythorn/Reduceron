@@ -13,14 +13,16 @@ import Collect
 
 import Heap
 
-data Flag = Simulate | Generate | GenVerilog | GenC deriving Eq
+data Flag = Simulate | Generate | GenVerilog | GenC | Name String
+     deriving Eq
 
 options :: [OptDescr Flag]
 options =
-  [ Option ['s'] [] (NoArg Simulate) "simulate"
-  , Option ['g'] [] (NoArg Generate) "generate VHDL"
-  , Option ['v'] [] (NoArg GenVerilog) "generate Verilog"
-  , Option ['c'] [] (NoArg GenC) "generate C"
+  [ Option ['s'] ["simulate"]       (NoArg Simulate)    "simulate"
+  , Option ['g'] ["vhdl-output"]    (NoArg Generate)    "generate VHDL"
+  , Option ['v'] ["verilog-output"] (NoArg GenVerilog)  "generate Verilog"
+  , Option ['c'] ["c-output"]       (NoArg GenC)        "generate C"
+  , Option ['o'] ["output-name"]    (ReqArg Name "NAME") "output name"
   ]
 
 header = "Usage: Machine [OPTION...] FILE.red"
@@ -35,6 +37,7 @@ run flags fileName =
   do contents <- readFile fileName
      let prog = map read (lines contents)
      let code = bytecode prog
+     let outName = head [n | Name n <- flags ++ [Name "Reduceron"]]
      when (null flags) $ putStrLn (usageInfo header options)
      when (Simulate `elem` flags) $
 --     mapM_ print $ take 620 $ simRecipe2 (newReduceron code) dispatch
@@ -48,7 +51,7 @@ run flags fileName =
        --print $ simRecipe (newReduceron code) dispatch (Heap.size . heap)
      when (Generate `elem` flags) $
        let (r, fin) = recipe (newReduceron code) dispatch (delay high low)
-       in  writeVhdl "Reduceron"
+       in  writeVhdl outName
                      --(r.result.val, fin)
                      --(nameWord "result", name "finish")
                      (r.result.val, r.state, r.heap.Heap.size,
@@ -59,7 +62,7 @@ run flags fileName =
                       name "finish")
      when (GenVerilog `elem` flags) $
        let (r, fin) = recipe (newReduceron code) dispatch (delay high low)
-       in  writeVerilog "Reduceron"
+       in  writeVerilog2 outName "Reduceron"
                      (r.result.val, r.state, r.heap.Heap.size,
                       r.ioAddr.val, r.ioWrite.val, r.ioRead.val, r.ioWriteData.val,
                       -- r.ioReadData.val, r.ioWait.val,
@@ -70,6 +73,6 @@ run flags fileName =
                       name "finish")
      when (GenC `elem` flags) $
        let (r, fin) = recipe (newReduceron code) dispatch (delay high low)
-       in  writeC "Reduceron"
+       in  writeC outName
                      (r.result.val, fin)
                      (nameWord "result", name "done")
