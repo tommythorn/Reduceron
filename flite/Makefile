@@ -1,3 +1,3 @@
 dist/build/Flite/flite.always:
 	cabal configure
-	cabal -j8 build
+	cabal -j build
