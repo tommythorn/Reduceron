@@ -1,0 +1,42 @@
+===================================================
+REDUCERON MEMO 5
+Recursive nested-case function bodies and in-lining
+Colin R, 17 November
+===================================================
+
+The technique of inlining the top-level case-analysis part of a
+function into the functions for recursive alternatives seems to work
+well for single-level case-analysis of a single argument.  But what
+about nested cases?
+
+Consider zipWith.  If the source definition is
+
+  zipWith f xs ys =
+    case xs of
+    Nil        -> Nil
+    Cons x xs' -> case ys of
+                  Nil        -> Nil
+                  Cons y ys' -> Cons (f x y) (zipWith f xs' ys')
+
+the result of initial simple compilation is
+
+  zipWith f xs ys = xs Nil (zipWith' f ys)
+  zipWith' f ys x xs' = ys Nil (zipWith'' f x xs')
+  zipWith'' f x xs' y ys' = Cons (f x y) (zipWith f xs' ys') .
+
+We can in-line the zipWith application in zipWith'':
+
+  zipWith'' f x xs' y ys' = Cons (f x y) (xs' Nil (zipWith' f ys'))
+
+But if our goal is a single directly recursive residue of zipWith we seem
+to be stuck.  We can neither in-line the partial application of zipWith'
+in zipWith'' nor vice versa.
+
+The only other improvement seems to be head reduction in zipWith'',
+as in Memo 3.
+
+  zipWith'' f x xs' y ys' n c = c (f x y) (xs' Nil (zipWith' f ys'))
+
+Perhaps having two mutually recursive functions is inevitable when
+traversing two list arguments in the continuation-cons style.
+

@@ -1,0 +1,243 @@
+===================================
+REDUCERON MEMO 13 (Subsumes Memo 6)
+Compiling case expressions
+Matthew N, 8 January 2009
+===================================
+
+We consider case-elimination, a transformation that removes data
+constructors and case expressions from a program.  We observe three
+weaknesses, and propose a new transformation in which these weaknesses
+are removed.  The new version has a weakness of its own, but it also
+opens up a new possibility: the selection of a case alternative in
+zero clock-cycles.
+
+Standard case-elimination
+-------------------------
+
+Case expressions can be removed by defining data constructors as
+functions and transforming case expressions to function applications.
+Specifically, for each constructor 'c_i' of a data type with 'n'
+constructors, a function definition 
+
+  c_i v_1 .. v_(#c_i) w_1 .. w_n = w_i v_1 v_(#c_i)
+
+is introduced, where '#c' denotes the arity of the constructor 'c'.
+Now case expressions of the form
+
+  case e of
+    c_1 v_1 .. v_(#c_1) -> e_1
+    ..
+    c_n v_1 .. v_(#c_n) -> e_n
+
+are transformed to
+
+  e (\v_1 .. v_(#c_1) -> e_1)
+    ..
+    (\v_1 .. v_(#c_n) -> e_n)
+
+Even the lambda expressions can be eliminated by introducing a
+function for each alternative
+
+  alt_1 x_1_1 .. x_1_* v_1 .. v_(#c_1) = e_1
+  ..
+  alt_n x_n_1 .. x_n_* v_1 .. v_(#c_n) = e_n
+
+and transforming the case expression to
+
+  e (alt_1 x_1_1 .. x_1_*) .. (alt_n x_n_1 .. x_n_*)
+
+where 'x_i_1 .. x_i_*' are the non-pattern-bound variables in occurring
+in 'e_i'.  The resulting programs contain no data constructors, no
+case expressions, and no lambda expressions (assuming they had no
+lambda expressions to begin with).  Functional language implementors
+now only need to worry about how to do function application
+efficiently.
+
+EXAMPLE 1. The standard definition of list concatenation,
+
+  append xs ys =
+    case xs of
+      Nil -> ys
+      Cons x xs -> Cons x (append xs ys)
+
+is transformed to
+
+  Nil n c = n
+  Cons x xs n c = c x xs
+  append xs ys = xs ys (consCase ys)
+  consCase ys x xs = Cons x (append xs ys)
+
+A new function does not need to be introduced for the nil case because
+the data constructor 'Nil' has no arguments.
+
+EXAMPLE 2. Given the data type
+
+  data Exp = X | Y | Neg Exp | Add Exp Exp | Sub Exp Exp
+
+the evaluator,
+
+  eval x y X = x
+  eval x y Y = y
+  eval x y (Neg n) = 0 - eval x y n
+  eval x y (Add n m) = eval x y n + eval x y m
+  eval x y (Sub n m) = eval x y n - eval x y m
+
+is transformed to
+
+  X x y neg add sub = x
+  Y x y neg add sub = y
+  Neg n m x neg add sub = neg n
+  Add n m x y neg add sub = add n m
+  Sub n m x y neg add sub = sub n m
+  eval x y e = e x y (negAlt x y) (addAlt x y) (subAlt x y)
+  negAlt x y n = 0 - eval x y n
+  addAlt x y n m = eval x y n + eval x y m
+  subAlt x y n m = eval x y n - eval x y m
+
+Weaknesses
+----------
+
+We have three main complaints about the above transformation.
+
+1. Linear variables may become non-linear.  Look at the definition of
+'append' in Example 1; originally, it is clearly linear in 'ys', but
+not after the transformation is performed.  Although 'append' passes
+'ys' down to both case alternatives, we know that only one case
+alternative will be chosen at run-time.  This knowledge is lost by the
+transformation.
+
+2. The same value may be written onto the heap many times.  We have
+just seen that if a variable is referenced in more than one case
+alternative, then it is passed down to each one separately.  Look at
+the definition of 'eval' in Example 2; 'x' and 'y' are each referenced
+four times in the right-hand-side.  It takes time to write these
+values onto the heap, space to store them, and more time to unwind
+them onto the stack when there are needed.
+
+3. Case alternatives are pushed onto the stack.  Look at the
+definition of 'eval' in Example 2; the spine contains a 6-node
+application.  It takes time to write such a long application
+(containing the case alternatives) onto the stack, and stack space to
+store it.
+
+The new approach
+----------------
+
+For the case alternatives, let us instead introduce the functions
+
+  alt_1 v_1 .. v_(#c_1) alts x_1 .. x_m = e_1
+  ..
+  alt_n v_1 .. v_(#c_n) alts x_1 .. x_m = e_n
+
+and transform case expressions to
+
+  e alts x_1 .. x_m
+
+where 'x_1 .. x_m' is the union of all the non-pattern-bound variables
+in occurring in each 'e_i' and 'alts' is the lookup table defined by
+
+  alts = [| alt_1, .., alt_n |]
+
+When a constructor 'c_i' appears on top of the stack 's', it is
+reduced to
+
+  s[sp+#c_i][i]
+
+assuming the stack 's' grows from index 0 onwards and 'sp' is the
+index of the top stack element. (Recall that '#c' denotes the arity of
+the constructor 'c'.)
+
+EXAMPLE 1 (REVISITED). The definition of 'append' is now transformed to
+
+  append xs ys = xs appendAlts ys
+  appendAlts = [| nilCase, consCase |]
+  nilCase alts ys = ys
+  consCase x xs alts ys = Cons x (append xs ys)
+
+EXAMPLE 2 (REVISITED).  The definition of 'eval' is now transformed to
+
+  eval x y e = e evalAlts x y
+  evalAlts = [| xCase, yCase, negCase, addCase, subCase |]
+  xCase x y alts = x
+  yCase x y alts = y
+  negCase x y alts n = 0 - eval x y n
+  addCase x y alts n m = eval x y n + eval x y m
+  subCase x y alts n m = eval x y n - eval x y m
+
+Comparison
+----------
+
+The new approach removes the three weaknesses of the old one.
+
+1. Linear variables remain linear.  All the variables needed in the
+case alternatives are pushed onto the stack once, and the case
+alternative simply picks out the variables it requires.  Look at the
+definition of 'append'; it refers to 'ys' once.
+
+2. The same variable is no longer written onto the heap once for each
+case alternative that refers to it.  Look at the definition of 'eval';
+it refers to 'x' and 'y' once.  Also, no unwinding is needed when
+fetching a case alternative.
+
+3. Each case alternative is no longer pushed onto the stack.  The case
+alternatives are stored in the 'alts' table (for example, see
+'evalAlts'), and are never written to the stack or the heap.
+
+There are also some potential drawbacks.
+
+1. The biggest drawback is that functions are introduced even for case
+alternatives that have no pattern-bound variables.  Look at 'xCase'
+and 'yCase' in the definition of 'eval'.  It will take time to apply
+these functions, which aren't introduced in the original
+transformation.
+
+2. The new approach requires new evaluation machinery, namely the
+special treatment of constructors.  A double array lookup is not a big
+implementation challenge, but still, the obvious implementation of a
+double array lookup consumes two clock cycles.  Can we do better?  The
+next section suggests that it can be done in zero cycles.
+
+Zero-cycle case selection
+-------------------------
+
+Recall that when a constructor 'c_i' appears on top of the stack 's',
+it is reduced to
+
+  s[sp+#c_i][i]
+
+Here we essentially have a double indirection to follow:
+
+  1. Determine the address of the lookup table for the case
+     alternatives by indexing the stack.
+
+  2. Determine the address of the appropriate case alternative by
+     indexing the lookup table.
+
+Each of these steps consumes a clock-cycle.
+
+First observe that the second indirection can be removed.  Instead of
+storing a lookup table of code addresses (for the case alternatives),
+we can align the case alternatives in code memory so that the
+Reduceron can jump straight to appropriate code.  However, case
+alternatives may have different body sizes, so we must either:
+
+  1. Require that all the case alternatives occupy the same amount of
+     space in code memory, or
+
+  2. Put 'next' pointers at appropriate places in code memory.  At the
+     moment the Reduceron reads the next block of nodes from code memory
+     while instantiating the current block; the only difference
+     would be that 'next' is not 'address of current block+1' but
+     'whatever the current block states next is'.
+
+The reason for the first indirection is that the address of the lookup
+table must come after the data construction.  As different
+constructors have different arities, the constructor must be known
+before the offset of the lookup table on the stack can be determined.
+One way to remove this indirection is to introduce a new stack, let's
+call it the LUT stack, for storing the addresses of the lookup tables.
+Since we always have the top of LUT stack to hand, we don't need to
+index the main stack anymore.  Now when a constructor 'c_i' appears on
+top of the main stack, it can be reduced to the code address 'lut+i'
+where 'lut' is the value on top of the LUT stack.  Such a simple
+addition can be performed without consuming any clock-cycles.

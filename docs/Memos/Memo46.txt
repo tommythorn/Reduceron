@@ -1,0 +1,66 @@
+===============================
+REDUCERON MEMO 46 (IN PROGRESS)
+Checking for a fixed-point
+using needed narrowing
+Matthew N, 8 December 2009
+===============================
+
+In Chapter 22 of "The Implementation of Functional Programming
+Languages", Peyton Jones outlines a basic strictness analyser which
+uses abstract interpretation.  In abstract interpretation, every
+function f in a program is lifted to an abstract version f#
+
+  f# x1 ... xn = e
+
+where e is an expression whose type is the two-point domain {0,1};
+0 denotes "does not terminate" and 1 denotes "may terminate".
+Strictness of function f in parameter xi can be determined by
+evaluating f# with 0 passed in for xi and 1 passed in for all other
+parameters.
+
+A problem arises when f is a recursive function
+
+  f x1 ... xn = ... f ...
+
+because then f# is also recursive.  If the compiler wishes to
+determine the strictness of f, it may never terminate!
+
+The solution is to pick a non-recursive function f#i from the set
+
+  f#0 x1 ... xn = 0
+  f#1 x1 ... xn = ... f#0 ...
+  f#2 x1 ... xn = ... f#1 ...
+  f#3 x1 ... xn = ... f#2 ...
+  ...
+
+where
+
+  f#i x1 ... xn = f#i+1 x1 ... xn
+
+for any x1 ... xn.  The function f#i is called the fixed-point of f#.
+It can be computed in finite time since x1 ... xn have finite domains
+and can be enumerated exhaustively.
+
+Computable yes, but the fixed-point check is exponentially expensive in
+the number of function arguments, and according to Hudak this is
+necessarily the case.  On the bright side, Peyton Jones reports that
+rapid convergence is typical, and that heuristics can be used to
+handle common cases very efficiently.  Still, the check feels very
+expensive.
+
+I suspect there is a great deal to be gained by implementing the
+abstract interpeter using the needed-narrowing evaluation strategy, as
+opposed to lazy evaluation or eager evaluation.  That is, to determine
+if f#i is a fixed point, simply evaluatate the expression
+
+  f#i x1 ... xn  /=  f#i+1 x1 ... xn
+
+by needed narrowing where x1 ... xn are unbound logical variables.  If
+no solution is found, f#i is a fixed-point.  Needed narrowing should
+be very effective at pruning the search space because the bodies of
+f#i and f#i+1 are basically large compositions of conjunctions and
+disjunctions over values in the abstract domain {0,1}.  As such, they
+are likely to be lazy - often yielding results without demanding all
+of the arguments.
+
+To be continued...

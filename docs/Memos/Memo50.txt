@@ -1,0 +1,569 @@
+========================================
+REDUCERON MEMO 50
+Finding and increasing PRS candidates
+Colin Runciman
+(post-implementation version)
+23 June 2010
+========================================
+
+When PRS was first proposed, in Memo 8, the closing paragraphs suggested
+that PRS candidates could be determined statically.  The idea was
+first to determine by iterative analysis which arguments are always
+passed as primitive values, then to use that information to identify
+PRS expressions.
+
+However, the current PRS implementation detects primitive redexes
+dynamically.  A dynamic solution seemed more in keeping with the Reduceron
+approach, and it avoided the complication of a compile-time analysis.
+
+The dynamic scheme does work well in many respects, but it has drawbacks.
+Expressions still have to be identified at compile-time as *possible*
+PRS candidates. For such candidates, PRS register slots are reserved.
+But then at run-time, some candidate primitive applications may turn
+out not to be redexes after all: so these slots are wasted, and the
+fall-back mechanism to construct the primitive application for normal
+evaluation is quite costly.
+
+In this memo, I pick up the thread from memo 8 and propose a static
+analysis of programs to determine *guaranteed* PRS instances.
+The proposed method uses an abstraction for the degree of evaluation
+of algebraic data, so that PRS opportunities can often be detected even
+when argument values are components of larger structures. The analysis
+procedure also increases the opportunities for PRS by *cloning* functions
+of which some but not all applications give rise to PRS opportunities.
+However, the method set out here does not extend to higher-order programs;
+I plan to address that extension in a subsequent memo.
+
+An Example
+----------
+
+Consider the following F-lite program.
+
+01 sumRange m n = sum (range m n) ;
+
+03 range m n = case (<=) m n of {
+04             True -> Cons m (range ((+) m 1) n) ;
+05             False -> Nil ;
+06             } ;
+
+08 sum xs = sumInto 0 xs ;
+
+10 sumInto a xs = case xs of {
+11                Nil -> a ;
+12                Cons y ys -> sumInto ((+) a y) ys ;
+13                } ;
+
+Assume that the program as a whole is identified with the sumRange
+function, and that literal values for m and n are supplied as input.
+Here's how we might reason informally about whether the primitive
+applications of (<=) on line 03, and of (+) on lines 04 and 12, can be
+evaluated by PRS.
+
+- In the call of range on line 01, m and n are values.  Now if m is
+  a value, then under PRS the (+) m 1 application on line 04 can be
+  evaluated speculatively, providing a value result as the first argument
+  in the recursive call of range. So under PRS *all* calls of range have
+  value arguments. So the applications of (<=) and (+) in its body can
+  both be evaluated by PRS.
+
+- The *result* of range is a list of integers.  The only Cons application
+  used to build this list, on line 04, has m as its first argument.
+  As we have seen, m is always bound to a value.  So every application
+  of range is a "valuable" list: if it is lazily evaluated to Cons y ys
+  then y is a value and ys is valuable.
+
+- So the argument to sum is valuable.  When sumInto is called from sum,
+  a is a value and xs is valuable. Therefore, in the Cons alternative
+  on line 12, both a and y are values, and (+) a y is a PRS candidate.
+  That means the first argument in the recursive call of sumInto is a
+  value and the second is valuable, and *every* instance of (+) a y will
+  be a PRS candidate.
+
+So it turns out that in this example *all three* primitive applications,
+on lines 03, 04 and 12, can be marked for PRS evaluation.
+
+Formulating the analysis
+------------------------
+
+Let's now formulate the analysis we have just conducted informally for
+the sumRange example.
+
+For now, I shall assume *first-order* programs with non-recursive local
+definitions.So the syntax of programs is as follows:
+
+p ::= d*             -- 1st d is the main function;
+
+d ::= f v* = e       -- single-equation definition;
+
+e ::= n              -- number;
+    | v              -- variable;
+    | p e1 e2        -- saturated primitive binary application;
+    | c e*           -- saturated construction;
+    | f e*           -- saturated application of named function;
+    | case e of a*   -- case with exhaustive alternatives;
+    | let b in e     -- local definition with no shadowing or recursion;
+
+a ::= c v* -> e      -- alternative with flat pattern and no shadowing;
+
+b ::= v = e          -- non-recursive local binding.
+
+type oracles and $ annotations
+------------------------------
+
+In some places the analysis needs to know whether an expression is
+definitely of some (unspecified) algebraic data type.  I assume a *type
+oracle* in the form of a predicate isAlg.  (See appendix for one
+way to provide this oracle, without doing full type inference.)
+
+I shall use a $ annotation to indicate *valuable* expressions $e or
+variables $v.  These $-annotations are introduced to represent the
+results of analysis.
+
+An annotation $e asserts that e is *valuable*:
+
+(1) if e is integer then under PRS every instance of e during a run
+    of the program is an integer value;
+(2) if isAlg e then every instance of e when lazily evaluated to an
+    outermost construction has only valuable arguments.
+
+Valuable annotations are idempotent: $($e) = $e.
+
+It will be convenient to have a predicate isVal that is true of a variable
+or expression exactly if it is $-annotated.
+
+When a program defines a function f, during analysis there may be
+distinct variants of f with argument variables differently $-annotated.
+Looking at the definitions, the variation is immediately apparent:
+
+plus $m $n = ...
+
+plus  m  n = ...
+
+When referring to plus itself, where convenient the pattern of variable
+annotations will be added as a suffix, with ? indicating no annotation.
+So the two plus variants above may be referred to as plus$$ and plus??.
+
+Outline of the analysis process
+-------------------------------
+
+The analysis applies to a *pool* of $-annotated variants of definitions
+in the program.
+
+The pool initially contains just one definition.  It is the first
+definition in the program -- the main function -- with each argument
+variable $-annotated.
+
+The process of analysis introduces (1) additional $-annotations and (2)
+additional definitions.
+
+The analysis involves the application of three distinct "passes":
+
+* The F pass propagates $-annotations Forwards from binding to
+  applied occurrences of variables.
+
+* The B pass propagates $-annotations Backwards from expressions
+  to bindings, and also outwards from subexpressions to containing
+  expressions; another output from the B pass is a set of
+  requests for additional definitions to be added to the pool.
+
+* The D pass is so-called because it is applied to strong
+  components of the Dependency graph between definitions in the
+  pool (in non-descending order) -- its purpose is to detect
+  and exploit valuable algebraic *results* of defined functions.
+
+As we shall see the D "pass" is a bit of a misnomer, because it may
+recursively invoke the entire analysis!
+
+The F pass
+----------
+
+The F pass is fairly straightforward.  It takes a pool of definitions
+as input and returns the same definitions, but with applied occurrences
+$-annotated to match binding occurrences. The auxiliary parameter V is
+a set of variables to be $-annotated.
+
+F [ds]                 = F* [ds]
+
+F [f vs = e]           = f vs = F_V [e]
+                         where
+                         V = {v | v in vs, isVal v}
+
+F_V [n]                = n
+F_V [v]                = if v in V then $v else v
+F_V [p e1 e2]          = p (F_V [e1]) (F_V [e2])
+F_V [c es]             = c (F_V* [es])
+F_V [f es]             = f (F_V* [es])
+F_V [case e of as]     = case F_V[e] of F_V* [as]
+F_V [let v = e1 in e2] = let v = F_V[e1] in F_V'[e2]
+                         where
+                         V' = V union {v | isVal v}
+
+F_V [c vs -> e]        = c vs -> F_V' [e]
+                         where
+                         V' = V union {v | v in vs, isVal v}
+
+The B pass
+----------
+
+The B pass also takes a pool of definitions as input, but its output is a
+pair of things: (1) the same pool of definitions, but with $-annotations
+propagated where the rules allow, and (2) a set of applications for
+which no matching definition was found in the pool.
+
+In support of (2), the pool of definitions is made an explicit parameter.
+An auxiliary maybeDefnOf ds f es searches the pool of definitions ds for a
+variant of function f with $-annotations matching those of the argument
+list es.  The result may be Nothing or Just a matching definition.
+An auxiliary reqMerge combines two lists of applications for which new
+declarations are requested, to avoid duplicate requests.
+
+B [ds]                  = ( ds' , rqs )
+                          where
+                          (ds',rqss) = unzip ((B_ds)* [ds])
+                          rqs        = foldr reqMerge empty rqss
+
+B_ds [f vs = e]         = ( f vs = e' , rqs )
+                          where
+                          (e',rqs)   = B_ds [e] 
+
+B_ds [n]                = ( $n , [] )
+B_ds [v]                = ( v , [])
+B_ds [p e1 e2]          = ( if isVal e1' and isVal e2' then $e' else e'
+                          , reqMerge rqs1 rqs2 )
+                          where
+                          (e1',rqs1) = B_ds [e1]
+                          (e2',rqs2) = B_ds [e2]
+                          e'         = p e1' e2'
+B_ds [c es]             = ( if all isVal es' then $(c es') else c es'
+                          , rqs )
+                          where
+                          (es',rqss) = unzip ((B_ds)* [es])
+                          rqs        = foldr reqMerge empty rqss
+B_ds [f es]             = case md of
+                          Nothing -> (e', e':rqs) 
+                          Just [f args body] ->
+                            if isAlg body && isVal body then ($e', rqs)
+                            else (e', rqs)
+                          where
+                          (es',rqss) = unzip ((B_ds)* [es])
+                          rqs        = foldr reqMerge empty rqss
+                          md         = maybeDefnOf ds f es'
+                          e'         = f es'
+B_ds [case e1 of as]    = ( if all isVal (rhs* as') && isAlg e' then $e'
+                            else e'
+                          , rqs )
+                          where
+                          (e1',rqs1) = B_ds [e1]
+                          (as',rqss) = unzip (B_ds_(isVal e1')* [as])
+                          e'         = case e1' of as'
+                          rqs        = foldr reqMerge rqs1 rqss
+B_ds [let v = e1 in e2] = ( passVal e2' e'
+                          , union rqs1 rqs2 )
+                          where
+                          (e1',rqs1) = B_ds [e1]
+                          (e2',rqs2) = B_ds [e2]
+                          v'         = passVal e1' v
+                          e'         = let v' = e1' in e2'
+
+B_ds_q [c vs -> e]      = ( c vs' -> e' , rqs )
+                          where
+                          vs' = if q then $* vs else vs
+                          (e',rqs) = B ds [e]
+
+The D pass
+----------
+
+The D pass is applied to the list of strong-components in the dependency
+graph of function definitions in a pool P, where components are listed
+in non-descending order.
+
+(1) If the first component C contains only a single non-recursive
+    definition, OR
+    if every algebraically-typed body of a definition in C is
+    already annotated, OR
+    if every algebraically-typed application in C of a definition
+    also in C is already $-annotated THEN
+    proceed to consider the next component (if any).
+
+Otherwise:
+
+(2) Make a temporary pool P' containing a copy of all definitions in C
+    or components below it in the dependency ordering.  In P' $-annotate
+    every algebraically-typed application of a function defined in C.
+
+(3) Apply the entire analysis method to the pool P'.
+
+(4) If *all* the definitions of functions originally defined in C, with
+    algebraic bodies, now have $-annotated bodies in P':
+   (4a) add P' to P, over-riding any existing definitions of the
+        same functions;
+   (4b) apply the analysis method to the amended pool P.
+
+Otherwise:
+
+(5) Consider the next component, if any.
+
+Analysis functions defined
+--------------------------
+
+PRSanalyse :: [Def] -> [Def]
+PRSanalyse prog = valuable prog [f ($* vs) = e]
+  where
+  (f vs = e) = head prog
+
+valuable :: [Def] -> [Def] -> [Def]
+valuable prog pool = passD prog pool'
+  where
+  (pool',[]) = fixFrom (forwardAndBack prog) (pool,[])
+
+forwardAndBack :: [Def] -> ([Def],[Req]) -> ([Def],[Req])
+forwardAndBack prog (pool,reqs) = 
+  passB (passF pool')
+  where
+  defs  = map (variant prog) reqs
+  pool' = defs ++ pool
+
+Example revisited
+-----------------
+
+Recalling the sumRange example, the initial pool contains just:
+
+  sumRange $m $n = sum (range m n) ;
+
+Apply forwardAndBack.  Only forward propagation has any effect on the
+single definition in the pool
+
+  sumRange $m $n = sum (range $m $n) ;
+
+but backward propagation issues requests for range$$ and sum?.  After a
+further iteration of forwardAndBack the pool contains
+
+  sumRange $m $n = sum (range $m $n) ;
+
+  range $m $n = case $((<=) $m $n) of {
+                True -> Cons $m (range $((+) $m $1) $n) ;
+                False -> $Nil ;
+                } ;
+
+  sum xs = sumInto $0 xs ;
+
+with  both primitive applications in range$$ $-annotated, indicating
+that they can be evaluated by PRS.  There is a request for  sumInto$?.
+
+In a further two applications of forwardAndBack, the pool is extended
+by the addition of both sumInto$? and sumInto??. 
+
+sumInto $a xs = case xs of {
+                Nil -> $a ;
+                Cons y ys -> sumInto ((+) $a y) ys ;
+                } ;
+
+sumInto a xs = case xs of {
+               Nil -> a ;
+               Cons y ys -> sumInto ((+) a y) ys ;
+               } ;
+
+A fixpoint of forwardAndBack has been reached.
+
+The call-graph of the definitions in the pool is as follows:
+
+    sumRange$$
+    |      |      
+  sum?     range$$ --
+   |            |    |
+  sumInto$?      ----
+   |
+  sumInto??--
+        |    |
+         ----
+
+Applying the D pass, the first component {sumInto??} fails the condition
+at step (4), as does {sumInto$?}.  The component {sum?} is skipped at step
+(1).
+
+However, for the component {range$$} the following refined definition
+is obtained.
+
+  range $m $n = $(case $((<=) $m $n) of {
+                  True -> $(Cons $m $(range $((+) $m $1) $n)) ;
+                  False -> $Nil ;
+                  }) ;
+
+The temporary pool P' contains just this definition.  It is unchanged by
+application of valuable, and it now replaces the previous version of
+range$$ in the pool P.
+
+Reapplying the analysis to the amended pool P, forwardAndBack yields
+the following refinement of sumRange$$
+
+  sumRange $m $n = sum $(range $m $n) ;
+
+and a request for a new variant sum$.  Applying forwardAndBack once more
+the sum$$ definition becomes
+
+  sum $xs = sumInto $0 $xs ;
+
+with a request for sumInto$$.  Finally forwardAndBack refines sumInto$$
+as follows
+
+  sumInto $a $xs = case $xs of {
+                   Nil -> $a ;
+                   Cons $y $ys -> sumInto $((+) $a $y) $ys ;
+                   } ;
+
+and so the third and final primitive application in the program is
+$-annotated for evaluation by PRS.
+
+A fixpoint is reached and the analysis concludes.  The three definitions
+sum?, sumInto$? and sumInto?? are no longer reachable from sumRange$$,
+so they can be discarded.
+
+Conclusions and Further Work
+----------------------------
+
+* I described this analysis problem, and a sketch of the possible analysis
+  method, to John Hughes.  He pointed out that a type-based analysis
+  (cf. boxed and unboxed integers) would give more accurate results.
+  He may be right.  However, the property of being a valuable integer
+  does not transfer from the body of f to an application of f.  It might
+  also be harder to extract the variations, and the type-distinctions
+  might be *too* refined, generating too many variations.
+
+* It remains to deal with higher-order functions and with recursive
+  lets.  One approach to higher-order functions is to specialize them
+  to first-order variants wherever that is straightforward, and to
+  approximate wildly where it isn't.  Recursive lets could be tamed by
+  a simplified version of the D pass.
+
+* Concerning efficiency, I claim only that the method terminates --
+  essentially because there are finitely many $-annotations and variant
+  definitions.  By maintaining dependency information, one could do
+  better than re-application of passes, or even the complete analysis
+  procedure, to an entire pool of definitions.
+
+* No strictness analysis has been used, but strictness information might
+  be a useful way to improve the results obtained.  For example, even
+  with no prior value annotation on variables m and n the primitive
+  subtractions in
+
+  case (<=) m n of {
+  False -> (-) m n ;
+  True  -> (-) n m ;
+  }
+
+  might be marked for PRS evaluation.  (If each alternative becomes
+  a function over arguments m and n, both must already be evaluated
+  in view of the strict context of the (<=) comparison.)
+
+* Concerning the application to the Reduceron, there are three issues
+  that may need further thought. (1) The analysis places no bound on
+  the number of PRS-evaluated expressions in a function body, and
+  it assumes that every $-annotated primitive application will be
+  evaluated by PRS. (2) There is no distinction between "unboxed"
+  integer values, directly available on the stack or in registers, and
+  "boxed" values that are at the other end of a heap reference.
+  (3) Is there a way to support the in-principle extension to apply
+  PRS on the basis of a strict evaluation context for arguments?
+
+APPENDIX: a poor-man's type oracle
+----------------------------------
+
+Let the @ annotation of an expression e mean that e is known to be of
+algebraic type.  Here are two passes for introducing @ annotations,
+to be applied iteratively until a fixpoint is reached.  The predicate
+isAlg e is true exactly if e is @-annotated.
+
+The A-pass (for Ana-pass) propagates annotations upwards and outwards,
+from expressions to parents and from applied occurrences to bindings.
+The C-pass (for Cata-pass) propagates information downwards and inwards
+from expressions to children and from bindings to applied occurrences.
+
+The A-pass rules assume an auxiliaries liftAlg e v that @-annotates v if
+any applied occurrence of it in e is @-annotated.
+
+liftAlg e v = if anyAlg e v then @v else v
+
+anyAlg [n]                 v = False
+anyAlg [v']                v = v==v' && isAlg v'
+anyAlg [p e1 e2]           v = anyAlg e1 v || anyAlg e2 v
+anyAlg [c es]              v = any (flip anyAlg v) es
+anyAlg [f es]              v = any (flip anyAlg v) es
+anyAlg [case e of as]      v = anyAlg e v || any (flip anyAlg v . rhs) as
+anyAlg [let v' = e1 in e2] v = anyAlg e1 v || anyAlg e2 v 
+
+The auxiliary passAlg is also useful:
+
+passAlg e1 e2 = if isAlg e1 then @e2 else e2
+
+A [ds]               = A* [ds]
+
+A [f vs = e]         = f vs' = e'
+                       where
+                       vs' = (liftAlg e')* vs
+                       e'  = A [e]
+
+A [n]                = n
+A [v]                = v
+A [p e1 e2]          = p (A [e1]) (A [e2])
+A [c es]             = c (A* [es])
+A [f es]             = f (A* [es])
+A [case e of as]     = if any isAlg (rhs* as') then @e' else e'
+                       where
+                       as' = A* [as]
+                       e'  = case @(A [e]) of as'
+A [let v = e1 in e2] = passAlg e2' e'
+                       where
+                       e1' = A [e1]
+                       e2' = A [e2]
+                       v'  = if isAlg e1' then @v else liftAlg e2' v
+                       e'  = let v' = e1' in e2'
+
+A [c vs -> e]        = c vs' -> e'
+                       where
+                       e'  = A [e]
+                       vs' = (liftAlg e')* vs
+
+The C pass uses as auxiliary information the top-level definitions and
+the variables in scope.  It assumes an auxiliary definitionOf to lookup
+the definition of a named function.
+
+Here are the rules.
+
+C [ds]                        = C_ds* [ds]
+
+C_ds [f vs = e]               = f vs = C_ds_V [e]
+                                where
+                                V = {v | v in vs, isAlg v}
+
+C_ds_V [n]                    = n
+C_ds_V [v]                    = if v in V then @v else v
+C_ds_V [p e1 e2]              = p (C_ds_V [e1]) (C_ds_V [e2])
+C_ds_V [c es]                 = @(c (C_ds_V* [es]))
+C_ds_V [f es]                 = if isAlg rhs df then @e' else e'
+                                where
+                                (f vs = rhs) = definitionOf f ds
+                                e' = f ((C_ds_V* . zipWith bindAlg vs) [es])
+C_ds_V (e=[case e1 of as])    = case @(C_ds_V [e1]) of as'
+                                where
+                                as' = C_ds_V_e* as 
+C_ds_V (e=[let v = e1 in e2]) = let v = C_ds_V' [e1] in
+                                C_ds_V' (passAlg e e2)
+                                where
+                                V' = V union {v | isAlg v}
+
+C_ds_V_e0 [c vs -> e1]        = c vs -> C_ds_V' (passAlg e0 e1)
+                                where
+                                V' = V union {v | v in vs, isAlg v}
+
+The approach here is conservative so far as polymorphism is concerned.
+A polymorphic function may *sometimes* be applied to an argument of
+algebraic type, and it may *sometimes* return a data structure.  But
+@-annotation indicates that *every* instance of the expression will
+be of algebraic type.  So the above rules propagate @-annotations from
+function definitions to applied occurrences, but not the other way round.
+
+An alternative approach would be to generate variants of function
+definitions for distinct @-annotations of arguments, in much the same
+way that variants are generated for distinct $-annotations.  But that
+would make programs larger, and the usefulness of the variations would
+be less immediately apparent.

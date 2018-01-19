@@ -1,0 +1,306 @@
+===========================================================
+REDUCERON MEMO 34
+Expected clock-tick run-times for flite-reduceron programs:
+a discussion based on micro-examples
+Version 2 (note revised title)
+Colin Runciman, 1 October 2009
+===========================================================
+
+As we examine the performance of the Reduceron for benchmark programs we
+naturally want to include substantial examples of symbolic computing,
+such as the Knuth-Bendix completion program that I recently added to
+our collection of test programs.
+
+However, when running a complex program, it is hard to say how many
+clock ticks we *expect* a computation to take.  We may be pleased that it
+takes fewer clock-ticks than before, or now runs faster on the Reduceron
+than when compiled using ghc! Yet we may have no clear idea whether the
+run-time in clock-ticks is now as good as we could reasonably hope for,
+or is still some way short of that ideal.
+
+Another class of benchmark tests, of complementary value, uses
+micro-examples of simple computational tasks.  Because the task is
+simple, we can more readily estimate how many clock cycles we think
+it should need.  Or, at least, we can reason about plausible lower and
+upper bounds for the number of cycles.
+
+Examples where actual computation time is well above the estimated lower
+bound may motivate and suggest improvements.  And any where it is well
+above the estimated upper bound even more so!
+
+The rest of the memo discusses three examples, then draws brief
+conclusions.  As we are currently very interested in the potential impact
+of primitive redex speculation, it will be considered as we go along.
+As "primitive redex speculation" is a weighty phrase to use repeatedly,
+I shall instead use the acronym PRS.
+
+Example 1 (list length)
+-----------------------
+
+Consider this program:
+
+{
+length  =  lengthPlus 0 ;
+ 
+lengthPlus a Nil          =  a ;
+lengthPlus a (Cons x xs)  =  lengthPlus ((+) a 1) xs ;
+
+main  =  emitInt (length "quick brown fox jumps over the lazy dog") 0 ;
+}
+
+How might the flite-reduceron programmer reason about the expected
+performance of this program?
+
+(1) The application of length will be in-lined in main.
+(2) Reducing to the correct case alternative for the 2nd argument of
+    lengthPlus will take just one cycle as even the Cons alternative
+    contains just two small applications.
+(3) The primitive applications ((+) a 1) will each require 3 cycles
+    (1 unwind, 1 swap, 1 prim). 
+(4) There are then no off-spine applications, so the recursive call
+    will take just one cycle.
+(5) A few extra cycles are needed to reduce main and emitInt.
+(6) So if the string contains N characters the computation should
+    take something like 5N+few cycles.
+(7) The test string contains 39 characters, so perhaps the program will
+    run in a bit more than 200 clock-cycles (or 1 microsecond on the
+    current Xilinx implementation).
+
+Indeed, if we compile to reduceron code by
+
+$ Flite -i1 -r6:4:2:1 stringlength.hs > stringlength.red
+
+and run stringlength.red using the C emulator, the report is as
+follows.
+
+==== EXECUTION REPORT ====
+Result      =            0
+Ticks       =          219
+Swap        =          18%
+Prim        =          18%
+Unwind      =          35%
+Update      =           0%
+Apply       =          27%
+==========================
+
+The combinator code (with the big string constant in main elided) is:
+
+length                    =  lengthPlus 0;
+lengthPlus v0 v1          =  v1 [lengthPlus#1,lengthPlus#2] v0;
+lengthPlus#1 v0 v1 v2 v3  =  v1 [lengthPlus#1,lengthPlus#2] ((+) v3 1);
+lengthPlus#2 v0 v1        =  v1;
+main                      =  emitInt (lengthPlus 0 (...))
+
+The length definition has indeed been in-lined and it is dead code.
+The core computation using lengthPlus needs 5 cycles per recursive step,
+much as expected.  it takes 1 cycle to examine the case subject, 1 to
+look up and apply the appropriate alternative (lengthPlus#1 every time
+except the last), and 3 more cycles for the primitive (+) application
+it contains (1 unwind, 1 swap, 1 prim).  The additional 20 cycles or
+so are needed to apply main, including heap instantiation of the large
+constant list of characters.
+
+When PRS is implemented, we expect the cost per (+) application to fall
+from 3 cycles to 1 cycle.  So the program will run in about 140 cycles,
+about 37% less -- an attractive speed-up!
+
+Example 2 (string comparison)
+-----------------------------
+
+Here's another program:
+
+{
+con True  x  =  x ;
+con False x  =  False ;
+
+equalStrings Nil         Nil          =  True ;
+equalStrings Nil         (Cons y ys)  =  False ;
+equalStrings (Cons x xs) Nil          =  False ;
+equalStrings (Cons x xs) (Cons y ys)  =  con ((==) x y) (equalStrings xs ys) ;
+
+bit False  =  0 ;
+bit True   =  1 ;
+
+main  =  emitInt (bit (equalStrings "quick brown fox jumps over the lazy dog"
+                                    "quick brown fox jumps over the lazy don")) 0 ;
+}
+
+This one is a bit more tricky, but here's some outline reasoning:
+
+* The applications of con and bit will be in-lined.
+* Examining the two equalStrings arguments, each as a case subject, will take
+  2 clock-cycles.
+* In the double-Cons recursive case, the reduction of the (==) application
+  without PRS will require 4 cycles (including 2 swaps because neither
+  argument is syntactically constant).
+* It will take another 1 cycle to examine the subject of the case inlined
+  from con.
+* Instantiating the recursive call alternative takes another 1 cycle.
+* So it's something like N*8 + constant, where N is around 40 and the
+  constant is roughly double the previous example (as there are two large
+  string constants rather than one).
+* In all, we might expect the program to run in around 360 clock-cycles.
+
+If we compile to Reduceron code and run it using redemu, the report
+shows that it takes rather longer than estimated:
+
+==== EXECUTION REPORT ====
+Result      =            0
+Ticks       =          471
+Swap        =          16%
+Prim        =           8%
+Unwind      =          32%
+Update      =           0%
+Apply       =          41%
+==========================
+
+It seems that there are 3 more clock cycles needed for each recursive
+step that were not included in the reasoning for estimate.  The current
+combinator code for this program, with both string constants in main
+elided, is as follows.
+
+con v0 v1                      =  v0 [con#1,con#2] v1;
+con#1 v0 v1                    =  False;
+con#2 v0 v1                    =  v1;
+equalStrings v0 v1             =  v0 [equalStrings#5,equalStrings#6] v1;
+equalStrings#1 v0 v1 v2 v3 v4  =  (==) v3 v0 [con#1,con#2]
+                                             (v [equalStrings#5,equalStrings#6] v1);
+equalStrings#2 v0 v1 v2        =  False;
+equalStrings#3 v0 v1 v2        =  False;
+equalStrings#4 v0              =  True;
+equalStrings#5 v0 v1 v2 v3     =  v3 [equalStrings#1,equalStrings#2] v0 v1;
+equalStrings#6 v0 v1           =  v1 [equalStrings#3,equalStrings#4];
+bit v0                         =  v0 [bit#1,bit#2];
+bit#1 v0                       =  0;
+bit#2 v0                       =  1;
+main                           =  emitInt (... [equalStrings#5,equalStrings#6]
+                                           ... [bit#1,bit#2]) 0;
+
+The definitions of con, bit and equalStrings itself are all dead code as
+they are everywhere inlined.  In the equalStrings computation, alternative
+#1 is the common-case choice rather than #2 (and less significantly
+#5 rather than #6).  The body of equalStrings#1 is sufficiently large
+that its instantiation could account for 2 more clock cycles. Perhaps
+equalStrings#5 also takes another 1 cycle?
+
+When PRS is implemented, the (==) applications should take 1 cycle rather
+than 4, and so the total of 11 cycles per recursive step can be expected
+to fall to 8.
+
+Example 3 (nfib)
+----------------
+
+Finally, a classic example from the early days of functional-language
+implementation.  The result of nfib n is the number of nfib applications
+required to compute it.  Also, nfib n = 2 * fib n - 1.
+
+{
+nfib n  =  case (<=) n 1 of {
+           True  -> 1 ;
+           False -> (+) 1 ((+) (nfib ((-) n 2)) (nfib ((-) n 1))) ;
+           } ;
+main    =  emitInt (nfib 20) ;
+}
+
+The result of nfib 20 is 21891.  In nfib applications involved, the True
+alternative is taken 10946 times, and the False alternative 10945 times.
+So what preliminary estimate of the number of clock-cycles can we make?
+
+* For each nfib call we need 1 cycle to unwind it (never in spine
+  position) and 1 to instantiate it (small enough with case alternatives
+  split off).  Then there's 2 further cycles (1 swap, 1 prim) to evaluate
+  the (<=) comparison at the top of the spine, and another 1 cycle to
+  dispatch on it as the case subject.
+
+* In 10946 calls there is no further cost.
+
+* In 10945 calls there is the cost of instantiating a large body: perhaps
+  as much as 5 clock cycles if primitives applications are handled one
+  argument at a time.
+
+* Then in these same calls, there is the cost of 3 cycles for each of
+  the two subtractions, 4 cycles for the inner (+) and 3 cycles for the
+  outer one.  That's 13 cycles for primitive arithmetic!
+
+* So in all we have 21891 * 5 + 10945 * 18 = 306465 cycles plus a few
+  more for evaluation of main.  The total should be around 306470.
+
+Compiling with Flite and running using redemu as before, we find
+this preliminary estimate is not far out, but once again it is an
+underestimate:
+
+==== EXECUTION REPORT ====
+Result      =            0
+Ticks       =       339298
+Swap        =          22%
+Prim        =          19%
+Unwind      =          32%
+Update      =           6%
+Apply       =          19%
+==========================
+
+The combinator code for this program, compiled with -i1, is as follows:
+
+nfib v0       =  (<=) v0 1 [nfib#1,nfib#2] v0;
+nfib#1 v0 v1  =  let { v2 = (-) v1 2; v3 = (-) v1 1 }
+                 in (+) 1 ((+) ((<=) v2 1 [nfib#1,nfib#2] v2)
+                               ((<=) v3 1 [nfib#1,nfib#2] v3));
+nfib#2 v0 v1  =  1;
+main          =  emitInt ((<=) 20 1 [nfib#1,nfib#2] 20) 0;
+
+The definition of nfib itself is dead code, and its in-lining everywhere
+is the factor that the initial estimate didn't take into account.
+The double inlining of nfib makes an even more sizable body for nfib#1
+than the estimate allowed for, accounting for another 3 cycles to build
+each instance.  Another consequence of this inlining in nfib#1 is that
+the (<=) applications are no longer in spine positions, adding another
+2 cycles each time.  These factors together add around 55000 extra
+clock cycles. The inlining of every nfib call only saves around 22000
+cycles, or perhaps 44000 cycles at most.  So right now, it seems that
+the inlining of nfib is not a win!
+
+However, consider the situation as it will be with PRS.
+
+Without nfib inlined: Each comparison takes 1 cycle rather than 2,
+and the two subtractions together take 1 cycle rather than 6.  Also,
+with the elimination of the curried (-) applications, the size of the
+instantiated body for the larger alternative drops from 10 applications
+to 6; so the number of clock cycles to form it fall from 5 to 3.  In all,
+we can expect the nfib cycle count to reduce to 21891 * 4 + 10945 * 11 =
+207959, a saving of 33%.
+
+With nfib inlined: The two (-) applications and the two (<=) applications
+in nfib#1 together take just 1 cycle rather than 12, and instantation of
+the nfib#1 body requires just 4 cycles rather than 8.  So we expect to
+avoid 10945 * 15 = 164175 cycles of work, 49% of the original run-time,
+giving an even lower final cycle count of 175123.  (That's around 17
+million "nfibs per second" with a 120MHz clock.)
+
+Conclusions
+-----------
+
+Micro-examples can be instructive.
+
+It would be nice to have a further option for the flite-reduceron
+compiler that gives brief reports on the cost of applying each combinator.
+For example, it might say "in-lined", or "clock-cycles per application
+(including primitives in body): min <m>, max <M>".
+
+For all three examples, we can expect significant gains from PRS.
+
+Even greater benefits could be obtained, in all three examples, where
+PRS gives boolean results that are case subjects.  This is a common form:
+it corresponds to conditionals, and it also results from the inlining of
+flite equivalents of (&&) and (||).  Could the primitive simplifying rules
+
+False [alt#1,alt#2] ==> alt#1
+True  [alt#1,alt#2] ==> alt#2
+
+be built-in along with the PRS machinery?  And if alt#1 or alt#2 are
+themselves True or False, could the effect be cascaded?
+
+In Examples 2 and 3, instantiation of the largest (and most frequently
+applied) bodies takes several clock cycles.  Even with PRS, instantiation
+of nfib#1 will require 4 cycles.  And these are *micro*-examples.
+Widening this bottleneck a little further could be all the more beneficial,
+in terms of the fraction of run-time saved, after PRS.

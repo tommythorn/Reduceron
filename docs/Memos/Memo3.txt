@@ -1,0 +1,128 @@
+========================================================
+REDUCERON MEMO 3
+Head reduction, arity raising and shared subexpressions
+Colin R, 17 November
+(Minor revision: mainly the part about non-linear args.)
+========================================================
+
+In the simple compiler of the Reduceron prototype case alternatives are
+split off as separate functions.  Memo 2, after discussion, concluded
+that a useful way to achieve recombination (hence widening) in many
+cases is to in-line the case distinguishing function in the recursive
+alternatives.  So we have identified originally recursive call sites in
+case alternatives as prime candidates for inlining.
+
+Basic Observation and First Example
+-----------------------------------
+
+This memo looks at another class of in-lining sites.  Consider the head
+applications (ie. the leftmost outermost applications) in each function
+body.  Wherever a *named function*, as distinct from an argument variable,
+occurs in this position, the application can be reduced. Sometimes,
+arity raising must be performed first to make this reduction possible.
+
+For example, consider the list-append function.  After simple compilation
+we obtain:
+
+  Cons x xs n c = c x xs
+
+  app xs ys = xs ys (app' ys)
+  app' ys x xs' = Cons x (app xs' ys)
+
+Now we in-line app in the recursive alternative:
+
+  app' ys x xs' = Cons x (xs ys (app' ys))
+
+With this definition, once recursion "gets going" computation is mainly
+by the directly recursive and not-too-thin app' combinator.  Apart,
+that is, from the Cons in the head position.  In order to reduce the
+Cons at compile time, we first raise the arity of app'
+
+  app' ys x xs' n c = Cons x (xs ys (app' ys)) n c
+
+then apply the Cons rule:
+
+  app' ys x xs' n c = c x (xs ys (app' ys))
+
+Shared Subexpressions
+---------------------
+
+The app function may itself occur in the head position of another
+function body.  For example, consider the concat function:
+
+  concat xss = xss Nil concat'
+  concat' xs xss' = app xs (concat xss')
+
+In-lining in the recursive alternative:
+
+  concat' xs xss' = app xs (xss' Nil concat')
+
+As app occurs in the head position, and its application is already
+saturated, it can be reduced:
+
+  concat' xs xss' = xs (xss' Nil concat') (app' (xss' Nil concat'))
+
+But look what has happened: because the app body is non-linear the
+second argument expression has been duplicated.  We know that in any
+one application of concat' only one occurrence will be evaluated,
+because xs is a projective function.  Even so a repeated subexpression
+is undesirable: it makes the body not merely wide but obese.  In addition
+to the possible extra cost of instantiation, an obese body takes up more
+space in the combinator store and increases pressure on the heap.
+
+In general, when reducing at compile-time an application of a function
+with a non-linear body, a local variable definition may need to be
+introduced to avoid repeated subexpressions.  The only purpose of such
+local definitions is to express a term-graph rather than a term-tree as
+the body:
+
+  concat' xs xss' = xs c (app' c)
+                    where
+                    c = xss' Nil concat'
+
+Another Example
+---------------
+
+This time, consider the power-list function.  We shall need as auxiliary
+the map function:
+
+  map f xs = xs Nil (map' f)
+  map' f x xs' = Cons (f x) (map f xs')
+
+In-lining in the recursive alternative:
+
+  map' f x xs' = Cons (f x) (xs' Nil (map' f))
+
+Arity raising and reducing the head application:
+
+  map' f x xs' n c = c (f x) (xs' Nil (map' f))
+          
+Now to the power-list function itself:
+
+  pow xs = xs (Cons Nil Nil) pow'
+  pow' x xs' = app p (map (Cons x) p)
+               where
+               p = pow xs'
+
+In-lining in the recursive alternative:
+
+  pow' x xs' = app p (map (Cons x) p)
+               where
+               p = xs' (Cons Nil Nil) pow'
+               
+And reducing the head application:
+
+  pow' x xs' = p ys (app' ys)
+               where
+               p = xs' (Cons Nil Nil) pow'
+               ys = map (Cons x) p
+               
+
+Other Observations
+------------------
+
+If *all* applications of a function are either in the head position or
+in recursive calls in alternatives, then all these applications can be
+reduced at compile-time and the function definition can be discarded,
+saving space in the combinator store.
+

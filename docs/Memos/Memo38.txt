@@ -1,0 +1,56 @@
+===================================
+REDUCERON MEMO 38
+Benefits of a primitive-value stack
+Matthew N, 14 October 2009
+===================================
+
+Currently the Reduceron compiler translates primitive applications
+according to the rule
+  
+  p n m     -->     m (n p)                (1)
+
+which forces evaluation of integer arguments n and m before applying
+primitive function p.  This is assuming the reduction rule
+
+  i e       -->     e i                    (2)
+
+for any fully evaluated integer i and arbitrary expression e.
+
+No extra stack is needed to store the evaluated arguments to a
+primitive.  However, it would be cheap to introduce such a
+primitive-value stack into the Reduceron.  Then primitive applications
+could be translated by the rule
+
+  p n m     -->     m n p                  (3)
+
+and the reduction rule would now be
+
+  i e       -->     e                      (4)
+
+with the *side-effect* of pushing i onto the primitive-value stack.
+By the time p reaches the top of the evaluation stack, its
+fully-evaluated arguments will be avilable on the primitive-value
+stack.
+
+The main consequence of this new approach is: expressions are smaller
+and shallower.  The RHS of rule (1) contains 2 applications and has
+depth 2; the RHS of rule (3) contains 1 application and has depth 1.
+Smaller and shallower expressions are faster to instantiate and result
+in less unwinding during evaluation.
+
+EXAMPLE 1. Consider the following case where a primitive application
+itself contains a primitive application.
+
+  (+) ((-) a b) ((-) c d)
+
+This could be compiled to reverse polish notation:
+
+  d c (-) b a (-) (+)
+
+EXAMPLE 2.  More generally, the expression
+
+  (+) (f x) (f y)
+
+could be compiled to:
+
+  f y f x (+)

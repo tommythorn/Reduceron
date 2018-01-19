@@ -1,0 +1,85 @@
+===========================================
+REDUCERON MEMO 35
+Order of compilation passes: when to inline
+Matthew N, 5 October 2009
+===========================================
+
+Consider the Cons-Cons case of the equalStrings function that Colin
+discussed in Memo 34.
+
+  equalStrings (Cons x xs) (Cons y ys) = con ((==) x y) (equalStrings xs ys);
+
+The function con is boolean conjunction.
+
+  con x y = case x of { False -> False; True -> y };
+
+Compiling away the case expressions in con, as discussed in Memo 13,
+gives:
+
+  con x y = x [con#1,con#2] y;
+  con#1 alts y = False;
+  con#2 alts y = y;
+
+In the Cons-Cons case of equalStrings, the call to con can be inlined.
+The question is: should inlining be performed before case compilation,
+or after, or both before and after?
+
+If case compilation is performed first, followed by inlining, then the
+body of the Cons-Cons case becomes
+
+  (==) x y [con#1,con#2] (equalStrings xs ys);
+
+At runtime, the expression "equalStrings xs ys" must be created on the
+heap, and subsequently, if ever demanded, unwound from the heap.
+
+Alternatively, if inlining is performed first then body of Cons-Cons
+case first becomes
+
+  case (==) x y of { False -> False ; True -> equalStrings xs ys };
+
+and then after case elimination
+
+  (==) x y [consCons#1, consCons#2] xs ys;
+
+where
+
+  consCons#1 alts xs ys = False;
+  consCons#2 alts xs ys = equalStrings xs ys;
+
+Now the expression "equalStrings xs ys" is never created on the heap.
+Since it is in the spine position of a function body, it is only ever
+pushed onto the stack, and even then, only whenever the first conjunct
+is True.
+
+So the order makes quite a big difference.  How does it affect
+performance?  Here are some clock-tick counts on a handfull of
+programs.  The inlining parameter to the F-lite compiler is "-i1",
+i.e. only functions containing a maximum of one application are
+inlined.
+
+  +----------------+-----------+-----------+----------------+
+  | PROGRAM        |     AFTER |    BEFORE | BEFORE & AFTER |
+  +----------------+-----------+-----------+----------------+
+  | EqualStrings   |       471 |       433 |            394 |
+  | PermSort       |  17860578 |  20529552 |       16715749 |
+  | Queens         |  48337765 |  43739670 |       41241925 |
+  | While          |  46327136 |  50576148 |       46327136 |
+  | Cichelli       |  55795881 |  61663685 |       55795880 |
+  | Mate           | 856693903 | 849056292 |      798054513 |
+  | KnuthBendix    |  19619755 |  22907202 |       19061795 |
+  +----------------+-----------+-----------+----------------+
+
+Notice that two cycles per recursive step are saved in the
+equalStrings functon when inlining before & after: one is saved when
+creating the recursive application, and the other when unwinding it.
+
+Remarks:
+
+  * Are there any programs where inlining before case compilation is a
+    bad idea?  (Sometimes, one large function body might be preferable
+    to serveral small ones.)
+
+  * Is there any added benefit in increasing the "-i" control parameter?
+
+  * The control parameters for inlining might usefully be different
+    depending on whether it is done before or after case compilation.

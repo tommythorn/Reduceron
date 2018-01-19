@@ -1,0 +1,159 @@
+==========================
+REDUCERON MEMO 16
+Configuring the XUPV5
+Matthew N, 12 January 2008
+==========================
+
+An XUPV5, kindly donated by Xilinx, has been sitting dormant on my
+desk for two months now.  Today, I decided to configure it.  Looking
+at the Xilinx webpages, there are many fancy demos that I can try
+which show off the various features of the board.  Or I can follow the
+getting started tutorial and create my own project using the Base
+System Builder (BSB).  The BSB generates a Microblaze-based
+(soft-processor) design which can be customised in various ways by
+point and click.  Anyway, this is all quite extravagant --- whatever
+happened to connecting the LEDs to the DIP switches as a first design?
+
+With this aim, I first connected my PC to the Platform Cable USB to
+the XUPV5 via the supplied USB and ribbon cables, and gave the XUPV5
+some power.  Then I loaded Xilinx ISE, created a new project for an
+XC5VLX110T chip (package FF1136, speed-grade -1), and added the
+following VHDL file named 'top.vhd'.
+
+  library IEEE;
+  use IEEE.STD_LOGIC_1164.ALL;
+  use IEEE.STD_LOGIC_ARITH.ALL;
+  use IEEE.STD_LOGIC_UNSIGNED.ALL;
+
+  entity top is
+  port ( clock : in std_logic
+       ; leds : out std_logic_vector(7 downto 0)
+       ; switches : in std_logic_vector(7 downto 0));
+  end top;
+
+  architecture Behavioral of top is
+  begin
+    leds <= switches;
+  end Behavioral;
+
+I right-clicked on 'Generate Programming file', selected 'Properties'
+then 'Startup Options', then set 'FPGA Start-Up Clock' to 'JTAG
+Clock'.  Now all I had to do was state which pins on the FPGA are
+connected to the clock, LEDs and DIP switches on the XUPV5.  All this
+I gleaned from the 'ucf' file sitting in the archive
+'xupv5-lx110t_bsb_std_ip.zip' supplied by Xilinx (can be obtained by
+Googling the file name).  I put the required info in a file
+'xupv5.ucf' (shown below), added it to the project, and clicked
+'Generate Programming File' to generate 'top.bit'.
+
+I fired up Impact to download the programming file.  It detected the
+XUPV5, so I right-clicked on the FPGA, assigned it the file 'top.bit'
+and then clicked 'Program'.  And there it was: eight little LEDs (just
+below the LCD) mirroring the eight DIP switches (to the right of the
+LCD).  Everything went smoothly.
+
+What next?
+----------
+
+This little exercise turned out easy, but it does raise an important
+question: how should the Reduceron be interfaced with the outside
+world?  Switches and LEDs?  Cursor keys and LCD display?  Keyboard and
+VGA?  UART terminal?  USB client?
+
+As the tranditional interface to a functional language is the
+read-eval-print loop, perhaps a UART terminal interface is just fine.
+It's straightforward and cheap to implement in hardware with only a
+few avilable commands (read char and write char) needed in F-lite.
+
+Contents of 'xupv5.ucf'
+-----------------------
+
+Net clock TNM_NET = sys_clk_pin;
+Net clock LOC = AH15;
+Net clock IOSTANDARD=LVCMOS33;
+
+# 8Bit set of LEDs
+
+Net leds<0> LOC = AE24;
+Net leds<0> IOSTANDARD=LVCMOS18;
+Net leds<0> PULLDOWN;
+Net leds<0> SLEW=SLOW;
+Net leds<0> DRIVE=2;
+Net leds<1> LOC = AD24;
+Net leds<1> IOSTANDARD=LVCMOS18;
+Net leds<1> PULLDOWN;
+Net leds<1> SLEW=SLOW;
+Net leds<1> DRIVE=2;
+Net leds<2> LOC = AD25;
+Net leds<2> IOSTANDARD=LVCMOS18;
+Net leds<2> PULLDOWN;
+Net leds<2> SLEW=SLOW;
+Net leds<2> DRIVE=2;
+Net leds<3> LOC = G16;
+Net leds<3> IOSTANDARD=LVCMOS25;
+Net leds<3> PULLDOWN;
+Net leds<3> SLEW=SLOW;
+Net leds<3> DRIVE=2;
+Net leds<4> LOC = AD26;
+Net leds<4> IOSTANDARD=LVCMOS18;
+Net leds<4> PULLDOWN;
+Net leds<4> SLEW=SLOW;
+Net leds<4> DRIVE=2;
+Net leds<5> LOC = G15;
+Net leds<5> IOSTANDARD=LVCMOS25;
+Net leds<5> PULLDOWN;
+Net leds<5> SLEW=SLOW;
+Net leds<5> DRIVE=2;
+Net leds<6> LOC = L18;
+Net leds<6> IOSTANDARD=LVCMOS25;
+Net leds<6> PULLDOWN;
+Net leds<6> SLEW=SLOW;
+Net leds<6> DRIVE=2;
+Net leds<7> LOC = H18;
+Net leds<7> IOSTANDARD=LVCMOS25;
+Net leds<7> PULLDOWN;
+Net leds<7> SLEW=SLOW;
+Net leds<7> DRIVE=2;
+
+# 8Bit switches
+
+Net switches<0> LOC=U25;
+Net switches<0> IOSTANDARD=LVCMOS18;
+Net switches<0> PULLDOWN;
+Net switches<0> SLEW=SLOW;
+Net switches<0> DRIVE=2;
+Net switches<1> LOC=AG27;
+Net switches<1> IOSTANDARD=LVCMOS18;
+Net switches<1> PULLDOWN;
+Net switches<1> SLEW=SLOW;
+Net switches<1> DRIVE=2;
+Net switches<2> LOC=AF25;
+Net switches<2> IOSTANDARD=LVCMOS18;
+Net switches<2> PULLDOWN;
+Net switches<2> SLEW=SLOW;
+Net switches<2> DRIVE=2;
+Net switches<3> LOC=AF26;
+Net switches<3> IOSTANDARD=LVCMOS18;
+Net switches<3> PULLDOWN;
+Net switches<3> SLEW=SLOW;
+Net switches<3> DRIVE=2;
+Net switches<4> LOC=AE27;
+Net switches<4> IOSTANDARD=LVCMOS18;
+Net switches<4> PULLDOWN;
+Net switches<4> SLEW=SLOW;
+Net switches<4> DRIVE=2;
+Net switches<5> LOC=AE26;
+Net switches<5> IOSTANDARD=LVCMOS18;
+Net switches<5> PULLDOWN;
+Net switches<5> SLEW=SLOW;
+Net switches<5> DRIVE=2;
+Net switches<6> LOC=AC25;
+Net switches<6> IOSTANDARD=LVCMOS18;
+Net switches<6> PULLDOWN;
+Net switches<6> SLEW=SLOW;
+Net switches<6> DRIVE=2;
+Net switches<7> LOC=AC24;
+Net switches<7> IOSTANDARD=LVCMOS18;
+Net switches<7> PULLDOWN;
+Net switches<7> SLEW=SLOW;
+Net switches<7> DRIVE=2;

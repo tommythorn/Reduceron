@@ -1,0 +1,143 @@
+===========================================
+REDUCERON MEMO 8
+Speculative evaluation of primitive redexes
+during instantiation of function bodies
+Colin R, 21 November
+(Revised: minor corrections and a note
+on deriving # annotations)
+===========================================
+
+Consider a function such as this one, which performs the safety-checking
+inner loop in the Queens program:
+
+safe :: Int -> Int -> [Int] -> Bool
+safe x d []    = True
+safe x d (q:qs) = x /= q && x /= q+d && x /= q-d && safe x (d+1) qs
+
+Or in semi-compiled form:
+
+safe x d qs = qs True (safe' x d)
+safe' x d q qs = x /= q && x /= q+d && x /= q-d && safe x (d+1) qs
+
+Just look at the body of safe'.  All those primitive operations!
+I haven't worked out the current compiled form of this body, but I
+imagine it leads to a rather fragmented and therefore slow computation.
+
+A Hand-Tracing Analogy
+----------------------
+
+Suppose I am tracing the program by hand.  Quite early on I need the
+value of
+
+    safe 1 1 [2]
+==> safe' 1 1 2 []
+
+If am feeling really keen and pedantic, I suppose I *might* just reduce
+this to the instance of the safe' body with x=1, d=1, q=2 and qs=[].
+
+    safe' 1 1 2 []
+==> 1 /= 2 && 1 /= 2+1 && 1 /= 2-1 && safe 1 (1+1) []
+
+But if I am in a hurry to obtain the result, I shall instead take the
+opportunity to do a bit of speculative evaluation.  I reduce the four
+primitive redexes as I go along, even though I may not yet be able to
+see which of their results will actually be needed.  So this step in my
+trace becomes instead:
+
+    safe' 1 1 2 []
+==> True && 1 /= 3 && 1 /= 1 && safe 1 2 []
+
+Now, I could just appeal to the definition of &&
+
+    True && 1 /= 3 && 1 /= 1 && safe 1 2 []
+==> 1 /= 3 && 1 /= 1 && safe 1 2 []
+
+but I might rather take the opportunity to do some more speculative
+reduction of the primitive redexes.
+
+    True && 1 /= 3 && 1 /= 1 && safe 1 2 []
+==> True && True && False && safe 1 2 []
+
+And so on.
+
+What Might Reduceron Do?
+------------------------
+
+The Reduceron compiler could work out, and make explicit, where there
+is opportunity for speculative primitive reduction.  For example,
+revisiting the "semi-compiled" version of safe', and borrowing the #
+notation for unboxed values:
+
+safe' #x #d #q qs = _A && x /= _B && x /= _C && safe x _D qs
+  where
+  #_A = x /= q
+  #_B = q + d
+  #_C = q - d
+  #_D = d + 1
+
+A # attached to a binding occurrence of an argument means "this argument
+will be already evaluated to a primitive value".  A # attached to a
+binding occurrence of a local variable means "this primitive value should
+be computed and substituted at the points of each applied occurrence
+during instantiation of the body".
+
+This kind of speculative reduction of primitive redexes would presumably
+require an extra clock-cycle or two during instantiation of function
+bodies to which it is applicable.  But it would be worth it.
+
+As in the hand trace, a further wave of speculation may be possible using
+the results of the first wave.
+
+safe' #x #d #q qs = _A && _E && _F && safe x _D qs
+  where
+  #_A = x /= q
+  #_B = q + d
+  #_C = q - d
+  #_D = d + 1
+  #_E = x /= _B
+  #_F = x /= _C
+
+However, without specific values available, this is far more speculative.
+If _A turns out to be False, the second-wave evaluation of _E and _F is
+a waste of time.
+
+Boolean Speculation and Associative Transformation
+--------------------------------------------------
+
+I am not sure what sort of speculation might be effective for the
+*semi-strict* Boolean primitives && and ||, when the strict argument
+(only) is available as a value .  One problem is that the size of
+the result, which must form part of the instantiated body, cannot be
+determined at compile-time.  The result of something like
+
+  _B && expr
+
+is the primitive value False if _B is False, but it is expr (which might
+be of any size) if _B is True.
+
+Associative transformations could help here.  For the reason just given,
+it is awkward to do speculative reduction of && in the safe' body
+
+safe' #x #d #q qs = _A && (_E && (_F && safe x _D qs))
+
+because every && application involves a non-strict argument not yet
+evaluated.  But as && is associative, the body could be transformed to
+maximise opportunities to combine primitive values.
+
+safe' #x #d #q qs = ((_A && _E) && _F) && safe x _D qs
+
+This kind of associative transformation would also be applicable in the
+numeric case for chains and combinations of addition and multiplication.
+
+Deriving # Annotations on Arguments
+-----------------------------------
+
+The compiler needs some way of determining which arguments can be #
+annotated.  I think this analysis should be fairly simple.  Initially
+assume *all* integer and boolean arguments can be # annotated, and then
+do an iterative refinement until a fixed point is reached.
+
+Where recursive call sites can sustain # status, but some initial calls
+from other sites break it, we could user the worker-wrapper idea as
+in GHC.
+

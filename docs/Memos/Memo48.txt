@@ -1,0 +1,50 @@
+======================
+REDUCERON MEMO 48
+Primitive redexes
+in the spine position
+Matthew N, 11 May 2010
+======================
+
+Consider the combinator for the recursive case of the elem function
+which contains a primitive application in the spine position.
+
+  elem#3 v0 v1 v2 v3 = (==) v3 v0 [elem#1,elem#2] v3 v1;
+
+Should the expression (==) v3 v0 be marked as a PRS candidate or not?
+
+If YES
+------
+
+If v3 and v0 are INTs at runtime then 
+
+  * 1 cycle is consumed doing PRS, and
+  * 1 cycle is consumed pushing the spine of elem#3
+
+If v3 and v0 are not INTs at runtime then
+
+  * 1 cycle is consumed doing PRS,
+  * 1 cycle is consumed pushing the spine of elem#3,
+  * 1 cycle is consumed fetching the failed PRS candidate from heap, and
+  * 1 or 2 cycles are consumed reducing PRS candidate, depending
+    on how many of the arguments need to be forced.
+
+If NO
+-----
+
+If v3 and v0 are INTs at runtime then
+
+  * 1 cycle is consumed pushing the body of elem#3
+  * 1 cycle is consumed reducing (==) v3 v0
+
+If v3 and v0 are not INTs at runtime then
+
+  * 1 cycle is consumed pushing the body of elem#3
+  * 1 or 2 cycles are consumed reducing (==) v3 v0, depending
+    on how many of the arguments need to be forced.
+
+Basic Conclusion
+----------------
+
+In general, primitive applications in the spine position should not be
+marked as PRS candidates because there is no gain in doing so - in
+fact, there may be a loss.

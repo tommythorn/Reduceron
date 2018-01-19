@@ -1,0 +1,85 @@
+==========================================
+REDUCERON MEMO 45 (IN PROGRESS)
+Hardware support for exploiting Static PRS
+Matthew N, 21 January 2009
+==========================================
+
+This memo considers an alternative PRS design to that presented in
+Memo 31.  It has one major difference: it assumes that primitive
+redexes are identified at compile-time, not run-time.  The compilation
+is more complex (see Memo 50), but the hardware simpler and more
+efficient.
+
+Syntax
+------
+
+To support PRS, we introduce a new kind of atom:
+
+  data Atom = ... | PREDEX Op Arg Arg
+
+  data Arg = Lit Int | Index Int
+
+A primitive redex contains a primitive operator and two arguments.  An
+argument is either a stack index or an integer literal.  
+
+Since an atom is currently represented by 18 bits, and a primitive
+redex may contain two integer literals, it is clearly the case that
+the integer literals in a primitive redex must have a limited range.
+For example, an expression such as "(+) x 5" could be implemented as a
+primitive redex whereas "(+) x 500" could not.  No big loss.
+
+Note that primitive redex atoms can only appear in code memory, not on
+the stack or heap.
+
+Semantics
+---------
+
+We must now extend the instantiation function to deal with primitive
+redexes.  To instantiate a primitive redex, we simply evaluate it.
+Currently, around ten atoms can be instantiated per clock cycle on the
+Reduceron.  Consequently, up to ten primitive redexes can be evaluated
+per clock cycle.  And since we no longer have to account for candidate
+primitive redexes that need to be instantiated on the heap, reducing
+primitive redexes need not incur a clock-cycle overhead.
+
+Identifying primitive redexes
+-----------------------------
+
+See Memo 50.
+
+Let-bound primitive redexes
+---------------------------
+
+Suppose we have a primitive redex a+b bound in a let expression:
+
+  let x = a+b in f x (g x)
+
+Ideally, we would like to remove the variable x as it will be
+implemented as a pointer to a value on the heap which will be costly
+to dereference.  To do this, we can simply inline it, giving:
+
+  f (a+b) (g (a+b))
+
+Although we duplicated an expression, the two occurences will be
+computed in parallel.  So the first arguments passed to f and g can be
+made unboxed integers, at no run-time cost.
+
+Nested primitive redexes
+------------------------
+
+Suppose we have the expression
+
+  f ((a+b)+c)
+
+where a, b, and c are known to be unboxed integers.  In such a case,
+only a+b can be made a primitive redex.  We can however transform the
+above expression to
+
+  g (a+b)
+
+where
+
+  g x c = f (x+c)
+
+Now both additions are primitive redexes, although they will be
+computed one after the other.

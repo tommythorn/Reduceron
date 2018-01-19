@@ -1,0 +1,174 @@
+===============================
+REDUCERON MEMO 31
+Design proposal for speculative
+evaluation of primitive redexes
+Matthew N, 16 September 2009
+===============================
+
+Almost a year ago (in Memo 8) Colin proposed the idea of reducing
+primitive redexes during instantiation of function bodies.  This idea
+has become very attractive, now that, after improvements to the
+Reduceron, primitive reductions account for large portions of the
+runtimes of many programs, even "symbolic-intensive" ones.
+
+There appear to be two main ways to do this: by static or dynamic
+analysis.  In the static approach, primitive redexes are identified at
+compile time.  The analysis is conservative and needs to be defined,
+although Colin does say "I think this analysis should be fairly
+simple".
+
+In the dynamic approach, the analysis really is simple: just look at
+the arguments in a primitive application; if they are evaluated apply
+the primitive; if not, build the application on the heap as is
+currently done.
+
+One possible advantage of the static approach is that the circuitry
+required to implement it will have a smaller logic delay than that for
+the dynamic approach.  This is because all speculative evaluations are
+decided at compile time - no runtime decisions are made.  However, it
+is not clear how significant this saving is: it is perhaps just one
+level of logic in the form of a multiplexer, and what's more, it is
+not even on the current critical path.
+
+Therefore, I propose we first try the simpler dynamic approach.  Below
+I outline a fairly conservative design, but nevertheless, one that
+should be quite effective.
+
+Syntax
+------
+
+In the Reduceron, applications are sequences of atoms.
+
+  data App = APP Bool [Atom]
+
+The boolean flag states whether or not the application is in normal
+form, and is used for update-avoidance.  Atoms are defined as follows.
+
+  data Atom =
+      INT Int           -- Primitive integer
+    | ARG Shared Int    -- Argument index, can only occur in code memory 
+    | PTR Shared Int    -- Pointer to an application
+    | CON Arity Index   -- Constructor id
+    | FUN Arity Int     -- Function id
+    | PRI Arity PrimOp  -- Primitive id
+
+  type Shared = Bool
+
+  type Arity = Int
+
+  type PrimOp = String
+
+Note that ARG atoms can only appear in code memory, not on the heap.
+
+To support evaluation of primitive applications during instantiation,
+I propose to add a special register file to the machine, for storing
+the results of speculative evaluations.  Other applications in the
+body of the function may then refer to these results as many times as
+required.  Remember, there may be many references to the result of a
+primitive application, if it is let-bound.
+
+  type RegId = Int
+
+  data Atom = ... | REG RegId
+
+Like ARG atoms, REG atoms can only appear in code memory.
+
+Furthermore, I propose to add an optional register field to
+applications.
+
+  data App = APP (Maybe RegId) Bool [Atom]
+
+Note that applications can appear both in code memory and in the heap.
+However, when in the heap, the new register field always contains
+Nothing.  When in code memory, the new register field *may* specify a
+register that should be updated with the result of an *attempted*
+on-the-fly speculative reduction of the application.
+
+Semantics
+---------
+
+We must now modify the machine to deal with this new kind of
+application.  As it can only occur in code memory, we need only
+decide how to instantiate it.  There are two cases.
+
+  1. If the application is that of a primitive to some arguments and
+     all the arguments are fully-evaluated integers, then apply the
+     primitive and store the resulting atom in the stated register.
+
+  2. Otherwise, the application should be instantiated onto the heap
+     as normal, and the stated register assigned to an atom
+     that points to this application.
+
+We must also define the semantics of the register file.  There are two
+choices.
+
+  1. Assignments to a register take one clock-cycle to come into
+     effect.
+
+  2. Assignments to a register come into effect immediately.
+
+Option (2) allows applications being instantiated in the same clock
+cycle as a primitive redex to refer to the result of the primitive
+redex.  However, option (2) has a much more significant logic delay
+than option (1), and I suspect it is not feasible from a clock-rate
+point of view.
+
+When a primitive redex is reduced speculatively, the result is
+unboxed, that is, inserted directly in place of any reference to it.
+Consequently:
+
+  1. No unwinding step is required to fetch the result if is
+     later required.
+
+  2. A number of swaps may be avoided, which are otherwise be necessary
+     to force evaluation of the primitive's arguments.
+
+  3. There is increased scope for further speculative evaluation: the
+     more unboxed values in the graph, the greater the opportunity for
+     further speculative evaluations - it is a self-feeding process.
+
+  4. The order in which speculative evaluations are attempted should
+     be carefully decided at compile-time, to maximise the
+     self-feeding effect.
+
+Discussion
+----------
+
+The is all pretty much as Colin originally proposed in Memo 8, with
+the register file taking care of primitive bindings.  One difference
+is that the decision to perform speculative evaluation is decided at
+runtime.  A few new details are:
+
+  1. A finite register file is required - its maximum capacity is
+     another machine parameter, like, for example, maximum application
+     length.
+
+  2. The results of primitive redexes can only be accessed *after* the
+     clock-cycle in which they are reduced.
+
+  3. If the maximum number of applications that can be instantiated
+     per cycle is limited to 2, then so is the maximum number of
+     speculative reductions.
+
+  4. When a primitive redex is detected, the heap bandwidth allocated
+     to instantiate that redex is not needed, and hence wasted.
+
+On the positive side, when a primitive redex is detected we are likely
+to avoid 2 swaps, 2 unwinds, and a primitive reduction - that's five
+clock cycles - not to mention a possible avoided update.
+
+Some open issues:
+
+  1. What percentage of speculative reductions are in fact needed
+     subsequently?
+
+  2. Compiler should identify applications which cannot possibly be
+     primitive redexes, in order to avoid possible overhead.  An
+     example such application would be "1 + sum xs".
+
+  3. Feedback for programmers: modify the emulator to tell the
+     programmer which primitive applications could not be performed
+     speculative (and how many there were).
+
+  4. What about speculative evaluation of semi-strict operators such
+     (&&) and (||)?

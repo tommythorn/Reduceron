@@ -1,0 +1,173 @@
+=========================
+REDUCERON MEMO 14
+First quarterly review
+Matthew N, 9 January 2009
+=========================
+
+Three months after starting on the Reduceron project, this memo
+summarises our main results and thoughts to date.
+
+1. F-lite
+---------
+
+Quite early on, Matthew decided to re-implement the Reduceron compiler
+from scratch.  There were a few motivations, the main two being (1)
+compiling full Haskell'98, as we previously attempted, is a lot of
+work and not necessary for the research, and (2) we wanted a simple,
+standalone compiler that does not rely on a large and complex codebase
+such as Yhc.  So we developed F-lite, a simple functional language,
+and implemented a compiler for it.  (See Memo 9 for details.)
+
+2. Inlining
+-----------
+
+One of the first problems we considered was that of how to widen
+function bodies, to take advantage of the Reduceron's fast
+block-instantiation capability.
+
+We observed that functions which perform case analysis are often split
+into several smaller functions by the case-elimination algorithm, one
+new function being introduced for each case alternative.  This
+splitting has the effect of turning directly-recursive functions
+into sets of mutually-recursive ones.
+
+We found a very simple yet effective inlining rule that is to some
+extent able to reunite the split-up functions, and make them directly
+recursive again.  Somewhat counter-intuitively, the trick was to
+inline the case analysis function into the case alternatives, rather
+than the other way around!  (See Memo 2 for details.)
+
+Subsequently, Colin observed that nested case analysis results in a
+set of mutually-recursive functions being introduced, which are not
+made directly-recursive again after applying the inlining rule [Memo 5].
+
+After translating our benchmark programs to F-lite, and adding
+some new ones, we performed some measurements.  We found that our
+simple inlining rule gave an 9%-20% improvement on all nine programs,
+a mean speed-up of 13% [Memo 10].
+
+3. Arity-raising
+----------------
+
+Colin observed the potential of eta-expansion to increase
+opportunities for inlining [Memo 3].  We implemented this
+transformation, but after benchmarking we soon realised that it
+doesn't always preserve sharing, causing a big slow-down in some
+programs.  However, in some programs there is indeed a good speed-up
+[Memo 10], so Matthew started to think about using a sharing analysis
+to determine cases in which arity-raising is safe [Memo 11].  But this
+line of work has been suspended due to more pressing matters discussed
+below.
+
+4. Single-cycle reads
+---------------------
+
+In the current Reduceron, reading the heap takes two clock-cycles
+because of the delay introduced by the cascading multiplexor and the
+rotation logic used to implement quad-word memories.  Matthew proposed
+to abandon quad-word memories in favour of quadrupling the word-size,
+and also to cascade block RAMs differently.  Together these ideas will
+allow single-cycle heap-reads, and save a lot of logic.  Single-cycle
+reads will in turn reduce the time taken to unwind and unfold by one
+cycle each.  Another benefit of having a fixed application size is
+that updating can be easily done by overwriting the root of the redex
+rather than introducing indirections.  The downside is that there will
+be some wasted capacity, both in terms of memory and processor
+utilisation, when the lengths of applications are not multiples of
+four.  (See Memo 7 for details.)
+
+5. Parallel stack accesses
+--------------------------
+
+Also in Memo 7, we recalled that the way in which the Reduceron
+implements parallel access to the top eight stack elements has the
+limitation that functions cannot take more than eight arguments.  We
+proposed to overcome the problem using an eight-port stack, where any
+eight stack elements can be read in parallel, not just the top eight
+[Memo 7].  After some more thought, we realised this approach has a
+clock-cycle overhead associated with it, putting the original approach
+in better light.  To overcome the arity-limitation, Matthew modified
+Dijkstra's abstraction algorithm to transform functions into ones that
+take no more than eight arguments.  (See Memo 12 for details.)
+
+6. Spinelessness
+----------------
+
+In a spineless machine, the spine of a function body is written only
+to the heap.  In the Reduceron, the spine is written to the heap and
+the stack, but time is saved by performing these two writes in
+parallel.  Nevertheless, there are two potential benefits in making
+the Reduceron a spineless machine.  
+
+First of all, not having to write the spine to the heap and not having
+to update the heap on every application frees up the heap, allowing
+the information needed for the next reduction to be fetched one
+clock-cycle earlier.  But the cost of updating must be taken into
+account as a distinct process.  Depending on how often updates are
+avoided (see next section), there will be an overall saving of 0 to 1
+cycles per unfold.  Combine this with single-cycle reads and we open
+up the possibility of single-cycle unfolding (whenever the update can
+be avoided, and the body contains two applications or less).  In the
+current Reduceron, unfolding always takes at least three cycles.
+
+Furthermore, since a spineless machine builds up a stack of updates,
+it may be possible to perform two updates per cycle, exploiting the
+dual-port heap.
+
+The second benefit is that a spineless machine does not need to
+introduce indirections in any circumstances.  This is attractive
+because long indirection chains are sometimes built by the current
+Reduceron [Memo 10].
+
+7. Unshared applications
+------------------------
+
+To implement an efficient spineless machine, Peyton Jones proposes to
+distinguish between two types of applications: unshared and
+possibly-shared.  Updating can then be avoided after evaluating an
+unshared application to head normal form.
+
+Determining which applications are unshared can be done by statically
+or dynamically.  The latter, which Peyton Jones calls "dashing" is
+more precise (less conservative), but Peyton Jones writes "we strongly
+suspect that the cost of dashing may greatly outweigh the advantage of
+precision".  However, in hardware, we strongly suspect that dashing
+has no (time) cost.
+
+This technique could also be useful in the current Reduceron (not
+spineless), for example to reduce indirection chains.
+
+8. Compiling case expressions
+-----------------------------
+
+Matthew proposed an alternative way to compile case expressions.  The
+current Reduceron may require time to (1) write closures for each case
+alternative onto the stack --- possibly several cycles when there are
+many case alternatives, (2) select one of the case alternatives --- 3
+cycles, and (3) fetch one of these closures when selected --- 2 cycles.
+The new method opens up the possibility for zero-cycle case-alternative
+selection, and removes each of the above overheads.  The downside is
+that some implementation simplicity is sacrificed.  (See Memo 13 for
+details; Memo 6 presents an earlier view of a similar idea.)
+
+9. Speculative evaluation
+-------------------------
+
+Colin proposes to do speculative evaluation of primitive redexes
+during instantiation of function bodies [Memo 8].  For example, if we
+are to instantiate 'x+y' in the body of 'f' where 'x' and 'y' are
+already-evaluated arguments of 'f', then we can perform the addition
+speculatively.  Colin thinks it will be best to use a static analysis
+to discover such redexes at compile-time, whereas Matthew thinks that
+it will be cheap to discover such redexes at run-time.  Either way,
+the idea looks promising.
+
+10. Garbage collection
+----------------------
+
+Garbage collection is one area in particular that needs more thought.
+It would be nice to do garbage collection in parallel with the
+mutator.  With this aim, Colin is interested in on-the-fly collection
+(coarse-grained parallelism), whereas Matthew is more interested in a
+hardware implementation of reference-counting (fine-grained
+parallelism).

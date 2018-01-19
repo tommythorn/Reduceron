@@ -1,0 +1,252 @@
+==============================
+REDUCERON MEMO 25
+Bounded template instantiation
+Matthew N, 24 June 2009
+==============================
+
+This memo measures the effect of maximum spine length, maximum
+application length, and maximum instantiations-per-cycle on reduction
+speed and heap wastage in the Reduceron.  The precise semantics of the
+Reduceron used to perform the measurements is not (yet) presented
+here.
+
+Templates
+---------
+
+In spineless template instantiation, a template is essentially a tuple
+of the form
+
+  (Pop, Push, App_1, ..., App_n)
+
+The 'Pop' field states how many elements should be popped off the
+stack.  The remaining fields are all applications, which may refer to
+each other relatively (but may not refer to 'Push').  In other words,
+together these applications represent a term graph rooted by the
+'Push' application.  The difference between 'Push' and 'App_1' to
+'App_n' is that 'Push' is instantiated and pushed onto the stack,
+whereas 'App_1' to 'App_n' are instantiated and appended to the heap.
+
+EXAMPLE 1. The following combinator handles the 'Cons' case in the
+definition of 'map'.
+
+  mapCons x xs f = Cons (f x) (map f xs)
+
+As a template, it could be represented as
+
+  mapCons = (3, Cons +0 +1, @3 @1, map @3 @2)
+
+where '+i' is a pointer to the ith application beyond the current heap
+pointer, and '@i' is the ith element from the top of the stack.
+
+Our aim in the Reduceron is to instantiate whole templates in a single
+clock-cycle.  On an FPGA, this is made possible by parallel RAMs which
+can be built with more-or-less arbitrary bus widths.  But these bus
+widths must be decided statically, before the FPGA is programmed.  In
+particular, the following values must be bounded:
+
+  1. The maximum length of the 'Push' application, referred to as
+     "maximum spine length".  For example, the length of the
+     application 'Cons (f x) (map f xs)' is 3.
+
+  2. The maximum length of the applications in 'App_1 ... App_n',
+     referred to as "maximum application length".  This need not be
+     the same as the maximum spine length.
+
+  3. The number of applications in 'App_1 ... App_n'.  This number
+     (plus one to account for the spine application, if it has length
+     larger than one) is referred to as "maximum instantiations per cycle".
+
+No matter how we bound the length and number of applications, the
+programmer will always be able to write a program that exceeds them.
+The bounds should be relaxed enough to allow high speed reduction, but
+constrained enough to avoid poor memory and hardware utilisation.
+Below, we try to find "good" bounds by taking a quantitative approach.
+
+Application splitting
+---------------------
+
+It is straightforward to split long applications in order to meet
+maximum application length bound.  To illustrate, simply observe that
+the expression 'f a b c d' which contains one application, is
+equiavalent, for example, to '(f a b) c d' which contains two
+applications.  The maximum spine length bound can also be enforced
+using this principle.
+
+Template splitting
+------------------
+
+Template splitting can be used when the bound on the number of
+applications is exceeded.  One big template is split into a number of
+smaller ones.
+
+EXAMPLE 2.  If the maximum number of applications in a
+template is 1, then 'mapCons' could be represted as follows.
+
+  mapCons  = (0, mapCons2, @3 @1)
+  mapCons2 = (3, Cons -1 +0, map @3 @2)
+
+Here, 'mapCons' instantiates the '@3 @1' application on the heap and
+replaces the top stack element with 'mapCons2', which instantiates the
+rest.  Now '-1', not '+0', is used to refer to the application '@3 @1',
+because the heap pointer has been incremented as a result of
+instantiating 'mapCons'.
+
+Measurements 1: two improvements to Memo 19
+-------------------------------------------
+
+First, we measure the impact of two improvements to the Reduceron
+since Memo 19.  The first improvement is to take into account normal
+forms in the update avoidance scheme; every application is tagged with
+an extra bit stating whether or not it is a normal form, and when a
+normal form is unwound, an update marker is not pushed onto the update
+stack.  The second improvement is to inline all non-recursive
+functions whose bodies contain just a single application, which often
+avoids a function call in recursive case-analysing functions (recall
+Memo 2).
+
+PROGRAM     % UPDATES AVOIDED       % TIME SAVED DUE TO INLINING
+            -----------------       ----------------------------
+Adjoxo                     97                                8.3
+Clausify                   85                               15.5
+MSS                        96                               12.3
+OrdList                    89                               29.8
+Parts                      82                               17.9
+PermSort                   87                               22.6
+Queens                     95                               15.1
+Queens2                    66                               21.8
+Sudoku                     71                               16.6
+While                      99                                6.8
+            -----------------       ----------------------------
+AVERAGE                    87                               17.8
+
+According to Memo 15 (that is, before taking into account normal
+forms), 60% of updates were avoided by the update-avoidance scheme.
+
+Measurements 2: effect of bounds on reduction speed
+---------------------------------------------------
+
+The following tables contain "speed-up factors" that result from using
+various values for the different bounds.  The speed-up is relative to
+the time take by the Reduceron with a maximum spine length of 2, a
+maximum application length of 2, a maximum number of instantiations
+per cycle of 1.
+
+        SPEED-UP      |        APPLICATION LENGTH
+   (SPINE LENGTH = 3) |     2     3     4     5     6
+  --------------------+------------------------------
+                    1 |  1.20  1.58  1.65  1.71  1.72
+   INSTANTIATIONS   2 |  1.45  1.87  1.93  1.99  2.00
+      PER CYCLE     3 |  1.56  1.98  2.05  2.10  2.10
+                    4 |  1.62  1.99  2.06  2.11  2.11
+                    5 |  1.65  2.01  2.07  2.12  2.12
+
+        SPEED-UP      |        APPLICATION LENGTH
+   (SPINE LENGTH = 4) |     2     3     4     5     6
+  --------------------+------------------------------
+                    1 |  1.35  1.78  1.82  1.88  1.88
+   INSTANTIATIONS   2 |  1.64  2.11  2.15  2.20  2.20
+      PER CYCLE     3 |  1.76  2.23  2.27  2.33  2.33
+                    4 |  1.82  2.25  2.30  2.34  2.34
+                    5 |  1.84  2.26  2.30  2.36  2.36
+
+        SPEED-UP      |        APPLICATION LENGTH
+   (SPINE LENGTH = 5) |     2     3     4     5     6
+  --------------------+------------------------------
+                    1 |  1.45  1.86  1.89  1.94  1.94
+   INSTANTIATIONS   2 |  1.73  2.17  2.20  2.25  2.25
+      PER CYCLE     3 |  1.84  2.30  2.32  2.38  2.38
+                    4 |  1.91  2.33  2.35  2.41  2.41
+                    5 |  1.94  2.34  2.37  2.42  2.42
+
+        SPEED-UP      |        APPLICATION LENGTH
+   (SPINE LENGTH = 6) |     2     3     4     5     6
+  --------------------+------------------------------
+                    1 |  1.50  1.93  1.96  2.03  2.03
+   INSTANTIATIONS   2 |  1.79  2.27  2.30  2.37  2.37
+      PER CYCLE     3 |  1.92  2.41  2.44  2.50  2.50
+                    4 |  2.00  2.44  2.47  2.53  2.53
+                    5 |  2.03  2.45  2.48  2.54  2.54
+
+        SPEED-UP      |        APPLICATION LENGTH
+   (SPINE LENGTH = 7) |     2     3     4     5     6
+  --------------------+------------------------------
+                    1 |  1.52  1.96  2.00  2.06  2.06
+   INSTANTIATIONS   2 |  1.83  2.31  2.35  2.41  2.41
+      PER CYCLE     3 |  1.96  2.46  2.49  2.56  2.56
+                    4 |  2.03  2.49  2.53  2.58  2.58
+                    5 |  2.07  2.50  2.54  2.60  2.60
+
+
+Measurements 3: effect of bounds on heap wastage
+------------------------------------------------
+
+The following table contains "deflation factors", that is, the number
+of times smaller the heap.  The factor is relative to the heap
+consumption (in words) of the Reduceron with a maximum spine length of
+2, a maximum application length of 2, a maximum number of
+instantiations per cycle of 1.
+
+    DEFLATION FACTOR  |        APPLICATION LENGTH
+                      |     2     3     4     5     6
+  --------------------+------------------------------
+                    3 |  1.31  1.30  1.06  0.91  0.76
+                    4 |  1.58  1.63  1.29  1.01  0.91
+    SPINE-LENGTH    5 |  1.76  1.78  1.38  1.17  0.98
+                    6 |  1.90  1.95  1.51  1.30  1.09
+                    7 |  1.97  2.04  1.60  1.37  1.14
+
+Conclusions
+-----------
+
+Bear in mind that although the speed-up factors are quite small, they
+are relative to something which is already a fair bit faster (at least
+a factor of 2 faster) than the old Reduceron, which is at the moment
+our main reference point. 
+
+The speed-up increases quite readily with spine-length; a spine-length
+of 6 has a comfortable advantage over 3, 4, and 5, but a spine-length
+of 7 only has a small advantage over 6.
+
+There is not a big win in having applications of lengths larger than
+3.  Furthermore, applications of length 3 result in very good memory
+utilisation.
+
+There is reasonable win in having 3 instantiations per cycle rather
+than 2, but there is only a small win in moving to 4 or 5.
+Implenenting 2 is easy due to dual-port RAMs; implementing 3 is
+certainly possible, but may incur memory wasting due to alignment
+problems.
+
+Appendix: note about the arity bound
+------------------------------------
+
+Another important bound, not considered above, is the maxmimum arity
+of a function.  This note simply points out that a similar technique
+to template splitting *can* be used when the arity bound is exceeded.
+
+EXAMPLE 3.  If the maximum number of applications in a template is 2
+and the maximum arity is 2, the template 'f'
+
+  f = (4, g +0 +1 +2, h1 @1 @3, h1 @2 @3, h2 @4)
+
+can be split as follows.
+
+  f  = (2, f1, h1 @1, h1 @2)
+  f1 = (0, f2, -2 @1, -1 @1)
+  f2 = (2, g -2 -1 +0, h2 @2)
+
+Here, 'f' deals with the two references to arguments 1 and 2, and pops
+them off the stack; 'f1' and 'f2' deal with the remaining references
+to arguments 3 and 4.
+
+In the worst case, resorting to binary applications allows any arity
+bound larger than 0 to be handled by template splitting.
+
+However, there is a slight complication when using this method to do
+with updating.  Normal forms may still arise which are longer that the
+maximum application length, in which they must be split into chunks,
+and written to the heap chunk-wise.  The only difficulty here is the
+increased complexity of update operation.
+
+An alternative way to deal with the arity bound is to use an
+abstraction algorithm - see Memo 12.

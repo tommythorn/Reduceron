@@ -1,0 +1,127 @@
+========================
+REDUCERON MEMO 21
+Second quarterly review
+Matthew N, 28 April 2009
+========================
+
+Memo 15 formalised the semantics of the "Spineless Reduceron",
+including a new heap layout allowing single-cycle access, and the
+dynamic update avoidance technique outlined by Peyton Jones's in his
+"Spineless G-Machine" paper.  The memo predicted that dynamic update
+avoidance would be cheap to implement in hardware, that 60% of updates
+could be avoided, and that a factor of 2.8 speed-up should be possible
+over the PhD Reduceron.
+
+Subsequently, we felt that Memo 15 was slightly misleading: the true
+source of the speed-up is not due to spinelessness.  So Memo 18
+defined a new spinefull machine for comparison.  It predicted that the
+spineless machine would be 15% faster, and suggested that
+spinelessness brings a number of small benefits, rather than one big
+benefit.  (The possibility of dynamic update avoidance was not
+considered here; but it should be useful to both spineless and
+spinefull machines.)
+
+Reduceron II
+------------
+
+With Memo 15 as a basis, implementation of the "Reduceron II" on FPGA
+began.  A somewhat rushed first-cut was finished in time for HFL'09.
+
+The new heap layout was straightforward to implement, but we
+discovered that a similar technique could not be used to obtain
+single-cycle access to the stack - unlike the heap, the stack cannot
+contain gaps.  So we implemented the stack using registers connected
+to a wide RAM via spill-handling hardware.  The resulting stack design
+is quite tricky; we did manage to find fairly nice design, but it does
+contain the critical path.
+
+Dynamic update avoidance is indeed simple and cheap to implement in
+Hardware.
+
+The new method of evaluating case expressions (Memo 13) was also
+implemented without difficulty.  Indeed it is possible, but with added
+complexity, to do zero-cycle matching using a parallel case-table
+stack.
+
+In the rush, some short-cuts where taken.  In particular, there is no
+garbage collector, and the maximum arity of functions is just 4!  On
+the positive side, the new method of handling case expressions greatly
+reduces the arity of 'case-alternative' functions, and all the
+benchmarks programs met the restriction.
+
+The new implementation runs 3 times faster than the PhD Reduceron, in
+terms of clock-cycles, and its clock frequency is roughly the same.
+Using the new FPGA, both designs clock about 30% faster.
+
+The new implementation is written in Blarney, a new Lava clone
+supporting multi-output primitives, RAMs, easy creation of new
+primitives and back-ends, behavioural description, and sized-vectors.
+(To-do: write a memo about Blarney, perhaps by way of a short
+tutorial.)
+
+Talk at HFL 2009
+----------------
+
+Memo 19 contains the slides I presented at HFL'09 in March.  The talk
+was entitled "Three improvements to the Reduceron".  My overall
+feeling is that the talk didn't go well.  Judging by the nodding
+heads, I had the audience's attention in the beginning when discussing
+how and why the Reduceron widens the memory bottleneck.  But after
+that I think I went too much into gory details, and some of my points
+were a bit laboured.  I don't think I dealt well with audience
+negativity in two areas:
+
+  1. The use of block-RAMs rather than large off-chip memories.
+
+  2. The Reduceron still does not beat GHC-compiled programs
+     running on a PC.
+
+I recall that the following two suggestions were made:
+
+  1. It would be interesting to see if the Reduceron can exploit
+     the fine-grained parallelism that is abundant in functional
+     programs, especially as conventional hardware has struggled here.
+
+  2. It would be interesting to compare the Reduceron with GHC-compiled
+     programs running on an FPGA soft-core.
+
+Invited talk at Birmingham University
+-------------------------------------
+
+Memo 20 contains the slides of my invited talk at Birmingham
+University in April.  This talk went a bit better.  I started out
+motivating the Reduceron and discussing the potential advantages,
+which went fine.  I introduced FPGAs, and this led to some useful
+discussion.  I gave a very quick overview of lazy evaluation, which I
+think was worthwhile, although it did cause one guy to fall asleep!
+The slides about widening the memory bottleneck again went down well.
+This time, I followed up naturally with a few punchier points about
+the parallel update-stack and case-table memories.  I then discussed
+two dynamic analyses: update avoidance and speculative evaluation of
+primitive redexes.  Perhaps the update avoidance slides were still a
+bit laboured.  At the end, there was plenty of discussion and even the
+snoozer woke up to ask lots of questions.  There were some positive
+comments about the ideas, the talk, and even the slides.  The worries
+about poor memory capacity and performance arose again, but at least
+this time I was better prepared to discuss them.  My general feeling
+was that they liked the work but were dissapointed by the current
+results.
+
+What next?
+----------
+
+To complete and document:
+
+  1. Expand the arity-limit of 4.
+  2. The stack design.
+  3. The Reduceron II.
+  4. Performance measurements & comparison.
+  5. Blarney.
+
+To explore:
+
+  1. Make the sequential reducer use only 1 port of the heap, freeing
+     the other port for garbage collection and parallel reduction.
+  2. A garbage collector.
+  3. A parallel garbage collector.
+  4. A hybrid parallel garbage collector and parallel reducer.

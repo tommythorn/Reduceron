@@ -1,0 +1,178 @@
+===========================================================
+REDUCERON MEMO 36
+Case of known construction -- at compile-time and run-time
+Colin Runciman, 7 October 2009
+===========================================================
+
+Let's go straight into a fairly meaty example.  The Mate chess end-game
+program includes the following function to test whether player c's king
+on board bd is in check from an opposing force f on square (x,y).
+
+kingInCheckFrom c bd (Pair f (Pair x y)) =
+  case kingSquare c bd of {
+  Pair xk yk -> 
+    case f of {
+		King   -> con ((<=) (abs ((-) x xk)) 1)
+                  ((<=) (abs ((-) y yk)) 1) ;
+		Queen  -> dis (kingInCheckFrom c bd (Pair Rook   (Pair x y)))
+                  (kingInCheckFrom c bd (Pair Bishop (Pair x y))) ;
+		Rook   -> dis (con ((==) x xk)
+                       (emptyAtAll bd (filePath xk y yk)))
+                  (con ((==) y yk)
+                       (emptyAtAll bd (rankPath yk x xk))) ;
+		Bishop -> dis (con ((==) ((-) x y) ((-) xk yk))
+                       (emptyAtAll bd (diagPath (-) ((-) xk yk) x xk)))
+                  (con ((==) ((+) x y) ((+) xk yk))
+                       (emptyAtAll bd (diagPath (+) ((+) xk yk) x xk))) ;
+		Knight -> dis (con ((==) (abs ((-) x xk)) 2)
+                       ((==) (abs ((-) y yk)) 1))
+                  (con ((==) (abs ((-) x xk)) 1)
+                       ((==) (abs ((-) y yk)) 2)) ;
+		Pawn   -> con ((==) (abs ((-) x xk)) 1)
+			            ((==) yk (onFor c y )) ;
+
+After compilation, with -i1 as usual, here is how this function is
+currently encoded at the reduceron combinator level (with kingInChekFrom
+abbreviated to kICF and arguments elided on left-hand sides):
+
+kICF   v0 ... v2  =  v2 [kICF#9] v0 v1;
+kICF#1 v0 ... v6  =  (==) ((-) v1 v2) ((-) v3 v4) [con#1,con#2]
+                       (v5 [emptyAtAll#1]
+                         (diagPath (-) ((-) v3 v4) v1 v3)) [dis#1,dis#2]
+                           ((==) ((+) v1 v2) ((+) v3 v4) [con#1,con#2]
+                             (v5 [emptyAtAll#1]
+                               (diagPath (+) ((+) v3 v4) v1 v3)));
+kICF#2 v0 ... v6  =  let { v7 = (-) v1 v3; v8 = (-) v2 v4 } in
+                     (<=) ((<=) 0 v7 [abs#1,abs#2] v7) 1 [con#1,con#2]
+                       ((<=) ((<=) 0 v8 [abs#1,abs#2] v8) 1);
+kICF#3 v0 ... v6  =  let { v7 = (-) v1 v3; v8 = (-) v2 v4;
+                           v9 = (-) v1 v3; v10 = (-) v2 v4 } in
+                     (==) ((<=) 0 v7 [abs#1,abs#2] v7) 2 [con#1,con#2]
+                       ((==) ((<=) 0 v8 [abs#1,abs#2] v8) 1) [dis#1,dis#2]
+                         ((==) ((<=) 0 v9 [abs#1,abs#2] v9) 1 [con#1,con#2]
+                           ((==) ((<=) 0 v10 [abs#1,abs#2] v10) 2));
+kICF#4 v0 ... v6  =  let { v7 = (-) v1 v3 } in
+                     (==) ((<=) 0 v7 [abs#1,abs#2] v7) 1 [con#1,con#2]
+                       ((==) v4 (v6 [onFor#1,onFor#2] v2));
+kICF#5 v0 ... v6  =  Pair Rook (Pair v1 v2) [kICF#9]
+                       v6 v5 [dis#1,dis#2]
+                         (Pair Bishop (Pair v1 v2) [kICF#9] v6 v5);
+kICF#6 v0 ... v6  =  (==) v1 v3 [con#1,con#2]
+                       (v5 [emptyAtAll#1] (filePath v3 v2 v4)) [dis#1,dis#2]
+                         ((==) v2 v4 [con#1,con#2]
+                           (v5 [emptyAtAll#1] (rankPath v4 v1 v3)));
+kICF#7 v0 ... v7  =  v3 [kICF#1,kICF#2,kICF#3, kICF#4,kICF#5,kICF#6]
+                       v4 v5 v0 v1 v6 v7;
+kICF#8 v0 ... v5  =  kingSquare v3 v4 [kICF#7] v5 v0 v1 v4 v3;
+kICF#9 v0 ... v4  =  v1 [kICF#8] v3 v4 v0;
+
+I shall use references of the form #n to refer to the auxiliary combinators.
+
+At Compile-time
+---------------
+
+In #5 we have, in the now-church-encoded Pair applications, two instances
+of a case with a known construction as subject:
+
+kICF#5 v0 ... v6  =  Pair Rook (Pair v1 v2) [kICF#9]
+                       v6 v5 [dis#1,dis#2]
+                         (Pair Bishop (Pair v1 v2) [kICF#9] v6 v5);
+
+Considering first the Pair Rook application, we can apply the sole
+alternative
+
+kICF#5 v0 ... v6  =  kICF#9 Rook (Pair v1 v2) [*]
+                       v6 v5 [dis#1,dis#2]
+                         (Pair Bishop (Pair v1 v2) [kICF#9] v6 v5);
+
+where [*] represents an unused look-up table argument. Now in-lining #9:
+
+kICF#5 v0 ... v6  =  (Pair v1 v2) [kICF#8]
+                       v6 v5 Rook [dis#1,dis#2]
+                         (Pair Bishop (Pair v1 v2) [kICF#9] v6 v5);
+
+The same situation again!  We apply the sole alternative
+
+kICF#5 v0 ... v6  =  kICF#8 v1 v2 [*] v6 v5 Rook [dis#1,dis#2]
+                       (Pair Bishop (Pair v1 v2) [kICF#9] v6 v5);
+
+and then in-line it:
+
+kICF#5 v0 ... v6  =  kingSquare v6 v5 [kICF#7]
+                       Rook v1 v2 v5 v6 [dis#1,dis#2]
+                         (Pair Bishop (Pair v1 v2) [kICF#9] v6 v5);
+
+The kingSquare function is recursive, so it is not helpful to in-line
+its application.  But the Pair Bishop application can be handled in the
+same way as Pair Rook.  We end up with:
+
+kICF#5 v0 ... v6  =  kingSquare v6 v5 [kICF#7]
+                       Rook v1 v2 v5 v6 [dis#1,dis#2]
+                         (kingSquare v6 v5 [kICF#7]
+                            Bishop v1 v2 v5 v6) ;
+
+We cannot apply the sole-alternative principle any further, because
+we don't yet see the Pair in either case, and kingSquare might have
+an undefined result.  But we have saved 5-10 clock cycles for each
+application of #5.
+
+These sorts of applications with paired arguments explicit at compile-time
+may not be that frequent, but they do occur -- eg. the KnuthBendix
+program has several.  And they might occur more with more aggressive
+in-lining or other transformations.
+
+At Run-time
+-----------
+
+At run-time we can hope for big improvements from PRS for the kingInCheck
+function, particularly if functions such as 'abs' become primitives too.
+Look at combinator #3 for example:
+
+kICF#3 v0 ... v6  =  let { v7 = (-) v1 v3; v8 = (-) v2 v4;
+                           v9 = (-) v1 v3; v10 = (-) v2 v4 } in
+                     (==) ((<=) 0 v7 [abs#1,abs#2] v7) 2 [con#1,con#2]
+                       ((==) ((<=) 0 v8 [abs#1,abs#2] v8) 1) [dis#1,dis#2]
+                         ((==) ((<=) 0 v9 [abs#1,abs#2] v9) 1 [con#1,con#2]
+                           ((==) ((<=) 0 v10 [abs#1,abs#2] v10) 2));
+
+Assuming that
+
+* v1 .. v4 are already evaluated (as they almost always will be under PRS)
+
+* 'abs' is included among primitives eligible for PRS
+
+* PRS cascades, with 4 (-) applications in a first wave, 4 'abs'
+  applications in a second and 4 (==) comparisons in a third (optimistic?)
+
+here's a typical run-time instantiation of a #3 application.
+
+                                 True [con#1,con#2]
+                                   False [dis#1,dis#2]
+                                     (False [con#1,con#2]
+                                       True)
+
+Once again, we have two instances of cases with known constructors in
+encoded form, but now at run-time.  Is there some way to detect them
+on-the-fly during instantiation?
+
+If so, then the instantiated body becomes still smaller and
+computationally cheaper:
+
+                                 con#2 [*]
+                                   False [dis#1,dis#2]
+                                     con#1 [*] True
+
+The combinators for the (&&) and (||) alternatives used here are as follows.
+ 
+con#1 v0 v1 = False;
+con#2 v0 v1 = v1;
+
+dis#1 v0 v1 = v1;
+dis#2 v0 v1 = True;
+
+Is there any way that these could themselves be recognised as primitive,
+and their applications reduced at little cost, by analogy with the PRS
+scheme?  If so, and all three ingredients can be combined -- (1) PRS,
+(2) application of known-case alternatives, and (3) primitive logical
+alternatives -- the gains for this example would be immense!
+

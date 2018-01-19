@@ -1,0 +1,120 @@
+=======================================
+REDUCERON MEMO 47
+Descriptions of several F-lite programs
+Colin R, Matthew N
+4 May 2010
+=======================================
+
+Line counts are for F-lite sources including all required auxiliary
+functions.
+
+Adjoxo (106 lines)
+
+An adjudicator for the game noughts and crosses, aka. tic-tac-toe.
+The input is a game position, and the output is one of the three
+values Win, Draw or Loss indicating the outcome with best play for
+each of the players whose turn it might be.  The method is the usual
+minimax recursive evaluation of completed game trees.
+
+Braun (51 lines)
+
+A Braun tree is a balanced binary tree offering an efficient yet
+simple implementation of flexible arrays.  The program tests the
+property that converting a list to a Braun tree and back again is
+equivalent to the identity function.
+
+Cichelli (200 lines)
+
+Finds a perfect hash function for Haskell keywords.  It uses a
+backtracking search to find an assignment of natural-number values to
+each letter that starts or ends a keyword such that hash values for
+keywords, computed as start-value + end-value + length, are unique and
+occupy a small integer range without gaps.
+
+Clausify (131 lines)
+
+Puts propositional formulae in clausal form using a multi-stage
+transformation of formula-trees.  Almost a purely symbolic application,
+with hardly any arithmetic.
+
+Fib (10 lines)
+
+Computes the Nth number in the fibonacci sequence using a simple but
+naive doubly-recursive function definition.  A purely arithmetic
+program involving no data structures at all.
+
+Knuthbendix (533 lines)
+
+The Knuth-Bendix completion method tries to derive a convergent
+term-rewriting system for a given equational theory and
+symbol-weighting scheme.  It is a typical symbolic computing
+application from computer algebra.  The example input used in the
+program gives group-theoretic axioms from which ten rewriting rules
+are derived.
+
+Mate (393 lines)
+
+Solves chess end-game problems of the form "P to move and mate in N".
+The method is brute-force search in an explicit AND-OR game tree
+developing the given position to depth 2N-1.  Boards are represented
+by a square-piece assocation list for each player, where squares are
+coded as rank-file numeric pairs, so there is a fair amount of
+primitive arithmetic and comparison.
+
+MSS (47 lines)
+
+Computes the maximum segment sum of a list of integers.  Works by
+dividing the input list into all sub-lists, computing the sum of each,
+and returning the maximum.
+
+OrdList (46 lines)
+
+Checks the property that insertion of a number into an ordered list of
+numbers results in a list that is still ordered.  Numbers are
+represented as peano numerals, so this is a purely symbolic program.
+
+Parts (54 lines)
+
+Computes a celebrated number-theoretic function, the number of
+partitions of n, where a partition is a bag of positive integers that
+sum to n.  There is a sophisticated closed formula for this number,
+but the method here is to list and count partitions explicitly.
+
+PermSort (39 lines)
+
+Enumerates the permutations of a list of numbers, and returns the
+first ordered permutation.
+
+Queens (47 lines)
+
+Solves a programming problem made famous by Wirth: place N queens on
+an NxN chess board so that no two of queens occupy a common rank, file
+or diagonal.  The solution involves backtracking, list processing and
+an inner recursive loop that testing the safety of each candidate
+position for a new queen by primitive arithmetic comparisons with the
+coded positions of queens already in place.
+
+Queens2 (62 lines)
+
+A purely symbolic solution to the N-queens problem.  Represents the
+board as a list of lists.  Places a queen on one row at a time,
+maintaining a grid of threatened squares, and backtracks if a queen
+cannot be placed.
+
+Sudoku (209 lines)
+
+A Sudoku solver due to Richard Bird.  Fills the blank cells on a
+Sudoku board with valid digits, pruning many possible choices that
+cannot possibly lead to a solution.
+
+Taut (95 lines)
+
+A tautology checking program based on an example from Hutton's book.
+The method is a brute-force evaluation for all possible boolean
+assignments to variables.
+
+While (96 lines)
+
+A structural operational semantics of Nielson and Nielson's While
+language applied to a program that computes the number of divisors of
+given integer.

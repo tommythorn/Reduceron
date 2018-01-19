@@ -1,0 +1,98 @@
+==================================
+REDUCERON MEMO 2
+Widening function bodies revisited
+Colin R, 14 November
+Discussion added 15 November
+==================================
+
+Yesterday, in Memo 1, Matt considered the question of how to achieve wider
+function bodies for Reduceron.  The running example was
+
+  data List a = Nil | Cons a (List a)
+
+  rev xs acc =
+    case xs of
+      Nil -> acc
+      Cons x xs -> rev xs (Cons x acc)
+
+which currently gets compiled into the following equations.
+
+  Nil n c       = n                        (1)
+  Cons x xs n c = c x xs                   (2)
+  rev  v acc    = v acc (rev' acc)         (3)
+  rev' acc x xs = rev xs (Cons x acc)      (4)
+
+Matt observes that if lambda-expressions could somehow be supported
+then (4) could be in-lined in (3) like this
+
+  rev v acc  = v acc (\x xs -> rev xs (Cons x acc))
+
+but then points to several difficulties in the way of effective
+support for lambda including the apparent need for some new
+mechanism for dealing with variables such as x and xs.
+
+The troublesome functional expression can be rewritten to avoid the
+explicit lambda, by using the standard repertoire of small combinators
+such as 'flip' and 'comp'.
+
+    \x xs -> rev xs (Cons x acc)
+  = \x xs -> flip rev (Cons x acc) xs
+  = \x -> flip rev (Cons x acc)
+  = \x -> flip rev (flip Cons acc x)
+  = \x -> comp (flip rev) (flip Cons acc) x
+  = comp (flip rev) (flip Cons acc)
+
+Flipped constructors are simple enough.  They are no more
+expensive than their originals -- but we might hope to eliminate
+them anyway.
+
+      snoc = flip Cons
+  <=> snoc xs x n c = c x xs
+
+Now define
+
+      ver = flip rev
+  <=> ver acc v = rev v acc
+  <=> ver acc v = v acc (comp ver (snoc acc))
+
+And
+
+      verSnoc acc = comp ver (snoc acc)
+  <=> verSnoc acc x = ver (snoc acc x)
+  <=> verSnoc acc x v = ver (snoc acc x) v
+  <=> verSnoc acc x v = v (snoc acc x) (comp ver (snoc (snoc acc x)))
+  <=> verSnoc acc x v = v (snoc acc x) (verSnoc (snoc acc x))
+  <=> verSnoc acc x v = v (Cons x acc) (verSnoc (Cons x acc))
+
+So we obtain
+
+  rev v acc = v acc (verSnoc acc)
+  verSnoc acc x v = v (Cons x acc) (verSnoc (Cons x acc))
+ 
+Discussion (added 15 November)
+------------------------------
+
+Matt points out another solution to the in-lining problem for
+rev: instead of in-lining the rev' alternative "back into" the body
+of rev, we can in-line rev at the point of the recursive call in rev'.
+We obtain in a single step:
+
+  rev v acc = v acc (rev' acc)
+  rev' acc x xs = xs (Cons x acc) (rev' (Cons x acc))
+
+What is more, upto renaming of rev'/verSnoc and xs/v, this is
+*the same* solution as the one obtained before by in-lining the
+other way followed by the argument-flipping transormations!
+
+More generally, to achieve wider function bodies, here's one
+simple rule:
+
+  In-line saturated applications of functions that
+  do not have directly recursive definitions.
+
+For *single-level* constructor-case analysis this rule yields
+a directly recursive function with a nice fat body for each
+recursive alternative.  But what about nested cases, for example
+when there is case analysis of more than one argument?  That's
+a good question for another day.
+

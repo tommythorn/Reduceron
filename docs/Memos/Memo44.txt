@@ -1,0 +1,82 @@
+==========================
+REDUCERON MEMO 44
+An objective look at PRS
+Matthew N, 2 December 2009
+==========================
+
+In the Reduceron, an integer can be represented as a literal value
+(unboxed) or as pointer to a literal value (boxed).  As discussed in
+Memo 39, the boxed form prevents sucessfull PRS.  A possible
+workaround is to introduce recursive function wrappers which force
+strict integer arguments to their unboxed forms, allowing worker
+functions to enjoy successfull PRS.  This memo looks objectively at
+PRS, and considers the possibility of using the results of strictness
+analysis in a machine *without* PRS.
+
+CPS-based primitives
+--------------------
+
+For every primitive function (+) which takes two integers and produces
+an integer, we introduce a CPS version (+') which additionally takes a
+continuation that is passed the result of the function.  For example,
+
+  (+') 1 2 k
+
+would be reduced to
+
+  k 3.
+
+Example 1
+---------
+
+One of the programs on which PRS has a large impact is MSS.  MSS
+contains the following function.
+
+  sum xs = sumAcc 0 xs;
+
+  sumAcc acc Nil = acc;
+  sumAcc acc (Cons x xs) = sumAcc ((+) x acc) xs;
+
+By observing that sumAcc is strict in acc, we can avoid instantiating
+"(+) x acc" on the heap by transforming sumAcc to:
+
+  sumAcc acc Nil = acc;
+  sumAcc acc (Cons x xs) = (+') x acc sumAcc xs;
+
+The end result appears to be a version of sum that performs as well
+without PRS as it does with PRS.  However, the recursive call to
+sumAcc can no longer be inlined, making it more costly than the PRS
+version.
+
+Example 2
+---------
+
+Another function used in the MSS program is:
+
+  fromTo n m = case (<=) n m of {
+                 True -> Cons n (fromTo ((+) n 1) m);
+                 False -> Nil;
+               };
+
+A strictness analyser can easily spot that fromTo is strict in both
+arguments.  We could therefore avoid instantiation of "(+) n 1" on the
+heap by evaluating it before the recursive call to fromTo.  This could
+be achieved by transforming fromTo to
+
+  fromTo n m = case (<=) n m of {
+                 True -> Cons n ((+') n 1 fromTo m);
+                 False -> Nil;
+               };
+
+The end result is a version of fromTo that seems to perform as well
+without PRS as it does with PRS.  However, once again the recursive
+call to fromTo cannot be inlined.  Furthermore, notice that the 2nd
+argument to Cons is a 5-node application which may have to be split in
+two.
+
+Closing thought
+---------------
+
+A robust PRS implementation seems to require strictness information.
+Such information is useful in a Reduceron implementation without PRS,
+however the PRS mechanism still brings some benifits.

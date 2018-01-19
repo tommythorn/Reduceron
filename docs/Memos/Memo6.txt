@@ -1,0 +1,124 @@
+========================================================
+REDUCERON MEMO 6
+Case factorisation and special treatment of constructors
+Matthew N, 17 November
+========================================================
+
+Compilation of the program
+
+  type Var = Int
+  data Exp = Const Bool | Var Var | And Exp Exp
+
+  eval :: [(Var,Bool)] -> Exp -> Bool
+  eval env (Const b) = b
+  eval env (Var v) = lookup v env
+  eval env (And e0 e1) = eval env e0 && eval env e1
+
+produces the following combinators.
+
+  eval env e    = e const (var env) (add env)     (1)
+  const b       = b                               (2)
+  var env v     = lookup v env                    (3)
+  add env e0 e1 = eval env e0 && eval env e1      (4)
+
+Look at the RHS of eval: the variable "env" must be passed down to
+each case alternative that uses it.  In general, several variables may
+need to be passed down to each case alternative and the number of case
+alternatives could be large.  It is a waste of time and space to write
+these variables onto the heap several times.
+
+One possible solution is to factorise out the environment as follows.
+
+  eval env e    = e const var add env             (5)
+  const b env   = b                               (6)
+  var v env     = lookup v env                    (7)
+  add e0 e1 env = eval env e0 && eval env e1      (8)
+
+Notice that env is only referred to once in (5) rather than twice as
+in (1).
+
+Not only is the body of (5) three nodes smaller than that of (1) but
+it also contains one wide application and no small applications.
+
+Case memory
+-----------
+
+Factorising the environment also opens a new oppertunity.  Notice that
+in the body of (5) each case alternative is a *constant*.  Instead of
+writing a group of constants on the heap every time eval is applied,
+they could just be stored once in "case memory".  
+
+To illustrate, we might define an array to represent the case
+alternative constants for eval as
+
+  evalAlts = [| const, var, add |]
+
+and redefine equation (5) as
+
+  eval env e = e evalAlts env
+
+Now constructors must be encoded differently.  Instead of encoding
+them by the equations
+
+  Const x c v a   = c x
+  Var   x c v a   = v x
+  And   x y c v a = a x y
+
+we would define them as
+
+  Const x   alts = alts[0] x
+  Var   x   alts = alts[1] x
+  And   x y alts = alts[2] a x y
+
+where square brackets represent array lookup.  Case memory could be
+accessible in parallel with other memories, reducing any potential
+contentions.  It does not need to be a wide memory.
+
+Special constructors
+--------------------
+
+There is a more efficient way of dealing with these new kinds of
+constructors if we avoid treating them as functions.  First, observe
+that a constructor contains two pieces of information:
+
+  1. Its index in the list of all constructors of the same type, say i.
+  2. Its arity, say a.
+
+A constructor can be represented by the packed pair (i,a).  When such
+a pair appears on top of the stack, it can be reduced simply to
+
+  s[sp+a][i]
+
+where s is the stack, sp the stack pointer.  The expression s[sp+a]
+points to the array of alternatives in case memory.  The ith element
+of this array up contains the case alternative corresponding the the
+constructor being scrutinised.
+
+To allow constructors to be reduced in this way, we need to make every
+case alternative ignore the case table sitting "a" places from the top
+of the stack.  For example, we'd need to redefine the case
+alternatives (equations 6, 7, 8) as follows.
+
+  const b alts env   = b
+  var v alts env     = lookup v env
+  add e0 e1 alts env = eval env e0 && eval env e1
+
+Notice that alts is ignored.
+
+Potential impact
+----------------
+
+Case expressions with many alternatives can be handled more
+efficiently and constructors can be reduced in a single cycle.
+
+Open questions
+--------------
+
+Colin asked:
+
+  What is the criterion for deciding when this kind of factorisation
+  is applied? 
+
+  I suppose that even with such a new fast encoding of constructors, it
+  will still be worth in-lining/reducing "standard" constructors at
+  compile/transform time?

@@ -1,0 +1,155 @@
+================================================
+REDUCERON MEMO 37
+Determining the number of clock cycles needed to
+instantiate a combinator body.
+Version 2
+Colin Runciman, 9 October 2009
+================================================
+
+Memos 34 and 36 made assumptions about the cost of instantiating
+combinator bodies.  Subsequent white-board discussion with Matt has
+corrected some assumptions that were wrong or imprecise.
+
+This memo gives a simple way to determine the number of clock cycles
+per instantiation of a given combinator body, which should be accurate
+for the current implementation.
+
+Case-count, length and weight of an application
+-----------------------------------------------
+
+The case-count of an application e1 ... en is the number of expressions
+ei that are case-alternative tables.
+
+The length of a application e1 ... en is n minus the case-count of
+the application if the application is spinal, or n if the application
+is interior (non-spinal).
+
+The weight of an application of a primitive binary function, with
+neither of the first two arguments constant, is 2. The weight of all
+other applications is 1.
+
+Parameters
+----------
+
+There are four key parameters, corresponding to the Flite -r compile-time
+values, which together limit the size and complexity of expressions that
+can be instantiated in a single cycle:
+
+SLMAX = maximum spinal application length
+ILMAX = maximum interior (non-spinal) application length
+CTMAX = maximum number of case-alternative tables
+APMAX = maximum number of applications
+
+The values in these parameters in the current Reduceron implementation
+are SLMAX = 6, ILMAX = 4, CTMAX = 1, APMAX = 2.
+
+The Method
+----------
+
+(1) Consider the spinal application of the combinator body.  If the
+    application length exceeds SLMAX or the case-count exceeds CTMAX,
+    bracket the maximal partial application of length at most ILMAX and
+    case-count at most CTMAX, and proceed from (1).
+
+(2) Consider each non-spinal application.  If any length exceeds IMAX or
+    any case-count exceeds CTMAX, in each such case bracket the maximal
+    partial application of length at most ILMAX and case-count at most
+    CTMAX and proceed from (2).
+
+(3) Let WSUM be the sum of the weights of all applications in the body.
+    Clock cycles per instantiation = ceiling (WSUM / APMAX).
+
+Examples
+--------
+
+Consider two of the intermediate-stage combinators for the kingInCheckFrom
+function, as in Memo 36.
+
+kICF#5 v0 ... v6  =  Pair Rook (Pair v1 v2) [kICF#9]
+                       v6 v5 [dis#1,dis#2]
+                         (Pair Bishop (Pair v1 v2) [kICF#9] v6 v5);
+
+kICF#6 v0 ... v6  =  (==) v1 v3 [con#1,con#2]
+                       (v5 [emptyAtAll#1] (filePath v3 v2 v4)) [dis#1,dis#2]
+                         ((==) v2 v4 [con#1,con#2]
+                           (v5 [emptyAtAll#1] (rankPath v4 v1 v3)));
+
+(1) The length of the spinal application in #5 is 6, and in #6 it is 5.
+But the case-count of both spinal applications is 2, exceeding CTMAX.
+So we introduce brackets in each case:
+
+kICF#5 v0 ... v6  =  (Pair Rook (Pair v1 v2) [kICF#9] v6 v5)
+                       [dis#1,dis#2]
+                         (Pair Bishop (Pair v1 v2) [kICF#9] v6 v5);
+
+kICF#6 v0 ... v6  =  ((==) v1 v3 [con#1,con#2]
+                       (v5 [emptyAtAll#1] (filePath v3 v2 v4)))
+                       [dis#1,dis#2]
+                         ((==) v2 v4 [con#1,con#2]
+                           (v5 [emptyAtAll#1] (rankPath v4 v1 v3)));
+
+Now the spinal length is 2 in each case, and the spinal case-count is 1.
+
+(2) In #5 both Pair applications have length 6, exceeding ILMAX, so
+brackets must be introduced.  In #6 both (==) applications have length
+5, exceeding ILMAX, so more brackets are needed.  In both #5 and #6, all other
+application lengths are no more than ILMAX, and there is no problem
+with case-counts.
+
+kICF#5 v0 ... v6  =  ((Pair Rook (Pair v1 v2) [kICF#9]) v6 v5)
+                       [dis#1,dis#2]
+                         ((Pair Bishop (Pair v1 v2) [kICF#9]) v6 v5);
+
+kICF#6 v0 ... v6  =  (((==) v1 v3 [con#1,con#2])
+                       (v5 [emptyAtAll#1] (filePath v3 v2 v4)))
+                       [dis#1,dis#2]
+                         (((==) v2 v4 [con#1,con#2])
+                           (v5 [emptyAtAll#1] (rankPath v4 v1 v3)));
+
+(3) The sum of the application weights in #5 is 7, so 4 cycles are needed
+to instantiate it.  The sum of the application weights in #6 is 11,
+so 6 cycles are needed to instantiate it.
+
+Let expressions
+---------------
+
+The instantiation costs for applications defined in let bodies need only
+be paid once, of course.  In applications where the let variable is used,
+the costs are the same as for argument variables.
+
+Impact of PRS
+-------------
+
+These se instantiation costs will be unaltered by the PRS scheme Matt
+is currently implementing.  The primitive applications with simple
+arguments are *candidates* for evaluation.  Each is only evaluated to
+its result during instantiation if it is indeed found to be a redex.
+So the instantiation timing must allow for instances of candidate
+primitive applications that are non-redexes.
+
+Conclusions
+-----------
+
+It is not so hard to formulate an exact clock-count for instantiation,
+based on a combinatory form that is still quite readable for programmers.
+
+It would be helpful if the Flite options -d and -r could be used together.
+After each combinator dumped by -d there could be a report of the number
+of clock cycles per instantiation, assuming the -r parameter values.
+
+Currently the most severe of the *MAX limiting parameter values is
+CTMAX = 1.  In both examples, the spinal application had to be split
+solely because it included two case-table arguments.  In discussion,
+Matt has said there should be no difficulty in raising CTMAX to 2.
+
+The parameter APMAX = 2 is also a significant limiting factor. As Matt
+showed in Memo 25, a significant speed-up could be expected if APMAX were
+raised from 2 to 3. This is hardly surprising given the role of APMAX as
+divisor in step (3): with APMAX = 3 the clock-cycles per instantiation
+fall from 4 to 3 for #5 and from 6 to 4 for #6.  With the introduction
+of PRS the case for increasing APMAX is still stronger: the number of
+primitive-redex evaluations per instantiation cycle is also limited
+by APMAX.  If the redesign at the Reduceron level would take a bit of
+work, would it be worth doubling APMAX 4 to get a larger pay-off from
+the effort, or would that risk lengthening the critical path?
+

@@ -1,0 +1,111 @@
+===================================
+REDUCERON MEMO 39
+The Force-and-Rebind transformation
+Matthew N, 20 October 2009
+===================================
+
+Consider reduction of the fromTo function with primitive redex
+speculation (PRS) enabled.
+
+  fromTo m n =
+    case (<=) m n of {
+      False -> Nil;
+      True -> Cons m (fromTo ((+) m 1) n);
+    };
+
+If fromTo is passed literal integers as arguments, e.g. "fromTo 1 10",
+then both the comparison and the addition in the body of fromTo will
+be detected as primitive redexes and reduced on-the-fly.
+Consequently, the arguments to the recursive call will also be literal
+integers, and so the comparison and addition will be primitive redexes
+on every iteration.
+
+Now suppose that fromTo is passed unevaluated expressions, e.g.
+"fromTo (length xs) (length ys)".  The first time the comparison is
+encountered, it will not be detected as a primitive redex, and "length
+xs" and "length ys" will be forced via the default machinery for
+dealing with strict primitives.  One might hope that by the time the
+second case alternative is taken, since the values of m and n are then
+known, the addition will be detected as a primitive redex.  However,
+this is not the case: although m and n are fully evaluated, they are
+represented as pointers to literal integers on the heap - they are
+not themselves literal integers.  Sadly, on every iteration, no
+primitive redexes will be detected.
+
+It is easy to make fromTo more robust by defining it in a
+worker-wrapper fashion.
+
+  fromTo m n = n (m fromToWork);
+
+  fromToWork m n =
+    case (<=) m n of {
+      False -> Nil;
+      True -> Cons m (fromToWork ((+) m 1) n);
+    };
+
+The wrapper forces evaluation of m and n and then calls the worker.
+In doing so, m and n are rebound to literal, unboxed values.  This can
+be done because fromToWork is clearly strict in both arguments.
+
+Below I outline a transformation - called Force-and-Rebind - for
+automatically introducing these worker-wrapper style functions.
+
+The transformation
+------------------
+
+STEP 1. Look for functions of the form
+
+  f ... = ... case p e1 e2 of { False -> alt1 ; True -> alt2 } ...
+
+where p is a primitive function strict in both arguments returning a
+boolean, and alt1 or alt2 can lead to another call of f.
+
+STEP 2. Take all the strictly-needed variables of type integer
+referred to in e1 or e2 that also referred to in alt1 or alt2.  Call
+them v1..vn.  Proceed only if v1..vn is non-empty.
+
+STEP 3. Abstract the expression of interest into a function h:
+
+  f ... = ... h v1..vn w1..wn ...
+
+  h v1..vn w1..wn = case p e1 e2 of { False -> alt1 ; True -> alt2 };
+
+where w1..wn are the free variables, other than v1..vn, in the
+case expression.
+
+STEP 4. Create function f' like f but which forces evaluation of
+v1..vn before applying h:
+
+  f' ... = ... vn (..(v1 h)) w1..wn ...
+
+STEP 5. Now calls to f can be replaced by calls to f'.  However, as
+primed functions are meant to be wrappers, only calls to f which occur
+in a function that is NOT call-reachable from f should be replaced.
+
+Results
+-------
+
+Saving due to Force-and-Rebind transformation:
+
+  +-------------+------------+
+  | PROGRAM     |   % SAVING |
+  +-------------+------------+
+  | Adjoxo      |       -1.5 |
+  | Fib         |          0 |
+  | OrdList     |          0 |
+  | Queens      |       -7.9 |
+  | Queens2     |          0 |
+  | Cichelli    |       12.8 |
+  | KnuthBendix |       -2.1 |
+  | Parts       |          0 |
+  | SumPuz      |       28.6 |
+  | Clausify    |       -4.1 |
+  | MSS         |          0 |
+  | PermSort    |       -4.7 |
+  | Taut        |       -5.8 |
+  | CountDown   |       22.3 |
+  | Mate        |        0.3 |
+  | While       |       -5.0 |
+  +-------------+------------+
+  | AVERAGE     |          2 |
+  +-------------+------------+

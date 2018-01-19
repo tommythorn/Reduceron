@@ -1,0 +1,95 @@
+========================================
+REDUCERON MEMO 10
+Experminents in inlining, arity-raising,
+and indirection-avoidance
+Matthew N, 3 December 2008
+========================================
+
+Inlining
+--------
+
+Recall from Memo 2 the following rule.
+
+  In-line saturated applications of non-primitive functions that
+  do not have directly recursive definitions.
+
+Applying this rule has the following impact on the numbers of
+clock-cycles consumed by a range of F-lite programs.
+
+             ORIGINAL        INLINING      % SAVING
+  MSS       151967140       137601295           9.5
+  OrdList   149583463       118232316          20.9
+  PermSort   71759053        60278393          16.0
+  Adjoxo    224101439       203954019           9.0
+  Queens    126972754       113051007          11.0
+  Queens2   111123642        89323322          19.6
+  Sudoku     82204574        73035899          11.1
+  Clausify  105859724        93708139          11.4
+  While     170548771       154640245           9.3
+
+In many cases inlining and making function bodies wider is a win.  But
+very large bodies take space to store in code memory and on the heap.
+Furthermore, instantiation of a large body may be a waste of time if,
+due to lazy evaluation, a large amount of the body is often never
+evaluated.  So it is worth nothing that wider bodies are not always
+better.
+
+Arity-raising
+-------------
+
+In Memo 3 Colin proposed that functions can in some cases be
+arity-raised to increase oppertunities for the inlining rule.  Here
+are some measurements.
+
+             INLINING   +ARITY-RASING      % SAVING
+  MSS       137601295               ?             ?
+  OrdList   118232316       101049057          14.5
+  PermSort   60278393        53132888          11.6
+  Adjoxo    203954019       203628546             0
+  Queens    113051007       112837779           1.8
+  Queens2    89323322       151462605         -69.5
+  Sudoku     73035899        75028197          -2.7
+  Clausify   93708139       103427251         -10.3
+  While     154640245       150698191           2.5
+
+The '?' in the 'MSS' means 'a long time'.  The problem with doing
+arity-raising is that sometimes sharing is lost.
+
+Indirection-avoidance
+---------------------
+
+Section 2.10.4 of my thesis explains that the Reduceron can be easily
+improved by avoiding creating some kinds of indirection chains.  Here
+are some measurements of this improvement.
+
+             INLINING    +CHAIN-AVOID      % SAVING
+  MSS       137601295       109782887          20.2   
+  OrdList   118232316       118232316             0
+  PermSort   60278393        60278393             0
+  Adjoxo    203954019       196951019           3.4
+  Queens    113051007       113051007             0
+  Queens2    89323322        84118102           5.8
+  Sudoku     73035899        56199547          23.0
+  Clausify   93708139        92490351           1.3
+  While     154640245       154640245             0
+
+Here are the percentages of time taken to perform unwinding of
+indirections, even after chain-avoidance.
+
+                 % Time spent unwinding indirections
+  MSS            17
+  OrdList         0
+  PermSort        0
+  Adjoxo          9
+  Queens         10
+  Queens2         6
+  Sudoku         47
+  Clausify        0
+  While           0
+
+Further indirections could be avoided by writing the spine of a
+function body not on to the end of the heap but over the top of the
+current redex.  This depends on how much space the redex occupies, and
+whether it is large enough to hold the new spine.  Provided there is
+enough space, it is easy to do: just write the spine to a different
+address.  The problem is determining if there is enough space.

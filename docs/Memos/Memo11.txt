@@ -1,0 +1,65 @@
+==========================================
+REDUCERON MEMO 11 (ABANDONED)
+Enabling arity-raising by sharing analysis
+Matthew N, 3 December 2008
+==========================================
+
+Suppose that for every function 'f' in a program we introduce a
+function 'f*', the arity-raised version of 'f'.
+
+What we'd like to do is to go through a program and replace calls to
+'f' with calls to 'f*'.  Under what circumstances can we do this,
+without losing sharing?
+
+  Any application of 'f' being passed as an argument to a function that
+  is linear in that argument can be replaced with an application of
+  'f*'.
+
+What does it mean for a function to be linear in an argument?
+
+The body of a function 'f' is linear in argument 'v' if 
+
+  it is any expression containing 0 references to 'v'
+
+  OR
+
+  it is an application of a function 'g' of arity 'n' to 'm' arguments
+  AND one of the first 'min n m' arguments contains one reference to 'v'
+  AND that argument is linear in 'v'
+  AND the body of 'g' is linear in the variable at that argument position
+  AND none of the final 'nat(m-n)' arguments contains a reference to 'v'
+
+  OR
+
+  it is a case expression
+  AND the subject does not contain a reference to 'v'
+  AND each alternative is linear in 'v'
+
+  OR
+
+  it is a case expression
+  AND the subject does contain a reference to 'v'
+  AND the subject is linear in 'v'
+  AND each alternative does not contain a reference to 'v'
+  AND each alternative is linear in its each of its pattern-bound variables
+
+  OR
+
+  it is a let expression
+  AND the body references 'v'
+  AND the body is linear in 'v'
+  AND no binding references 'v'
+
+  OR
+
+  it is a let expression
+  AND the body does not reference 'v'
+  AND one binding binds a variable 'w' to an expression referencing 'v'
+  AND that expression is linear in 'v'
+  AND the let expression is linear in 'w'
+
+  OR
+
+  it is a variable
+
+(ABANDONED)

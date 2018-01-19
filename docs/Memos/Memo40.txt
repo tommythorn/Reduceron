@@ -1,0 +1,92 @@
+===================================================
+REDUCERON MEMO 40
+Forcing arguments to primitive functions, revisited
+Matthew N, 21 October 2009
+===================================================
+
+This is an alternative proposal to Memo 38.
+
+Quick recap
+-----------
+
+Currently the Reduceron compiler translates primitive applications
+by the rule
+
+  p n m     -->     m (n p)                (1)
+
+which forces evaluation of integer arguments n and m before applying
+primitive function p.  This is assuming the reduction rule
+
+  i e       -->     e i                    (2)
+
+for any fully evaluated integer i and arbitrary expression e.
+
+Mild generalisation
+-------------------
+
+For every binary primitive function p, let us introduce a new
+primitive swap:p, a version of p that expects its arguments flipped.
+
+Now translate binary primitive applications by the rule
+
+  p n m          -->     n p m             (3)
+
+and introduce the reduction rules
+
+  i p e          -->     e swap:p i        (4)
+
+  i p j          -->     p i j             (5)
+
+for any fully evaluated integers i and j, unevaluated expression e,
+and primitive function p.
+
+Note that the evaluator can actually perform the primitive application
+in (5) rather than merely instantiating it.
+
+Symmetry
+--------
+
+For symmetry, we can add the rule:
+
+  i swap:p e     -->     e p i             (6)
+
+for evaluated integer i, and unevaluated expression e.
+
+Now transformation rule (3) could just as sensibly be:
+
+  p n m          -->     m swap:p n        (8)
+
+In the interest of efficiency, choice of (3) and (8) could be informed
+by compile-time knowledge of whether n or m is expected to be already
+evaluated.
+
+Performance
+-----------
+
+Consider the number of clock cycles to compute "(+) a b" using the
+swap-based approach to force arguments:
+
+  * "(+) a b" is translated to "b (a (+))"
+  * Application of rule (2) is required after "b" is evaluated.
+  * One unwind is required to fetch argument "a (+)" from heap.
+  * Application of rule (2) is required after "a" is evaluated.
+  * A primitive reduction is required.
+  * That's 4 cycles in total.
+
+Using the approach described in Memo 38:
+
+  * "(+) a b" is translated to "b a (+)"
+  * After "b" is evaluated, it must be pushed onto the PV stack.
+  * After "a" is evaluated, it must be pushed onto the PV stack.
+  * A primitive reduction is required.
+  * That's 3 cycles in total.
+
+Using the approach described in this memo:
+
+  * "(+) a b" is translated to "a (+) b"
+  * Application of rule (4) is required after "a" is evaluated.
+  * Application of rule (5) is required after "b" is evaluated.
+  * That's 2 cycles in total.
+
+Also note that "a (+) b" comprises one application whereas "b (a (+))"
+comprises two, so the former is cheaper to instantiate.

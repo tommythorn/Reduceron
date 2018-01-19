@@ -1,0 +1,126 @@
+======================
+REDUCERON MEMO 4
+Chunky lists
+Matthew N, 17 November
+======================
+
+In Memo 1, I considered the possibility of a "chunky list", that is a
+list that can be constructed from (say) four heads as well as just
+from one.
+
+  data List a = Nil | Cons a (List a) | Cons4 a a a a (List a)
+
+Let's take a few standard functions over lists: a consumer
+(sum), a processor (map), and a producer (replicate).
+
+  sumL :: List Int -> Int
+  sumL Nil = 0
+  sumL (Cons x xs) = x + sumL xs
+
+  mapL f Nil = Nil
+  mapL f (Cons x xs) = Cons (f x) (mapL f xs)
+
+  replicateL :: Int -> a -> List a
+  replicateL n a = if n <= 0 then Nil else Cons a (replicateL (n-1) a)
+
+Currently these functions ignore the Cons4 constructor.  The intuition
+behind Cons4 is that is satisfies the following law.
+
+  Cons4 x0 x1 x2 x3 xs = Cons x0 (Cons x1 (Cons x2 (Cons x3 xs)))   (1)
+
+Now we want to synthesise a right-hand-side for
+
+  sumL (Cons4 x0 x1 x2 x3 xs)
+
+which by compile-time evaluation proceeds as follows
+
+    sumL (Cons4 x0 x1 x2 x3 xs)
+  = sumL (Cons x0 (Cons x1 (Cons x2 (Cons x3 xs))))
+  = x0 + sumL (Cons x1 (Cons x2 (Cons x3 xs)))
+    ...
+  = x0 + x1 + x2 + sumL xs
+  
+We can take a similar attack on map.
+
+    mapL f (Cons4 x0 x1 x2 x3 xs)
+  = mapL f (Cons x0 (Cons x1 (Cons x2 (Cons x3 xs))))
+  = Cons (f x0) (mapL f (Cons x1 (Cons x2 (Cons x3 xs))))
+    ...
+  = Cons (f x0) (Cons (f x1) (Cons (f x2) (Cons (f x3) (mapL f xs))))
+
+By equation (1) we get
+
+  Cons4 (f x0) (f x1) (f x2) (f x3) (mapL f xs)
+
+In replicate, we can inline the recursive call three times.
+
+  if n <= 0 then Nil else Cons a
+    (if n-1 <= 0 then Nil else Cons a
+      (if n-2 <= 0 then Nil else Cons a
+        (if n-3 <= 0 then Nil else Cons a (replicateL (n-4) a))))
+
+If the condition cannot evaluate to _|_ then a condtional can be
+rewritten using the distribution law
+
+  f (if cond then e0 else e1) = if cond then f e0 else f e1
+
+Since n is evaluated in the outermost condition, the distribution law
+can be applied in both its branches.
+
+  if n <= 0 then Nil else
+    if n <= 1 then Cons a Nil else
+      if n <= 2 then Cons a (Cons a Nil) else
+        if n <= 3 then Cons a (Cons a (Cons a Nil)) else
+          Cons a (Cons a (Cons a (Cons a (replicateL (n-4) a))))
+
+By equation (1) we get
+
+    if n <= 0 then Nil else
+      if n <= 1 then Cons a Nil else
+        if n <= 2 then Cons a (Cons a Nil) else
+          if n <= 3 then Cons a (Cons a (Cons a Nil)) else
+            Cons4 a a a a (replicateL (n-4) a)
+
+Experimental results
+--------------------
+
+The number of clock-cycles taken to compute
+
+  sumL (mapL sumL (replicateL 100 (replicateL 100 0)))
+
+using the original definitions is 269043 and using the wide
+definitions is 170992.  That's a 36% improvement.
+
+Conclusion
+----------
+
+Without sacrificing laziness we can transform programs to use chunky
+lists, giving a nice performance improvement (at least in one
+artificial example, which could probably be better improved using
+fusion!)
+
+The extent to which the transformation can be reliably done
+automatically remains unknown.
+
+Discussion (added 18 November)
+------------------------------
+
+The chunky benchmark would be even more efficient if you transformed
+replicateL to test for the chunky case *first*, and in other cases to
+use a binary chop:
+
+   if n > 3 then Cons4 ...
+   else if n > 1 then
+           if n > 2 then ...
+           else ...
+        else
+           if n > 0 then ...
+           else ...
+
+As you say the extent to which listy functions can be automatically
+extended to chunky functions is uncertain.  So there is the likely
+problem of switching to and fro between representations.  The overhead
+of expanding Cons4 for the benefit of non-chunky functions may not be
+too bad.  But there is the much more awkward issue of whether it is
+possible to chunkify long lists those functions may produce in
+standard Cons-Nil form.

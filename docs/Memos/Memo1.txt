@@ -1,0 +1,92 @@
+============================
+REDUCERON MEMO 1
+Widening function bodies
+Matthew N, 13 November 2008
+============================
+
+Take the standard definition of list-reversal using an accumulator.
+
+  data List a = Nil | Cons a (List a)
+
+  rev xs acc =
+    case xs of
+      Nil -> acc
+      Cons x xs -> rev xs (Cons x acc)
+
+The Reduceron compiler turns this definition into the following set of
+combinator definitions.
+
+  Nil n c       = n                        (1)
+  Cons x xs n c = c x xs                   (2)
+  rev  v acc    = v acc (rev' acc)         (3)
+  rev' acc x xs = rev xs (Cons x acc)      (4)
+
+The Reduceron can apply any one of these rewrite rules in
+
+  3 + (n `div` 8)
+
+clock-cycles, where n is the number of nodes in the right-hand-side.
+One can see that the Reduceron is fast at instantiating large function
+bodies --- the bigger the better!
+
+However, function bodies often contain case expressions and, in
+general, case expressions cause function bodies to be split up into
+small pieces when compiled to combinator expressions.  To be precise,
+a new combinator definition is created for each case-alternative whose
+pattern is a non-zero-arity constructor.  For example, equation (4)
+above captures the second case alternative in the original definition
+of rev.
+
+Can we avoid this splitting up, allowing larger functions bodies to
+remain?  One way would be to support lambda expressions and to redefine
+equation (3) as follows.
+
+  rev v acc  = v acc (\x xs -> rev xs (Cons x acc))
+
+The right-hand-size is definitly bigger, but now there is a new
+problem.  How do we instantiate a function-body containing
+lambda-bound variables?  When we apply rev, we don't know what to
+substitute for x and xs.  We have to build a closure for the lambda
+expression, but that corresponds to introducing a new combinator
+definition and creating a partial application of that combinator to
+the "environment" (in this case "acc").
+
+My tentative conclusion is that inlining case alternatives does not
+seem feasible.  But there is an alternative way to widen combinator
+bodies.
+
+Widening constructors
+---------------------
+
+Let us consider the possibility of a non-empty list containing four
+heads (say) as well as just a single head.
+
+  data List a = Nil | Cons a (List a) | Cons4 a a a a (List a)
+
+The rev function must now be adjusted to handle Cons4 constructors.
+
+  rev xs acc =
+    case xs of
+      Nil -> acc
+      Cons x xs -> rev xs (Cons x acc)
+      Cons4 x0 x1 x2 x3 xs -> rev xs (Cons4 x3 x2 x1 x0 acc)
+
+Now take a look at the resulting combinators.
+
+  Nil   n c c4                = n
+  Cons  x xs n c c4           = c x xs
+  Cons4 x0 x1 x2 x3 xs n c c4 = c4 x0 x1 x2 x3 xs
+  rev   v acc                 = v acc (rev' acc) (rev'' acc)
+  rev'  acc x xs              = rev xs (Cons x acc)
+  rev'' acc x0 x1 x2 x3 xs    = rev xs (Cons4 x2 x3 x1 x0 acc)
+
+They are quite a bit larger.  What's more they contain wider
+application nodes which the Reduceron can fetch very quickly.
+
+Of course, many questions remain.  Can constructors such as Cons4 be
+introduced automatically *and* without breaking laziness?  If not, we
+could define a library for "chunked" lists where the chunks are
+considered spine-strict --- how well would this work?  Can other
+functions, besides reverse, benifit from wider constructors too?
+Widening constructors opens the possibility for vector arithmetic ---
+can this be usefully exploited?

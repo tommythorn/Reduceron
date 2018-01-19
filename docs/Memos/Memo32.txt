@@ -1,0 +1,125 @@
+=============================================
+REDUCERON MEMO 32
+Thoughts about Reducera -- a Plural Reduceron
+Colin Runciman, 18 August 2009
+=============================================
+
+In this memo I'll set out my rough first thoughts about a machine
+combining more than one Reduceron evaluators working cooperatively in
+parallel to perform a single computation.
+
+This first version is a raw stream of half-baked thought! I am
+deliberately writing it without looking back at any of the literature on
+parallel graph reduction.  When I have looked again at that literature I
+may change my mind.  Come to that, just thinking about it again another
+day may be enough to change my mind too!
+
+* Twin Reducera
+
+Combining just two evaluators is already a challenge.  I consider
+such a twin combination to be a natural first step.  It offers certain
+special advantages.  For example, it means that there is a uniquely
+identified other Reduceron for each of the evaluators. At onother level,
+the FPGA hardware has twin memory ports.
+
+Even so, it would be nice to avoid over-dependence on two-ness.  Ideally,
+the principles of combination would scale naturally to any number of
+evaluators.
+
+* Templates, Patterns and Annotations?
+
+One school of thought argues from the slogan "If you want parallel
+computation, you must write a parallel program".  So, the argument
+goes, the programmer must use parallel control functions that capture
+certain common patterns -- such as a parallel map, or a parallel
+tree-structured fold.  Or else, or in addition, the programmer must
+add annotations to indicate where parallel evaluation should be used
+-- even though evaluation would not be needed under a standard lazy
+evaluation strategy.
+
+People who argue this way may have a point, but the big pain is that
+programs have to be rewritten.  This whole approach has been rather
+over-worked in my view, and I am not very keen on it.  I want to
+evaluate ordinary programs, without programmers having to use special
+functions or add special annotations.
+
+* Speculation
+
+Others would argue more generally that since lazy evaluation is inherently
+a sequential strategy, a degree of speculative evaluation is essential
+in any effective system for parallel evaluation.
+
+On the contrary, I suggest that speculative evaluation should only be
+performed (1) in the course of needed evaluation by the same evaluator,
+and (2) when the additional work-load is very small and involves no
+extra heap pressure.  The form of such evaluation we already have in
+mind is the contraction of any redex for a total primitive function to
+its result during the instantiation of function bodies.
+
+Experience suggest that speculative evaluation beyond such cases is
+hard to get right (ie. to make consistent with standard evaluation
+semantics) and involves surprisingly tricky machinery.  There is also
+the fundamental drawback that speculative computation may prove to be
+unnecessary computation, which is a bit sad if significant resources
+have been used to do it.
+
+* Strictness and Cost/Weight
+
+So where can we find scope for needed parallel reduction in a lazy
+language?  We need to identify component expressions of the computation
+whose value is strictly needed.  More than that, their likely cost of
+evaluation must be sufficient to outweigh the extra cost involved in
+coordinating the work of parallel evaluators.
+
+Strictness analysis can be used to discover many instances of needed
+expressions.  When a function is strict in more than one argument
+position, it may be worth evaluating the two arguments in parallel,
+but only if the weight of computation is sufficient in each case.
+
+One simple approximate test for a sufficiently weighty computation is to
+consider only the applications of recursive functions.  If only a simple
+strictness analysis is used, this test may need to be strengthened to
+consider only applications of functions with simple results.
+
+* Expressions and Evaluators: Who waits for whom? 
+
+What if there are more candidate parallel expressions for parallel
+evaluations than there are evaluators to perform them?  This state of
+affairs is quite likely with only twin Reduceron evaluators.  Should there
+be a pool or queue of expressions awaiting evaluation, like customers
+awaiting collection at a taxi rank?  Or should parallel computation be
+initiated only if there is a processor available, just as travellers
+arriving at a taxi rank with no taxi waiting may all decide to press on
+by other means?
+
+The attraction of the expression-queue approach is its apparent
+uniformity: whenever an expression satisfies the criteria for parallel
+evaluation, we just put it on the queue.  Simple.  But then the queue
+must be maintained, and it may grow unboundedly -- unless we abandon
+the simple uniformity after all.  So I am inclined not to have an
+expression-queue of hopeful parallel tasks.
+
+Conversely, what if there are more evaluators than expressions currently
+needing evaluation?  This will be the state of affairs initially, at
+least.  So there needs to be a pool or queue of evaluators waiting for
+work to do.  Note that unlike the expression queue, this one is inherently
+bounded by the total number of Reduceron evaluators in the machine.
+
+So, when there is an expression satisfying the conditions for parallel
+evaluation *and* there is an available processor, the expression is
+tagged as "under evaluation" for the benefit of other interested parties,
+and off they go.  When evaluation is complete the "under evaluation"
+tag is cleared.
+
+* Blocking and Resuming
+
+So what do we do when a computation comes across an expression it needs
+that is marked "under evaluation"?  We attach the computation's state to
+the expression, freeing the evaluator for other work.  When the evaluator
+of the expression returns to clear the "under evaluation" tag, the
+computation can continue.  So we need a queue of resuming computations.
+When an evaluator completes its current job, it should first look in this
+queue before declaring itself available for fresh parallel activity --
+just as a taxi driver checks his car's internal display for any jobs
+already available before illuminating its external FOR HIRE sign.
+

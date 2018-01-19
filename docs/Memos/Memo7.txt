@@ -1,0 +1,123 @@
+======================
+REDUCERON MEMO 7
+Memory layout
+Matthew N, 18 November
+======================
+
+The stack
+---------
+
+To allow fast substition, the Reduceron reads the top eight elements
+from the stack once, stores them in registers, and indexes this block
+of registers in parallel using eight multiplexors during instantiation
+of a body.
+
+But there is a limitation: a function cannot take more than eight
+arguments!  We can relax this limitation by simply increasing the
+block-size.  But we do not know how well this will scale: the
+multiplexor will get larger and we will either need to increase the
+width of stack memory or do multiple reads before instantiation.
+
+There is a much nicer solution.  Instead of having a wide stack in
+which eight consecutive nodes can be accessed together, we can use an
+eight-port stack.  We can then access any eight elements of the stack
+in parallel.  The number of arguments a function takes is now
+unlimited and instantiating any block of eight nodes in a function
+body can still be done in a single cycle.  Another advantage is that
+we no longer need a multiplexor to do the stack indexing, meaning less
+logic and less delay.  
+
+By "eight-port stack" I mean a stack with *eight read ports* and two
+write ports.  Such an eight-port RAM can be made from four dual port
+block RAMs.  Note that we only get the capacity of one block RAM even
+though we use four --- each one stores exactly the same information.
+So the disadvantage is that we loose some memory capacity.
+
+The heap
+--------
+
+In section 2.10.3 of my thesis I wrote:
+
+  Another implementation choice is whether to use quad-word memories or
+  to quadruple the word-size.  Quad-word memories have the advantage
+  that nodes can be addressed individually, but they require extra logic
+  on the address and data busses of block RAMs.  Quadrupling the
+  word-size requires no such extra logic, but nodes would have to be
+  appropriately aligned on word-boundaries, probably wasting storage due
+  to unused nodes inside words.
+
+The best choice is not clear cut.  But my gut feeling is that the
+simplicity of quadrupling the word size outweighs wasted nodes on the
+heap.  In the worst case, we would "only" waste half of the memory
+capacity.  The simplicity also brings a potential speed-up.  See next
+section.
+
+Cascading techniques
+--------------------
+
+The way block RAMs are cascaded in the current Reduceron is perhaps
+not the best.  In section 2.10.3 of my thesis I wrote:
+
+  There are alternative ways to configure and cascade block RAMs. For
+  example, block RAMs can by configured as 1k by 18-bit, or as 16k by
+  1-bit.  Instead of making a 16k by 18-bit memory by multiplexing the
+  outputs of 16 1k by 18-bit block RAMs, an alternative would be to use
+  18 16k by 1-bit block RAMs without the need for a multiplexor, simply
+  by concatenating the data busses. The latter approach saves logic at
+  the cost of a few extra block RAMs.
+
+At the moment, memory-reads take two cycles because of the delay
+introduced by the cascading multiplexor and the rotation logic used to
+implement quad-word memories.  I think we will find that memory reads
+can be single cycle when we use the alternative cascasing technique
+and the quadrupling word-size technique.  This has the potential to
+reduce unwinding from 2 cycles to 1, and unfolding from
+  
+  3 + (n `div` 8) cycles
+
+to
+
+  2 + (n `div` 8).
+
+Conclusion
+----------
+
+In my thesis I made three main design decisions in favour memory
+efficiency.  If we are willing to sacrifice a little memory, there is
+potential for a simpler, more general, faster Reduceron that uses less
+logic than the existing one.
+
+Discussion (added 26 November)
+------------------------------
+
+Colin asked:
+
+  1. Won't the needed arguments for each eight-node block need to be
+     pre-fetched from the stack, requiring an extra cycle?
+
+Suppose one cycle is needed to fetch a block of nodes from code
+memory.  One more cycle is needed to fetch the appropriate values from
+the stack.  So instantiating each block requires two cycles.  However,
+these two steps can be pipelined.  While fetching a block of arguments
+from the stack, we can fetch the next block of nodes from code memory.
+But yes, there would be a clock-cycle overhead in the beginning, to
+prime the pipeline.
+
+  2. In the worst case, isn't 75% of the memory wasted?  (We only use
+     the first byte in a four-byte word.)
+
+The only way a one-node application can arise is when the Reduceron
+introduces an indirection to implement sharing.  Such indirections can
+be removed during garbage collection.  Correction: one can imagine a
+five-node application being split into two four-word blocks in such a
+way that 75% of memory is wasted.
+
+  3. Are the two techniques [heap layout and cascading] applicable
+     independently?  What would be the gain from (say) the
+     new configuration of block RAM *alone*?
+
+Yes, they are applicable independently.  Together they require no
+logic on the memory bus, so I'm confident we'd get single-cycle
+access.  I'm not so confident we'll get this if we just cascade the
+block RAMs differently (we'll still need the rotation logic on the
+memory bus).

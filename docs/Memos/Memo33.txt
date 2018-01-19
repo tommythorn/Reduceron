@@ -1,0 +1,107 @@
+============================
+REDUCERON MEMO 33
+Fourth quarterly review
+Matthew N, 20 September 2009
+============================
+
+Since the second quarterly review (Memo 21), we have enhanced the FPGA
+implementation in three ways:
+
+  1. The arity-limit has been lifted from 4 to 7.
+
+  2. The constraint that case expressions can only appear in the
+     spines of function bodies has been lifted, allowing much greater
+     opportunity for inlining.
+
+  3. A two-space copying garbage collector has been implemented.  A
+     one-space collector was considered (Memo 28), which also takes
+     time linear in the size of the live heap, but has not been
+     implemented.
+
+We made following two performance improvements, discussed in Memo 25:
+
+  1. Improved update-avoidance by tagging each application with a bit
+     sating whether or not it is a normal form.  Applications which
+     are already in normal form do not need to be updated.  The result
+     is that, on average, 87% of updates are avoided instead of 60%.
+
+  2. Inlining all non-recursive functions whose bodies contain just a
+     single application gives an average 18% speed-up.  The reason for
+     this speed-up is discussed in Memos 2 and 25.
+
+All of the above modifications were made without lowering the maximum
+clock frequency of the design.
+
+We made the following measurements.
+
+  1. We carried out some parameter-tuning experiments (Memo 25),
+     using the machine semantics (implemented in Haskell).  We
+     measured the effect of max application length, max spine length,
+     and max instantiations per cycle on execution time.  We found
+     that the values 4, 6, and 2 respectively were good choices, but
+     that there was a mild-to-moderate benefit in increasing max
+     instantiations per cycle to 3.
+
+  2. We measured the performance of the FPGA implementation (Memo 30)
+     and found that, in terms of number of clock-cycles, it is over
+     four times faster than Matthew's thesis implementation.  On the new
+     FPGA, both the new and the thesis implementations clock around
+     the same frequency of 120MHz.
+
+  3. We profiled the FPGA implementation, and found that the average
+     time taken by garbage collector is now 2%, compared to
+     11% in the thesis implementation (Memo 30).  Explanations for
+     this include spinelessness and a larger heap.  We also found that
+     on average 22% of time is now taken performing swaps and
+     primitive reductions.
+
+Consequently, we have decided not to take the concurrent garbage
+collector route, at least for now.  On the other hand, speculative
+evaluation of primitive redexes now looks very worthwhile, and we
+sketched a possible design in Memo 31.  Once implemented, we expect
+the percentage time spent doing function unfolding to increase
+significantly, in which case increasing the max instantiation limit
+will become a much bigger win.
+
+We have implemented an efficient emulator for the Reduceron in C,
+allowing us to quickly explore ideas.
+
+Our very own Lava implementation has been polished and released on
+Hackage.  There is haddock documentation, a range of examples, and a
+feature overview (Memo 23).  One notable improvement is that the
+Recipe library for behavioural description has been rewritten.  It is
+more concise, and supports static analyses (including an optimiser)
+and shared procedure calls.
+
+We documented the design of the Caching Octostack in Memo 27, an
+important part of the FPGA implementation.  A preliminary experiment
+showed that the caching version has a significantly lower logic delay
+than the non-caching version, as expected.
+
+We wrote a compiler from F-lite to C, allowing F-lite programs to
+be run on an FPGA soft-core, which could be useful for comparative
+purposes.
+
+We added several more F-lite programs, including CountDown, Cichelli,
+Mate, and KnuthBendix.
+
+We started thinking about the design of a twin Reduceron (Memo 32).
+
+What next?
+----------
+
+Lots to do:
+
+  1. Implement "speculative evaluation of primitive redexes", first on
+     emulator, then FPGA.
+
+  2. Write a technical report, detailing the new Reduceron.
+
+  3. Prepare talk for Fun in the Afternoon, Cambridge, 26 November,
+     assuming my talk offer is accepted.
+
+  4. Improve compiler, by more adventurous inlining and
+     body-splitting, and maybe even incorporate Jason's supercompiler
+     pass.
+
+  5. Prototype a twin Reduceron.

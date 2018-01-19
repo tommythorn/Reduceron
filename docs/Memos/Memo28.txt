@@ -1,0 +1,80 @@
+=================================
+REDUCERON MEMO 28
+Mark-Compact in O(survivors) time
+Matthew N, 6 August 2009
+=================================
+
+One of the big advantages of copying collectors is that they take time
+linear in size of the live graph.  Most collectors take time linear in
+the size of the heap.  In functional language implementations, the
+live graph is typically small compared to the heap, due to many
+short-lived allocations.  This makes a copying collector very
+attractive in a functional setting.
+
+On the other hand, one of the big disadvantages of copying collectors
+is that they require the heap to be split into two sub-spaces: a
+"from-space" where the live graph and the garbage resides and a
+"to-space" where the live graph is written to.  The result is that
+maximum residency of the live graph is halved, wasting precious
+memory.
+
+This memo simply points out that a one-space compacting collector that
+takes time linear in the size of the live graph is possible.  The size
+of the live graph is sometimes referred to as the number of survivors,
+hence the time-complexity of the algorithm is O(survivors).  The
+algorithm is a mild variation of the Two-Finger Mark-Compact
+algorithm.
+
+The Two-Finger Mark-Compact algorithm
+-------------------------------------
+
+Jones and Lins define Edwards's Two-Finger algorithm as follows.
+
+  numSurvivors = mark();
+  relocate();
+  updatePointers(numSurvivors);
+  heapPointer = numSurvivors + 1;
+
+The "mark" phase marks the live cells in the heap, and takes time
+proportional to the size of the live graph.
+
+The "relocate" phase makes use of a left pointer and a right pointer.
+The left pointer starts at the left end of the heap and advances from
+left to right.  The right pointer starts at the right end of the heap
+and advances from right to left.  On each iteration, the left pointer
+is advanced to point to the next free cell, and the right pointer is
+advanced to point to the next live cell; the leftmost free cell is
+overwritten with the rightmost live cell, and the righmost live cell
+is overwritten its new address, as pointed to by the left pointer.
+The "relocation" phase finishes when the left pointer is larger than
+the right pointer.
+
+Finally, the "updatePointers" phase iterates through the compacted
+live graph and updates any pointers to relocated cells with their new
+addresses.
+
+The algorithm is linear in the heap size because every cell on the
+heap will have, at some stage during the algorithm, been pointed to by
+either the left or right pointer.
+
+Mild variation
+--------------
+
+Let us replace the right pointer with a traversal pointer that
+advances along the live graph, beginning at the root.  Now on every
+iteration, advance the traversal pointer to point the to next live cell
+whose address is larger than "numSurvivors".  Relocate the live cell
+to address pointed to by the left pointer, as above.
+
+This variant of the algorithm traverses "numSurvivors" cells three
+times: once in the mark phase, once when advancing the left pointer
+from address 0 to address numSurvivors, and once when advancing the
+traversal pointer along the live graph.
+
+Other considerations
+--------------------
+
+It is simple to implement a copying collector, and even simpler to do
+so with without using stack!  However, the mark phase in Mark-Compact
+does require either a stack or the pointer-reversal technique, and
+these are both somewhat complicated to implement.
