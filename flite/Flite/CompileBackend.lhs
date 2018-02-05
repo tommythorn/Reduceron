@@ -165,24 +165,30 @@ if so, performs an update.
 >   , "    if (ari <= args)"
 >   , "      break;"
 >   , "    assert(usp != ustack);"
+
+We have an AP on the update stack that was evaluated and must be
+updated.
+
+XXX GC can eliminate this indirection, but it looks like we aren't
+doing this (it might require us to mark the indirection as such).
+
+XXX When there's enough space we could overwrite the original AP
+instead of allocating a new AP and installing a redirection.
+
 >   , "    Node *base = hp;"
 >   , "    Node *p = usp->s;"
 >   , "    *hp++ = makeINT(args + 1);"
 >   , "    while (p < sp) *hp++ = *p++;"
 >   , "    *hp++ = top;"
 
-Install a forwarding pointer to the updated value
+Install a forwarding pointer to the updated value.  Note, this will
+leave a "rump" object of the remaining origSize-2 Nodes, but it will
+be compressed out at the next collection.
 
 >   , "    assert(isINT(usp->h[0]));"
 >   , "    long origSize = getINT(usp->h[0]);"
 >   , "    usp->h[0] = makeINT(1);"
 >   , "    usp->h[1] = makeAP(base);"
-
-XXX This is a little annoying, but I want to keep objects complete.
-However now we can potentially have a zero-sized object.
-
->   , "    if (origSize > 1)"
->   , "       usp->h[2] = makeINT(origSize - 2);"
 >   , "    usp--;"
 >   , "  }"
 >   , "}"
@@ -385,7 +391,7 @@ A shorthand for a common case
 
 > app :: Locs -> App -> String
 > app vs app = unlines $ header : map (node "*hp++" vs) app
->   where header = "*hp++ = makeINT (" ++ show (length app) ++ ");"
+>   where header = "*hp++ = makeINT(" ++ show (length app) ++ ");"
 
 > spine :: Locs -> App -> String
 > spine vs ns = unlines
