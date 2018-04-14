@@ -8,4 +8,4 @@ sim: obj_dir/Vtoplevel
 
 obj_dir/Vtoplevel: $(SRC)
 	@verilator --cc toplevel.v ../../../red-lava/simulation/altsyncram.v --exe sim_main.cpp 2>&1 > /dev/null
-	@make -C obj_dir -j -f Vtoplevel.mk Vtoplevel > /dev/null 2>&1
+	@make -C obj_dir -j -f Vtoplevel.mk >/dev/null 2>&1

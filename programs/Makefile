@@ -16,19 +16,16 @@ FLITE_RED=-r6:4:2:1:8 -i1 -s
 # but this came out ahead
 FLITE_OPTS=-h3 -i1
 RED=../fpga/Red
-CC=gcc-7
+# CC=gcc-8 on macOS, gcc is a fake, use Mac Home Brew to get the real McCoy
 CFLAGS=-O2 -DNDEBUG
-# set to your decired level of parallism or nothing at all
-#J=
-J=-j5
 
 regress:
-	$(MAKE) $(J) regress-emu
-	$(MAKE) $(J) regress-flite-sim
-	$(MAKE) $(J) regress-flite-comp
-	$(MAKE) $(J) regress-red-sim
-	$(MAKE) $(J) regress-flite-c-comp
-	$(MAKE) $(J) regress-red-verilog-sim
+	$(MAKE) regress-emu
+	$(MAKE) regress-flite-sim
+	$(MAKE) regress-flite-comp
+	$(MAKE) regress-red-sim
+	$(MAKE) regress-flite-c-comp
+	$(MAKE) regress-red-verilog-sim
 
 regress-hw: \
          regress-red-verilog-run
@@ -79,7 +76,7 @@ regress-red-verilog-sim: $(patsubst %,%.red-verilog-sim-checked,$(WORKLOADS))
 
 %.red-verilog-sim-checked: gold/compiled/%.red $(RED)
 	@cd verilog-sim;../$(RED) --output-name=$(patsubst gold/compiled/%.red,%,$<) --verilog ../$< > /dev/null
-	@time -f "%Us for $@" $(MAKE) --no-print-directory -C verilog-sim/$(patsubst gold/compiled/%.red,%,$<) sim | diff -u $(patsubst gold/compiled/%.red,gold/run/%.out,$<) - && touch $@
+	@time $(MAKE) --no-print-directory -C verilog-sim/$(patsubst gold/compiled/%.red,%,$<) sim | diff -u $(patsubst gold/compiled/%.red,gold/run/%.out,$<) - && touch $@
 
 regress-red-verilog-run: $(patsubst %,%.red-verilog-run-checked,$(WORKLOADS))
 

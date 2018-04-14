@@ -2,6 +2,8 @@
 #include "Vtoplevel.h"
 #include "verilated.h"
 
+using namespace std;
+
 Vtoplevel *top;
 
 
