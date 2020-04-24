@@ -18,6 +18,7 @@ FLITE_OPTS=-h3 -i1
 RED=../fpga/Red
 # CC=gcc-8 on macOS, gcc is a fake, use Mac Home Brew to get the real McCoy
 CFLAGS=-O2 -DNDEBUG
+QUIET=@
 
 regress:
 	$(MAKE) regress-emu
@@ -64,32 +65,32 @@ regress-flite-c-comp: $(patsubst %,%.flite-c-comp-checked,$(WORKLOADS))
 	$(FLITE) $(FLITE_OPTS) -c $< > $@
 
 %.exe: %.c $(FLITE)
-	@$(CC) $(CFLAGS) -DPRINT_RESULT $< -o $@
+	$(QUIET)$(CC) $(CFLAGS) -DPRINT_RESULT $< -o $@
 
 %.flite-c-comp-checked: %.exe $(EMU) $(FLITE)
 	./$< | diff -u $(patsubst %.exe,gold/run/%.out,$<) - && touch $@
 
 regress-red-sim:
-	@echo "regress-red-sim isn't implemented, as simulation in York Lava very quickly runs out of memory."
+	$(QUIET)echo "regress-red-sim isn't implemented, as simulation in York Lava very quickly runs out of memory."
 
 regress-red-verilog-sim: $(patsubst %,%.red-verilog-sim-checked,$(WORKLOADS))
 
 %.red-verilog-sim-checked: gold/compiled/%.red $(RED)
-	@cd verilog-sim;../$(RED) --output-name=$(patsubst gold/compiled/%.red,%,$<) --verilog ../$< > /dev/null
-	@time $(MAKE) --no-print-directory -C verilog-sim/$(patsubst gold/compiled/%.red,%,$<) sim | diff -u $(patsubst gold/compiled/%.red,gold/run/%.out,$<) - && touch $@
+	$(QUIET)cd verilog-sim;../$(RED) --output-name=$(patsubst gold/compiled/%.red,%,$<) --verilog ../$< > /dev/null
+	$(QUIET)time $(MAKE) --no-print-directory -C verilog-sim/$(patsubst gold/compiled/%.red,%,$<) sim | diff -u $(patsubst gold/compiled/%.red,gold/run/%.out,$<) - && touch $@
 
 regress-red-verilog-run: $(patsubst %,%.red-verilog-run-checked,$(WORKLOADS))
 
 %.red-verilog-run-checked: gold/compiled/%.red $(RED)
 	cd ../fpga; ./Red -v ../programs/$< && cp Reduceron/*.mif Reduceron/"BeMicro CV A9"
-	make -C ../fpga/Reduceron/"BeMicro CV A9"
+	$(MAKE) -C ../fpga/Reduceron/"BeMicro CV A9"
 
 comma:= ,
 empty:=
 space:= $(empty) $(empty)
 
 bench-flite-c-comp: $(patsubst %,%.bench-flite-c-comp,$(BENCHLOADS))
-	@cat {$(subst $(space),$(comma),$(BENCHLOADS))}.bench-flite-c-comp|sed -e 's/.*m//' -e 's/s//'
+	$(QUIET)cat {$(subst $(space),$(comma),$(BENCHLOADS))}.bench-flite-c-comp|sed -e 's/.*m//' -e 's/s//'
 
 %.bench-flite-c-comp: %.exe
-	@(time ./$<;time ./$<;time ./$<;time ./$<;time ./$<) 2>&1 | grep ^user | sort | head -1 | tee $@
+	$(QUIET)(time ./$<;time ./$<;time ./$<;time ./$<;time ./$<) 2>&1 | grep ^user | sort | head -1 | tee $@
