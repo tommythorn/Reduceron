@@ -3,13 +3,14 @@
 #
 # Sudoku after Parts, but is omitted as it uses "emit" which has no hardware
 # support
-WORKLOADS=And Example SmallFib Fib Parts KnuthBendix CountDown Adjoxo \
-          Cichelli Taut While Braun MSS Clausify OrdList Queens Queens2 \
+WORKLOADS=And SmallFib Example Fib Parts CountDown KnuthBendix Adjoxo \
+          Cichelli Taut While MSS Braun Clausify Queens OrdList Queens2 \
           PermSort SumPuz Mate2 Mate
 
 BENCHLOADS=Cichelli Braun OrdList Queens2 MSS Queens PermSort SumPuz Mate2 Mate
 
 EMU=../emulator/emu
+# XXX this is broken now as cabal has change; FIXME
 FLITE=../flite/dist/build/flite/flite
 FLITE_RED=-r6:4:2:1:8 -i1 -s
 # Surprisingly there isn't a clear winner among h[0-3] i[0-3] s[0-1],
@@ -36,8 +37,9 @@ bench: bench-flite-c-comp
 $(EMU): ../emulator/emu.c
 	$(MAKE) -C ../emulator emu
 
-$(FLITE):
+$(FLITE): flite.built
 	$(MAKE) -C ../flite
+	touch flite.built
 
 .PHONY: $(RED)
 $(RED):
