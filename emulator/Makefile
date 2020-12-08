@@ -1,7 +1,7 @@
 OPT_FAST=-O2 -DNDEBUG
 OPT_DEBUG=-g
 OPT=$(OPT_FAST)
-CFLAGS=-std=c99 $(OPT) -Wall -Werror
+CFLAGS=-std=c99 $(OPT) -Wall # -Werror
 EMUOPT=
 #EMUOPT=-t
 
