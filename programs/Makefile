@@ -10,8 +10,7 @@ WORKLOADS=And SmallFib Example Fib Parts CountDown KnuthBendix Adjoxo \
 BENCHLOADS=Cichelli Braun OrdList Queens2 MSS Queens PermSort SumPuz Mate2 Mate
 
 EMU=../emulator/emu
-# XXX this is broken now as cabal has change; FIXME
-FLITE=../flite/dist/build/flite/flite
+FLITE=../flite/dist/flite
 FLITE_RED=-r6:4:2:1:8 -i1 -s
 # Surprisingly there isn't a clear winner among h[0-3] i[0-3] s[0-1],
 # but this came out ahead
@@ -37,7 +36,7 @@ bench: bench-flite-c-comp
 $(EMU): ../emulator/emu.c
 	$(MAKE) -C ../emulator emu
 
-$(FLITE): flite.built
+$(FLITE):
 	$(MAKE) -C ../flite
 	touch flite.built
 
