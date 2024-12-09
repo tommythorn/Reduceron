@@ -34,7 +34,7 @@ jobs:
           ${{ runner.os }}-
 
     - name: Install dependencies
-      run: sudo apt update && sudo apt install iverilog
+      run: sudo apt update && sudo apt install iverilog verilator
 
     - name: Build and test
       run: make
