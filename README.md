@@ -9,7 +9,7 @@ MHz depending on the FPGA. A high degree of parallelism allows Reduceron
 to implement graph evaluation very efficiently.
 
 Reduceron is the work of Matthew Naylor, Colin Runciman and Jason Reich,
-who have kindly made their work available for others to use. Please see
+who have kindly made their work available for others to use.  Please see
 https://mn416.github.io/reduceron-project/ (the original
 http://www.cs.york.ac.uk/fp/reduceron no longer works) for supporting
 articles, memos, and original distribution.
