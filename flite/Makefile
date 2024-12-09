@@ -1,3 +1,3 @@
-dist/build/Flite/flite.always:
-	cabal configure
-	cabal $(J) build
+dist/flite:
+	stack --install-ghc build
+	stack --local-bin-path dist install

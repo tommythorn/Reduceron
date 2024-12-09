@@ -8,7 +8,7 @@ Maintainer:         Jason Reich <jason@cs.york.ac.uk>, Matthew Naylor <mfn@cs.yo
 Stability:          provisional
 Homepage:           http://www.cs.york.ac.uk/fp/reduceron/
 Build-Type:         Simple
-Cabal-Version:      >=1.6
+Cabal-Version:      >=1.8
 Description:        The f-lite language is a subset of Haskell 98 and Clean consisting of function
                     definitions, pattern matching, limited let expressions, function applications and
                     constructor applications expressed in the explicit 'braces' layout-insensitive format.
@@ -32,7 +32,6 @@ Executable flite
                     Flite.InterpFrontend, Flite.LambdaLift, Flite.Let, Flite.Matching,
                     Flite.Predex, Flite.Pretty, Flite.RedCompile, Flite.RedFrontend,
                     Flite.RedSyntax, Flite.State, Flite.Strictify, Flite.Syntax,
-                    Flite.Traversals, Flite.Writer, Flite.Writer, Flite.WriterState,
-                    Flite.Parsec.Parse, Flite.Parsec.Flite, Flite.Parsec.Prelude,
-                    Flite.Dependency, Flite.IntInfer, Flite.Strictness, Flite.WorkerWrapper,
-                    Paths_flite
+                    Flite.Traversals, Flite.Writer, Flite.WriterState, Flite.Parsec.Parse,
+                    Flite.Parsec.Flite, Flite.Parsec.Prelude, Flite.Dependency, Flite.IntInfer,
+                    Flite.Strictness, Flite.WorkerWrapper, Paths_flite
