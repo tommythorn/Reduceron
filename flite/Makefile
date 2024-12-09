@@ -1,3 +1,3 @@
 dist/build/Flite/flite.always:
-	cabal configure
-	cabal $(J) build
+	stack --resolver=lts-12.26 install Cabal
+	stack --resolver=lts-12.26 build
