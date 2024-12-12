@@ -13,7 +13,7 @@ newToggler :: New Toggler
 newToggler = return Toggler `ap` newRegInit 1
 
 toggler :: Bit -> Toggler -> Recipe
-toggler ready s = while 1 $do
+toggler ready s = while 1 $ do
                      while (inv ready) tick
                      s.output <== vmap inv (s.output.val)
                      tick

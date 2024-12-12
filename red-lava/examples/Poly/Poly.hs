@@ -86,17 +86,17 @@ poly :: Poly -> Recipe
 poly s =
   let instr = s.code.top in do
           tick
-          while (instr.isHALT.inv) $do
-             iff (isLIT instr) $do s.rtop <== getLIT instr
-             iff (isDUP instr) $do s.stack.push (s.rtop.val)
-             iff (isREV instr) $do
+          while (instr.isHALT.inv) $ do
+             iff (isLIT instr) $ do s.rtop <== getLIT instr
+             iff (isDUP instr) $ do s.stack.push (s.rtop.val)
+             iff (isREV instr) $ do
                    s.rtop <== s.stack.top
                    s.stack.pop
                    s.stack.push (s.rtop.val)
-             iff (isADD instr) $do
+             iff (isADD instr) $ do
                    s.rtop <== s.rtop.val + s.stack.top
                    s.stack.pop
-             iff (isMUL instr) $do
+             iff (isMUL instr) $ do
                    s.mult.multiply (s.rtop.val) (s.stack.top)
                    s.rtop <== s.mult.result.val
                    s.stack.pop

@@ -12,10 +12,10 @@ newMult = return Mult `ap` newReg `ap` newReg `ap` newReg
 
 shiftAndAdd :: N n => Mult (S n) -> Recipe
 shiftAndAdd s = do
-    while (s.b.val =/= 0) $do
+    while (s.b.val =/= 0) $ do
        s.a <== low `vshr` (s.a.val)
        s.b <== (s.b.val) `vshl` low
-       iff (s.b.val.vhead) $do
+       iff (s.b.val.vhead) $ do
            s.result <== s.result.val + s.a.val
        tick
 

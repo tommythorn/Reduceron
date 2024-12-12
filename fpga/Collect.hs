@@ -165,7 +165,7 @@ because we have to deal with up to 4 atoms at a time.
 copy c = do c.tsp <== 0
             tick
 
-            while (c.tsp.val |<| c.toSpace.Heap.size) $do
+            while (c.tsp.val |<| c.toSpace.Heap.size) $ do
                 c.toSpace.lookupB (c.tsp.val)
                 tick
 
@@ -176,21 +176,21 @@ copy c = do c.tsp <== 0
                 c.copyChildProc.call
                 c.newAtom0 <== c.child.val
 
-                iff (c.appToCopy.val.appArity |>=| 1) $do
+                iff (c.appToCopy.val.appArity |>=| 1) $ do
                     c.child <== c.appToCopy.val.atoms `vat` n1
                     tick
 
                     c.copyChildProc.call
                     c.newAtom1 <== c.child.val
 
-                iff (c.appToCopy.val.appArity |>=| 2) $do
+                iff (c.appToCopy.val.appArity |>=| 2) $ do
                     c.child <== c.appToCopy.val.atoms `vat` n2
                     tick
 
                     c.copyChildProc.call
                     c.newAtom2 <== c.child.val
 
-                iff (c.appToCopy.val.appArity |>=| 3 <|> c.appToCopy.val.hasAlts) $do
+                iff (c.appToCopy.val.appArity |>=| 3 <|> c.appToCopy.val.hasAlts) $ do
                     c.child <== c.appToCopy.val.atoms `vat` n3
                     tick
 
@@ -230,16 +230,16 @@ possible new location in to-space.
 -}
 
 copyChild child fromSpace toSpace =
-  iff (child.val.isAP) $do
+  iff (child.val.isAP) $ do
       fromSpace.lookupB (child.val.pointer)
       tick
 
-      iff (doCopy) $do
+      iff (doCopy) $ do
           child <== makeAP (child.val.isShared) newAddr
           toSpace.snocA app
           fromSpace.updateA (child.val.pointer) (makeCollected newAddr)
 
-      iff (inv doCopy) $do
+      iff (inv doCopy) $ do
         child <== app.atoms.vhead
 
       tick
@@ -300,7 +300,7 @@ updateUStack c =
     c.ustackSize <== c.ustack.US.size
     tick
 
-    while (c.usp.val |<=| c.ustackSize.val) $do
+    while (c.usp.val |<=| c.ustackSize.val) $ do
 
         tick
 
@@ -311,7 +311,7 @@ updateUStack c =
         tick
 
         c.usp <== c.usp.val + 1
-        iff (c.fromSpace.outputA.isCollected) $do
+        iff (c.fromSpace.outputA.isCollected) $ do
             c.uspNew <== c.uspNew.val + 1
             let ha' = c.fromSpace.outputA.relocatedAddr in
               c.ustack.modify (c.uspNew.val) (makeUpdate sa' ha')
@@ -387,7 +387,7 @@ copyBack c =
      c.tsp <== 0
      tick
 
-     while (c.tsp.val |<| c.toSpace.Heap.size) $do
+     while (c.tsp.val |<| c.toSpace.Heap.size) $ do
         c.toSpace.lookupA (c.tsp.val)
         c.tsp <== c.tsp.val + 1
         tick

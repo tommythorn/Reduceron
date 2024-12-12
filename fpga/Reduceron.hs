@@ -113,7 +113,7 @@ Top-level dispatch loop
 
 dispatch :: Reduceron -> Recipe
 dispatch r = do tick
-                while (r.state.isHaltState.inv) $do
+                while (r.state.isHaltState.inv) $ do
                      r.unwind
                      r.performUpdate
                      r.prim
@@ -261,7 +261,7 @@ unwindMask n = (a <|> b) +> a +> (a <&> b) +> vecOf low
   where (a, b) = (n `vat` n1, n `vat` n0)
 
 unwind :: Reduceron -> Recipe
-unwind r = iff (isUnwindState (r.state)) $do
+unwind r = iff (isUnwindState (r.state)) $ do
                r.newTop <== vhead as
                r.vstack.update (n <+ low <+ low) (unwindMask n) (velems $ vtail as)
                iff (app.hasAlts) $ r.astack.push (app.alts)
@@ -333,10 +333,10 @@ Other tasks carried out by the update operation:
 -}
 
 performUpdate :: Reduceron -> Recipe
-performUpdate r = iff (isUpdateState (r.state)) $do
+performUpdate r = iff (isUpdateState (r.state)) $ do
                       r.newTop <== r.top
                       r.ustack.US.pop
-                      iff (r.vstack.OS.size |>=| sa) $do
+                      iff (r.vstack.OS.size |>=| sa) $ do
                           r.dashTopN <== n
                           iff long $ r.heap.snocA (makeApp a1 high low app1)
                           r.heap.updateB ha (long ? ( makeApp a2 high low app2
@@ -372,7 +372,7 @@ Swaps the top two stack elements.
 -}
 
 swap :: Reduceron -> Recipe
-swap r = iff (isSwapState (r.state)) $do
+swap r = iff (isSwapState (r.state)) $ do
              r.newTop <== r.vstack.OS.tops.vhead
              r.vstack.OS.update 0 (high +> 0) [r.top]
 
@@ -389,19 +389,19 @@ according to Memo 40.
 -}
 
 prim :: Reduceron -> Recipe
-prim r = iff (isSwapState (r.state)) $do
+prim r = iff (isSwapState (r.state)) $ do
 
-             iff (ready) $do
+             iff (ready) $ do
                  r.newTop <== result
                  iff (inv st32) $ r.vstack.update (-2) 0 []
 
                  -- Handle IO primitives
-                 iff (st32) $do r.vstack.update (-3) 0 []
-                                r.ioWrite     <== 1
-                                r.ioAddr      <== sw ? (arg2.intValue, arg1.intValue)
-                                r.ioWriteData <== sw ? (arg1.intValue, arg2.intValue)
+                 iff (st32) $ do r.vstack.update (-3) 0 []
+                                 r.ioWrite     <== 1
+                                 r.ioAddr      <== sw ? (arg2.intValue, arg1.intValue)
+                                 r.ioWriteData <== sw ? (arg1.intValue, arg2.intValue)
 
-             iff (inv ready) $do
+             iff (inv ready) $ do
                  r.newTop <== arg2
                  r.vstack.update 0 3 [pr.invSwapBit, arg1]
 
@@ -435,7 +435,7 @@ Instantiates a template from code memory onto the heap and stack.
 -}
 
 unfold :: Reduceron -> Recipe
-unfold r = iff (isUnfoldState (r.state)) $do
+unfold r = iff (isUnfoldState (r.state)) $ do
                r.newTop <== t.templateTop
                iff (r.top.isCON)          $ r.astack.US.pop
                iff (t.templateInstApp1)   $ r.heap.snocA' (t.templateApp1)
