@@ -63,14 +63,13 @@ checkArg scope e = False
 data Count a = Count { runCount :: Int -> (Int, a) }
 
 instance Monad Count where
-  return a = Count $ \n -> (n, a)
   x >>= f = Count $ \n -> case runCount x n of (m, y) -> runCount (f y) m
 
 instance Functor Count where
   fmap = liftM
 
 instance Applicative Count where
-  pure  = return
+  pure a = Count $ \n -> (n, a)
   (<*>) = ap
 
 one :: a -> a -> Count a

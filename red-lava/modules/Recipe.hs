@@ -64,14 +64,13 @@ type Recipe = RecipeM ()
 data RecipeM a = RecipeM [Command] a
 
 instance Applicative RecipeM where
-    pure  = return
+    pure  = RecipeM []
     (<*>) = ap
 
 instance Functor RecipeM where
     fmap f (RecipeM cs a) = RecipeM cs (f a)
 
 instance Monad RecipeM where
-    return x = RecipeM [] x
     (RecipeM cs a) >>= f = let (RecipeM cs' a') = f a in RecipeM (cs ++ cs') a'
 
 data Command
@@ -291,13 +290,12 @@ instance Functor (RWS r w s) where
   fmap = liftM
 
 instance Monad (RWS r w s) where
-  return a = RWS (\r s -> (s, [], a))
   m >>= f = RWS (\r s -> let (s0, w0, a) = runRWS m r s
                              (s1, w1, b) = runRWS (f a) r s0
                          in  (s1, w0 ++ w1, b))
 
 instance Applicative (RWS r w s) where
-  pure  = return
+  pure a = RWS (\r s -> (s, [], a))
   (<*>) = ap
 
 get :: RWS r w s s

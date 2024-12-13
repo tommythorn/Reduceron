@@ -38,13 +38,12 @@ instance Functor JList where
   fmap f (as :+: bs) = fmap f as :+: fmap f bs
 
 instance Monad JList where
-  return a = One a
   Zero >>= f = Zero
   One a >>= f = f a
   (as :+: bs) >>= f = (as >>= f) :+: (bs >>= f)
 
 instance Applicative JList where
-  pure  = return
+  pure  = One
   (<*>) = ap
 
 map :: (a -> b) -> JList a -> JList b
