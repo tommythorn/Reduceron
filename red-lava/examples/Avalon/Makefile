@@ -3,4 +3,4 @@ avalon: Avalon.v main.v
 	./avalon
 
 Avalon.v: Main.hs
-	cd ..;runhaskell -i../modules/: Avalon/Main.hs
+	cd ..;runhaskell -Wno-x-partial -i../modules/: Avalon/Main.hs

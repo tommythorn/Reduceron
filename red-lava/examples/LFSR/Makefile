@@ -1,2 +1,2 @@
 all:
-	cd ..;runhaskell -i../modules/: LFSR/LFSR.hs
+	cd ..;runhaskell -Wno-x-partial -i../modules/: LFSR/LFSR.hs

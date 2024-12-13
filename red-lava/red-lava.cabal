@@ -16,7 +16,7 @@ Build-Depends:       base < 5, containers, process
 Build-Type:          Simple
 Stability:           provisional
 Homepage:            https://github.com/tommythorn/reduceron
-Ghc-options:         -fno-cse -fno-full-laziness
+Ghc-options:         -fno-cse -fno-full-laziness -Wno-x-partial
 Hs-source-dirs:      modules
 Exposed-modules:
   Recipe

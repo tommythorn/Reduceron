@@ -3,4 +3,4 @@ toggle: Toggle.v main.v
 	./toggle
 
 Toggle.v: Toggle.hs
-	cd ..;runhaskell -i../modules/: Toggle/Toggle.hs
+	cd ..;runhaskell -Wno-x-partial -i../modules/: Toggle/Toggle.hs

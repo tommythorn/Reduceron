@@ -3,5 +3,5 @@ a.out: Poly.v main.v
 	./a.out
 
 Poly.v: Poly.hs
-	cd ..;runhaskell -i../modules/:Mult:Stack: Poly/Poly.hs
+	cd ..;runhaskell -Wno-x-partial -i../modules/:Mult:Stack: Poly/Poly.hs
 	@for x in *.mif;do grep : < $$x|sed -e "s,^.*:,," -e "s,;,," > $$x.txt;done
