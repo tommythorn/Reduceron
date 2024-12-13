@@ -1,3 +1,8 @@
+# Work around
+# "Warning: Installation path .../reduceron/flite/dist
+#         not found on the PATH environment variable."
+export PATH:=$(PATH):$(PWD)/flite/dist
+
 #WORKLOADS=$(patsubst %.hs,%,$(shell ls *.hs))
 # Workloads sorted by time to execute
 #
