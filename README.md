@@ -17,31 +17,9 @@ articles, memos, and original distribution.
 
 ## OK, WHAT'S THIS THEN?
 
-The present is a fork of the original distribution which intends to take
-the (York) Reduceron from the research prototype to the point where it
-can be useful for embedded projects and more.
-
-The York Reduceron needs the following enhancements to meet our needs:
-
- 0. The heap and program must (for the most parts) be kept in external
-    memory, with FPGA block memory used for the stacks and heap and
-    program caches.
-
-    This simultaneously enables smaller and less expensive FPGAs to be
-    used as well as allows for a much larger heap and larger programs.
-
- 1. Access to memory mapped IO devices (and optionally, RAM).
-
- 2. Richer set of primitives, including multiplication, shifts, logical
-    and, or, ...
-
- 3. Support for 32-bit integers - this greatly simplifies interfacing to
-    existing IO devices and simplifies various numerical computations.
-
- 4. Stack, update stack, [and case table stack?] should overflow
-    into/underflow from external, allowing for orders of magnitude
-    larger structures.
-
+The present is a fork of the original distribution with the aim of
+keeping it running.  Originally there were more lofty
+goals, but that's all abandonned.
 
 While Reduceron technically refers to the FPGA implementation, it is
 supported by
@@ -50,7 +28,6 @@ supported by
  - A Red emulator in C
  - Red Lava: Reduceron is a Red Lava program, which generate Verilog
  - Support for Verilog simulation and synthesis for various FPGA boards
-
 
 As much of the history as was available has been gathered and
 Reduceron, Lava, and the Flite distribution have been merged into one
@@ -68,7 +45,7 @@ finish.
 
 To build:
 
-   make
+    make
 
 Or run a specific test suite:
 
@@ -94,37 +71,6 @@ for an FPGA board, fx the BeMicroCV A9:
 
 Unfortunately programs can't currently be loaded dynamically but are
 baked into the FPGA image.  It's a high priority goal to change that.
-
-## WHERE IS THIS GOING?
-
-### Plan ###
-
-  1. Port to Verilog and remove Xilinx-isms. DONE!
-
-  2. Shrink to fit mid-sized FPGA kits (eg. DE2-115 and BeMicroCV-A9).
-     DONE!
-
-  3. Rework Lava and the Reduceron implementation to be more
-     composable and elastic; this means fewer or no global assumptions
-     about timing.  ONGOING!
-
-  4. Support load/store to an external bus (the key difficulty is
-     stalling while waiting on the bus).
-
-  5. Use the program memory as a cache, making programs dynamically
-     loadable and dramatically raise the size limits.
-
-### Eventual Plan ###
-
-  - Move the heap [and tospace] to external memory
-  - Add a heap cache/newspace memory
-  - Implement the emu-32.c representation for the external heap
-  - Much richer primitives
-  - Haskell front-end
-
-### Long Term Plan ###
-
-  - Research the design space; explore parallelism
 
 ## OPEN QUESTIONS, with answers from Matthew:
 
