@@ -1,0 +1,5 @@
+read_verilog ulx3s_top.v
+read_verilog ../Reduceron.v
+read_verilog rs232tx.v
+read_verilog ecp5pll.sv
+synth_ecp5 -noccu2 -nomux -nodram -json ulx3s.json
